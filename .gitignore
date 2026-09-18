@@ -1,0 +1,9 @@
+node_modules/
+dist/
+dist-server/
+.env
+*.log
+data/
+
+# Osobné nastavenia Claude Code (povolenia), nepatria do repozitára
+.claude/settings.local.json
