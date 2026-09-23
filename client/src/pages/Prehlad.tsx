@@ -398,7 +398,15 @@ export function Prehlad() {
                     </linearGradient>
                   </defs>
                   <CartesianGrid vertical={false} />
-                  <XAxis dataKey="mesiac" axisLine={false} tickLine={false} interval={0} tickMargin={8} />
+                  <XAxis
+                    dataKey="mesiac"
+                    axisLine={false}
+                    tickLine={false}
+                    interval={0}
+                    tickMargin={8}
+                    // Krajné mesiace (jan, dec) by inak boli na hrane grafu orezané.
+                    padding={{ left: 14, right: 14 }}
+                  />
                   <YAxis hide />
                   <Tooltip
                     cursor={{ stroke: 'var(--line)' }}
@@ -472,14 +480,16 @@ export function Prehlad() {
                           <td>
                             <span className="cislo-faktury">{f.cislo}</span>
                           </td>
-                          <td className="odberatel-bunka">{f.firma_nazov || <span className="tlmene">—</span>}</td>
+                          <td className="odberatel-bunka" title={f.firma_nazov || undefined}>
+                            {f.firma_nazov || <span className="tlmene">—</span>}
+                          </td>
                           <td style={{ whiteSpace: 'nowrap' }}>
                             {skDatum(f.datum_splat)}
                             {otvorena && <Dni splatnost={f.datum_splat} />}
                           </td>
                           <td className="cislo">{skSuma(f.suma)}</td>
                           <td>
-                            <StitokStavu stav={f.stav_zobraz} />
+                            <StitokStavu stav={f.stav_zobraz} kratko />
                             {f.typ === 'zaloha' ? (
                               <span className="pod-stitkom">
                                 {f.kryje_cislo ? `kryje ${f.kryje_cislo}` : 'zálohová faktúra'}

@@ -60,8 +60,8 @@ export const STAV_SQL = `
     WHEN i.stav = 'koncept' THEN 'koncept'
     WHEN ${UHRADENE_SQL} >= i.suma - 0.005 THEN 'zaplatena'
     WHEN ${UHRADENE_SQL} > 0
-      THEN CASE WHEN i.datum_splat < date('now') THEN 'po_splatnosti_ciastocne' ELSE 'ciastocne' END
-    WHEN i.datum_splat < date('now') THEN 'po_splatnosti'
+      THEN CASE WHEN i.datum_splat < dnes() THEN 'po_splatnosti_ciastocne' ELSE 'ciastocne' END
+    WHEN i.datum_splat < dnes() THEN 'po_splatnosti'
     ELSE 'vystavena'
   END AS stav_zobraz`
 

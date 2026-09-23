@@ -1,5 +1,6 @@
 import { Router } from 'express'
 import { db } from '../db.js'
+import { dnesISO } from '../lib/format.js'
 import { UHRADENE_SQL, VYFAKTUROVANE_SQL } from '../lib/platby.js'
 
 export const financeRouter = Router()
@@ -77,7 +78,7 @@ financeRouter.get('/prehlad', (req, res) => {
 
 // ── Mesačný priebeh pre graf ──────────────────────────────────
 financeRouter.get('/mesacne', (req, res) => {
-  const rok = String(req.query.rok ?? new Date().getFullYear())
+  const rok = String(req.query.rok ?? dnesISO().slice(0, 4))
 
   const prijmy = db
     .prepare(
@@ -162,7 +163,7 @@ financeRouter.get('/roky', (_req, res) => {
     )
     .all() as { rok: string }[]
   const roky = r.map((x) => x.rok)
-  const tentoRok = String(new Date().getFullYear())
+  const tentoRok = dnesISO().slice(0, 4)
   if (!roky.includes(tentoRok)) roky.unshift(tentoRok)
   res.json(roky)
 })

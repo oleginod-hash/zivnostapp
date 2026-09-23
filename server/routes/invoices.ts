@@ -114,7 +114,7 @@ function filtre(query: any, soZalozkou = true) {
     if (ZALOZKY[stav]) {
       podmienky.push(`(${ZALOZKY[stav].kde})`)
     } else if (stav === 'po_splatnosti') {
-      podmienky.push(`i.stav <> 'koncept' AND ${UHRADENE_SQL} < i.suma - 0.005 AND i.datum_splat < date('now')`)
+      podmienky.push(`i.stav <> 'koncept' AND ${UHRADENE_SQL} < i.suma - 0.005 AND i.datum_splat < dnes()`)
     } else if (stav === 'ciastocne') {
       podmienky.push(`i.stav <> 'koncept' AND ${UHRADENE_SQL} > 0 AND ${UHRADENE_SQL} < i.suma - 0.005`)
     } else if (stav === 'koncept') {
@@ -199,7 +199,7 @@ invoicesRouter.get('/suhrn', (_req, res) => {
   const prijate = db
     .prepare(
       `SELECT COALESCE(SUM(suma), 0) AS spolu,
-              COALESCE(SUM(CASE WHEN strftime('%Y', datum) = strftime('%Y','now') THEN suma END), 0) AS tento_rok
+              COALESCE(SUM(CASE WHEN strftime('%Y', datum) = strftime('%Y', dnes()) THEN suma END), 0) AS tento_rok
        FROM invoice_payments`,
     )
     .get() as any
@@ -215,7 +215,7 @@ invoicesRouter.get('/suhrn', (_req, res) => {
          COALESCE(SUM(CASE WHEN z.po_termine THEN 1 END), 0) AS po_splatnosti_pocet
        FROM (
          SELECT ${OTVORENY_ZOSTATOK_SQL.replace('AS otvoreny_zostatok', 'AS otvoreny')},
-                (i.datum_splat < date('now')) AS po_termine
+                (i.datum_splat < dnes()) AS po_termine
          FROM invoices i
          WHERE i.stav <> 'koncept' AND i.kryje_id IS NULL
        ) z

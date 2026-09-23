@@ -14,8 +14,8 @@ export const toursRouter = Router()
 const STAV_SQL = `
   CASE
     WHEN t.zruseny = 1 THEN 'zruseny'
-    WHEN date('now') < t.datum_od THEN 'planovany'
-    WHEN date('now') > t.datum_do THEN 'ukonceny'
+    WHEN dnes() < t.datum_od THEN 'planovany'
+    WHEN dnes() > t.datum_do THEN 'ukonceny'
     ELSE 'prebieha'
   END AS stav`
 
@@ -49,9 +49,9 @@ toursRouter.get('/', (req, res) => {
 
   const stav = String(req.query.stav ?? '')
   if (stav === 'zruseny') podmienky.push('t.zruseny = 1')
-  else if (stav === 'planovany') podmienky.push("t.zruseny = 0 AND date('now') < t.datum_od")
-  else if (stav === 'prebieha') podmienky.push("t.zruseny = 0 AND date('now') BETWEEN t.datum_od AND t.datum_do")
-  else if (stav === 'ukonceny') podmienky.push("t.zruseny = 0 AND date('now') > t.datum_do")
+  else if (stav === 'planovany') podmienky.push("t.zruseny = 0 AND dnes() < t.datum_od")
+  else if (stav === 'prebieha') podmienky.push("t.zruseny = 0 AND dnes() BETWEEN t.datum_od AND t.datum_do")
+  else if (stav === 'ukonceny') podmienky.push("t.zruseny = 0 AND dnes() > t.datum_do")
 
   if (req.query.firma) {
     podmienky.push('t.company_id = @firma')
@@ -84,9 +84,9 @@ toursRouter.get('/suhrn', (_req, res) => {
   const r = db
     .prepare(
       `SELECT
-         COALESCE(SUM(CASE WHEN zruseny = 0 AND date('now') BETWEEN datum_od AND datum_do THEN 1 END), 0) AS prebiehaju,
-         COALESCE(SUM(CASE WHEN zruseny = 0 AND date('now') < datum_od THEN 1 END), 0) AS planovane,
-         COALESCE(SUM(CASE WHEN zruseny = 0 AND date('now') > datum_do THEN 1 END), 0) AS ukoncene
+         COALESCE(SUM(CASE WHEN zruseny = 0 AND dnes() BETWEEN datum_od AND datum_do THEN 1 END), 0) AS prebiehaju,
+         COALESCE(SUM(CASE WHEN zruseny = 0 AND dnes() < datum_od THEN 1 END), 0) AS planovane,
+         COALESCE(SUM(CASE WHEN zruseny = 0 AND dnes() > datum_do THEN 1 END), 0) AS ukoncene
        FROM tours`,
     )
     .get()
@@ -101,7 +101,7 @@ toursRouter.get('/suhrn', (_req, res) => {
               (SELECT COALESCE(SUM(o.suma), 0) FROM orders o WHERE o.tour_id = t.id AND o.stav <> 'zrusena') AS objednane,
               (SELECT COALESCE(SUM(i.suma), 0) FROM invoices i WHERE i.tour_id = t.id AND ${VYFAKTUROVANE_SQL}) AS vyfakturovane
        FROM tours t LEFT JOIN companies c ON c.id = t.company_id
-       WHERE t.zruseny = 0 AND date('now') > t.datum_do
+       WHERE t.zruseny = 0 AND dnes() > t.datum_do
        ORDER BY t.datum_do DESC
        LIMIT 20`,
     )

@@ -3,10 +3,14 @@
 // nie obyčajným kopírovaním (to by pri zápise mohlo dať poškodený súbor).
 import Database from 'better-sqlite3'
 import fs from 'node:fs'
+import os from 'node:os'
 import path from 'node:path'
 import 'dotenv/config'
 
-const DATA_DIR = process.env.DATA_DIR?.trim() || 'C:\\ZivnostAppData'
+// Rovnaký predvolený priečinok ako v server/db.ts.
+const DATA_DIR =
+  process.env.DATA_DIR?.trim() ||
+  (process.platform === 'win32' ? 'C:\\ZivnostAppData' : path.join(os.homedir(), 'ZivnostAppData'))
 const CIEL_ZAKLAD = process.env.ZALOHA_DIR?.trim() || path.join(DATA_DIR, 'zalohy')
 
 const d = new Date()

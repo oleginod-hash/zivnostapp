@@ -101,12 +101,9 @@ papiere riešia večer unavení, telefón je ich hlavný počítač, boja sa, ž
 
 ### Známe nedostatky na opravu
 
-1. Denná záloha sa robí len pri spustení appky a zálohy narastajú (kopírujú všetky prílohy).
-2. Predvolený priečinok dát je v kóde zapísaný chybne (bez `.env` skončí v priečinku appky).
-3. Číslo zmazanej faktúry sa použije znova — účtovne to nie je správne.
-4. Fotky nad ~5 MB odmietne AI API.
-5. Čas na serveri sa ráta v UTC, nie v slovenskom čase.
-6. PDF faktúra nepozná platiteľa DPH (vždy tlačí „Nie je platiteľ DPH").
+1. Číslo zmazanej faktúry sa použije znova — účtovne to nie je správne.
+2. Fotky nad ~5 MB odmietne AI API.
+3. PDF faktúra nepozná platiteľa DPH (vždy tlačí „Nie je platiteľ DPH").
 
 ### Overenie s ľuďmi
 

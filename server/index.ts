@@ -22,7 +22,7 @@ import { taxReportRouter } from './routes/taxreport.js'
 import { mailRouter } from './routes/mail.js'
 import { registryRouter } from './routes/registry.js'
 import { templatesRouter } from './routes/templates.js'
-import { autoZalohaAkTreba, stavZaloh } from './lib/autoZaloha.js'
+import { spustiAutoZalohy, stavZaloh } from './lib/autoZaloha.js'
 import { upracKos } from './lib/kos.js'
 
 const PORT = Number(process.env.PORT) || 3000
@@ -123,8 +123,8 @@ app.use((err: any, _req: express.Request, res: express.Response, _next: express.
   res.status(500).json({ chyba: err?.message || 'Neočakávaná chyba servera.' })
 })
 
-// Denná záloha a upratanie koša – oboje ticho na pozadí pri štarte.
-autoZalohaAkTreba()
+// Denná záloha (pri štarte a potom každú hodinu) a upratanie koša – ticho na pozadí.
+spustiAutoZalohy()
 upracKos()
 
 // Len lokálna adresa – z Wi-Fi ani z iného počítača v sieti sa k appke dostať nedá.

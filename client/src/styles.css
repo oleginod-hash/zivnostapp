@@ -1068,11 +1068,17 @@ a.kpi-bunka:nth-child(3):hover { background: var(--accentBg); filter: brightness
 
 .tabulka-obal { overflow-x: auto; }
 
-/* Odberateľ v prehľade sa nezalamuje – „Voltion Solutions s.r.o" by inak zabral tri riadky. */
+/*
+ * Odberateľ v prehľade sa nezalamuje – „Voltion Solutions s.r.o" by inak zabral
+ * tri riadky. Stĺpec dostane miesto, ktoré ostane po ostatných, a dlhý názov
+ * skráti trojbodkou – tabuľka tak nikdy nepretečie do strany.
+ */
 td.odberatel-bunka {
   font-weight: 600;
   color: var(--ink);
-  max-width: 160px;
+  width: 100%;
+  max-width: 0;
+  min-width: 96px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

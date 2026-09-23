@@ -24,13 +24,13 @@ const OBNOVY = ['ziadna', 'automaticka', 'rucna'] as const
 const EXPIRACIA_SQL = `
   CASE
     WHEN z.stav <> 'aktivna' OR z.platnost_do IS NULL OR z.platnost_do = '' THEN 'ziadna'
-    WHEN z.platnost_do < date('now') THEN 'po_expiracii'
-    WHEN z.platnost_do <= date('now', '+' || z.pripomienka_dni || ' days') THEN 'coskoro'
+    WHEN z.platnost_do < dnes() THEN 'po_expiracii'
+    WHEN z.platnost_do <= date(dnes(), '+' || z.pripomienka_dni || ' days') THEN 'coskoro'
     ELSE 'ziadna'
   END AS expiracia,
   CASE
     WHEN z.platnost_do IS NULL OR z.platnost_do = '' THEN NULL
-    ELSE CAST(julianday(z.platnost_do) - julianday(date('now')) AS INTEGER)
+    ELSE CAST(julianday(z.platnost_do) - julianday(dnes()) AS INTEGER)
   END AS dni_do_konca`
 
 const POLIA = [
@@ -102,10 +102,10 @@ contractsRouter.get('/suhrn', (_req, res) => {
       `SELECT
          COALESCE(SUM(CASE WHEN stav = 'aktivna' THEN 1 END), 0) AS aktivne,
          COALESCE(SUM(CASE WHEN stav = 'aktivna' AND platnost_do IS NOT NULL AND platnost_do <> ''
-                            AND platnost_do < date('now') THEN 1 END), 0) AS po_expiracii,
+                            AND platnost_do < dnes() THEN 1 END), 0) AS po_expiracii,
          COALESCE(SUM(CASE WHEN stav = 'aktivna' AND platnost_do IS NOT NULL AND platnost_do <> ''
-                            AND platnost_do >= date('now')
-                            AND platnost_do <= date('now', '+' || pripomienka_dni || ' days') THEN 1 END), 0) AS coskoro
+                            AND platnost_do >= dnes()
+                            AND platnost_do <= date(dnes(), '+' || pripomienka_dni || ' days') THEN 1 END), 0) AS coskoro
        FROM contracts`,
     )
     .get()
@@ -115,7 +115,7 @@ contractsRouter.get('/suhrn', (_req, res) => {
       `SELECT z.id, z.nazov, z.platnost_do, z.obnova, c.nazov AS firma_nazov, ${EXPIRACIA_SQL}
        FROM contracts z LEFT JOIN companies c ON c.id = z.company_id
        WHERE z.stav = 'aktivna' AND z.platnost_do IS NOT NULL AND z.platnost_do <> ''
-         AND z.platnost_do <= date('now', '+' || z.pripomienka_dni || ' days')
+         AND z.platnost_do <= date(dnes(), '+' || z.pripomienka_dni || ' days')
        ORDER BY z.platnost_do
        LIMIT 10`,
     )

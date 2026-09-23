@@ -14,9 +14,36 @@ export function skCislo(n: number): string {
   return new Intl.NumberFormat('sk-SK', { maximumFractionDigits: 3 }).format(n)
 }
 
+/**
+ * Časové pásmo appky. Kalendárne „dnes" (splatnosť, prebiehajúci turnus, koniec zmluvy)
+ * sa ráta podľa neho – nie podľa UTC ani podľa nastavenia servera, na ktorom appka beží.
+ */
+const PREDVOLENE_PASMO = 'Europe/Bratislava'
+
+function formatDna(pasmo: string): Intl.DateTimeFormat {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: pasmo, year: 'numeric', month: '2-digit', day: '2-digit' })
+}
+
+/** Pásmo z `.env`. Preklep v ňom nesmie appku zhodiť – vtedy platí predvolené. */
+function zvolPasmo(): string {
+  const zadane = process.env.CASOVE_PASMO?.trim()
+  if (!zadane) return PREDVOLENE_PASMO
+  try {
+    formatDna(zadane)
+    return zadane
+  } catch {
+    console.error(`[čas] Časové pásmo „${zadane}" z .env neexistuje – používam ${PREDVOLENE_PASMO}.`)
+    return PREDVOLENE_PASMO
+  }
+}
+
+export const CASOVE_PASMO = zvolPasmo()
+
+const FORMAT_DNA = formatDna(CASOVE_PASMO)
+
+/** Dnešný dátum v tvare RRRR-MM-DD v časovom pásme appky. */
 export function dnesISO(): string {
-  const d = new Date()
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  return FORMAT_DNA.format(new Date())
 }
 
 export function pridajDni(iso: string, dni: number): string {

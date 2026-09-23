@@ -1,10 +1,17 @@
 import Database from 'better-sqlite3'
 import fs from 'node:fs'
+import os from 'node:os'
 import path from 'node:path'
 import 'dotenv/config'
-import { naHladanie } from './lib/format.js'
+import { dnesISO, naHladanie } from './lib/format.js'
 
-export const DATA_DIR = process.env.DATA_DIR?.trim() || 'C:\ZivnostAppData'
+/**
+ * Kde sú dáta, keď `.env` nič nehovorí. Na Windowse priečinok priamo na disku C:
+ * (mimo OneDrive, ktorý vie SQLite pri zápise poškodiť), inde v domovskom priečinku.
+ */
+const PREDVOLENE_DATA = process.platform === 'win32' ? 'C:\\ZivnostAppData' : path.join(os.homedir(), 'ZivnostAppData')
+
+export const DATA_DIR = process.env.DATA_DIR?.trim() || PREDVOLENE_DATA
 export const FILES_DIR = path.join(DATA_DIR, 'files')
 
 fs.mkdirSync(FILES_DIR, { recursive: true })
@@ -16,6 +23,11 @@ db.pragma('foreign_keys = ON')
 // Hľadanie bez ohľadu na veľké písmená a diakritiku. Vstavaný LIKE to vie len
 // pri písmenách bez mäkčeňov – „ľubica" by „Ľubica" nenašla.
 db.function('bez_diakritiky', { deterministic: true }, (text: unknown) => naHladanie(String(text ?? '')))
+
+// Dnešný dátum v časovom pásme appky. Vstavané SQLite „date('now')" vracia UTC,
+// takže medzi polnocou a druhou hodinou by appka ešte „žila" vo včerajšku.
+// V SQL preto všade používame dnes().
+db.function('dnes', () => dnesISO())
 
 /**
  * Migrácie. Každá položka posunie schému o jednu verziu vyššie.
@@ -383,6 +395,9 @@ const migrations: string[] = [
   UPDATE invoices SET stav = 'vystavena' WHERE stav = 'zaplatena';
   `,
 ]
+
+/** Verzia schémy, na ktorú databázu dostanú migrácie – kontrolujú ju aj testy. */
+export const VERZIA_SCHEMY = migrations.length
 
 const current = db.pragma('user_version', { simple: true }) as number
 for (let v = current; v < migrations.length; v++) {

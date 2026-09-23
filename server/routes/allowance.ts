@@ -1,6 +1,6 @@
 import { Router } from 'express'
 import { db } from '../db.js'
-import { zaokruhli } from '../lib/format.js'
+import { dnesISO, zaokruhli } from '../lib/format.js'
 
 export const allowanceRouter = Router()
 
@@ -95,7 +95,7 @@ allowanceRouter.post('/turnus/:id/zapisat', (req, res) => {
 
 // ── Dni strávené v krajinách ──────────────────────────────────
 allowanceRouter.get('/dni', (req, res) => {
-  const rok = String(req.query.rok ?? new Date().getFullYear())
+  const rok = String(req.query.rok ?? dnesISO().slice(0, 4))
 
   // Turnus môže presahovať cez koniec roka – dni orežeme na hranice roka.
   const turnusy = db

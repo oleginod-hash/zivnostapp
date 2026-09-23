@@ -182,12 +182,12 @@ export function zozbierajPodklad(rok: string) {
 export type Podklad = ReturnType<typeof zozbierajPodklad>
 
 taxReportRouter.get('/', (req, res) => {
-  res.json(zozbierajPodklad(String(req.query.rok ?? new Date().getFullYear())))
+  res.json(zozbierajPodklad(String(req.query.rok ?? dnesISO().slice(0, 4))))
 })
 
 /** Hotový zošit pre účtovníčku – jeden hárok na každú oblasť. */
 taxReportRouter.get('/xlsx', (req, res) => {
-  const rok = String(req.query.rok ?? new Date().getFullYear())
+  const rok = String(req.query.rok ?? dnesISO().slice(0, 4))
   try {
     const zosit = podkladXlsx(zozbierajPodklad(rok))
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')

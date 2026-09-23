@@ -80,11 +80,11 @@ mailRouter.get('/po-splatnosti', (_req, res) => {
     db
       .prepare(
         `SELECT i.id, i.cislo, i.suma, i.datum_splat, c.nazov AS firma_nazov, c.email AS firma_email,
-                CAST(julianday(date('now')) - julianday(i.datum_splat) AS INTEGER) AS dni_po_splatnosti,
+                CAST(julianday(dnes()) - julianday(i.datum_splat) AS INTEGER) AS dni_po_splatnosti,
                 ${OTVORENY_ZOSTATOK_SQL}
          FROM invoices i LEFT JOIN companies c ON c.id = i.company_id
          WHERE i.stav <> 'koncept'
-           AND i.datum_splat < date('now')
+           AND i.datum_splat < dnes()
            AND ${UHRADENE_SQL} < i.suma - 0.005
            -- Zálohovú faktúru kryjúcu starý dlh neupomíname zvlášť: ten istý
            -- dlh je už v otvorenom zostatku pôvodnej faktúry.

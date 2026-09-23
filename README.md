@@ -21,9 +21,29 @@ npm run dev
 
 Vývojový režim beží na `http://localhost:5173`, API na `3000`.
 
+## Kontrola po zmenách
+
+```bash
+npm run overenie
+```
+
+Zostaví appku a spustí tri sady kontrol, každú nad dočasnou kópiou dát:
+
+- **Logika servera** na vymyslených údajoch – platby a ich vrátenie, zálohové faktúry, kôš
+  s prílohami, súkromné príjmy, hľadanie bez diakritiky, splatnosť v pracovných dňoch, dátum
+  v slovenskom čase, automatická záloha, ochrana pred cudzími stránkami a to, že asistent nemôže mazať.
+- **Kópia skutočných dát** – migrácie, neporušenosť databázy, všetky zoznamy a prehľady sa načítajú
+  a súčty z rôznych miest appky sedia. Tvoje dáta sa len skopírujú, nič sa v nich nezmení.
+- **Obrazovky** v neviditeľnom Chrome (1275 × 748, svetlý režim) – žiadne chyby, nič nepretŕča
+  do strany, písmo aspoň 12 px, kontrast podľa normy, zmazanie a „Zaplatená" s vrátením späť.
+
+Na konci vypíše *Všetko v poriadku* alebo presne to, čo nesedí. Keď chýba Chrome alebo skutočné
+dáta, príslušnú sadu preskočí. Len vybrané sady: `node scripts/overenie/index.mjs api ui`.
+
 ## Kde sú dáta
 
-Všetko je v priečinku nastavenom cez `DATA_DIR` v súbore `.env`, predvolene `C:\ZivnostAppData`:
+Všetko je v priečinku nastavenom cez `DATA_DIR` v súbore `.env`, predvolene `C:\ZivnostAppData`
+(na Macu a Linuxe `ZivnostAppData` v domovskom priečinku):
 
 - `app.db` — databáza (faktúry, firmy, zmluvy, turnusy, výdavky, AI konverzácie, nastavenia)
 - `files/zmluvy/` — naskenované zmluvy a ich prílohy
@@ -36,6 +56,12 @@ Nepresúvaj tento priečinok do OneDrive — synchronizácia vie SQLite súbor p
 
 Dvojklik na **`Zaloha.bat`** (alebo `npm run zaloha`). Vytvorí kópiu databázy aj príloh do
 `C:\ZivnostAppData\zalohy\RRRRMMDD-HHMM\`. Funguje aj keď appka práve beží.
+
+Appka sa navyše **zálohuje sama raz denne** do `zalohy\RRRRMMDD-auto\`. Skontroluje to pri štarte
+a potom každú hodinu, takže záloha pribudne aj vtedy, keď appka beží niekoľko dní bez reštartu.
+Automatické zálohy staršie než 30 dní zmaže, ručné nechá. Prílohy do nich nekopíruje znova, ale
+len na ne odkáže (pevný odkaz): každá záloha vyzerá ako úplná kópia a dá sa obnoviť skopírovaním
+priečinka, no na disku nezaberá miesto navyše.
 
 Zálohu si občas skopíruj aj mimo počítača — na USB kľúč alebo iný disk. Priečinok s dátami je
 jediná kópia tvojich faktúr.

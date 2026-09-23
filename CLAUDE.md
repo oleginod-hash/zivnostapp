@@ -23,11 +23,15 @@ na používanie v [README.md](README.md).
 - `npm run build` – zostavenie klienta (Vite → `dist`) aj servera (tsc → `dist-server`)
 - `npm start` – spustenie zostavenej appky na porte 3000
 - `npx tsc -p tsconfig.json --noEmit` – typová kontrola klienta aj servera
+- `npm run overenie` – zostaví appku a spustí testy v `scripts/overenie/` (logika servera na
+  vymyslených údajoch, kópia skutočných dát, obrazovky v headless Chrome). Spusti pred každým
+  commitom; pri novej funkcii pridaj kontrolu do `api.mjs` alebo `ui.mjs`.
 
 ## Nemenné pravidlá
 
 1. **Produkčné dáta v `C:\ZivnostAppData` nikdy nemeniť.** Na testy skopíruj `app.db`, `app.db-wal`
-   aj `app.db-shm` do scratchpadu a spusti `dist-server/index.js` s vlastným `DATA_DIR` a `PORT`.
+   aj `app.db-shm` do scratchpadu a spusti `dist-server/index.js` s vlastným `DATA_DIR` a `PORT`
+   (`npm run overenie` to robí samo).
 2. **Bežiacu appku na porte 3000 nevypínaj.** Po zmene servera povedz používateľovi, nech ju zatvorí
    a spustí znova.
 3. **Obrazovky over neviditeľne** cez headless Chrome (CDP) vo veľkosti jeho okna 1275 × 748.
@@ -54,6 +58,10 @@ na používanie v [README.md](README.md).
   položky a miesto na podpis. Nikdy nie pätičku „Doklad obsahuje ISDOC… www.kros.sk".
 - Splatnosť v pracovných dňoch počíta so slovenskými sviatkami podľa zákona 261/2025
   (`server/lib/pracovneDni.ts`).
+- Dnešný dátum v SQL je `dnes()` (časové pásmo appky, `CASOVE_PASMO`), nikdy `date('now')` –
+  to je UTC a po polnoci by appka žila ešte vo včerajšku. V kóde servera `dnesISO()` z `lib/format.ts`.
+- Uložená príloha sa už nikdy nemení na mieste – automatická záloha na ňu robí pevný odkaz, takže
+  prepísanie súboru by zmenilo aj všetky zálohy. Upravená príloha = nový súbor.
 
 ## Štýl
 

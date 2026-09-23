@@ -9,7 +9,8 @@
     "dev:web": "vite",
     "build": "vite build && tsc -p tsconfig.server.json",
     "start": "node dist-server/index.js",
-    "zaloha": "node scripts/zaloha.mjs"
+    "zaloha": "node scripts/zaloha.mjs",
+    "overenie": "npm run build && node scripts/overenie/index.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.120.0",
