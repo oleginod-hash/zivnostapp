@@ -9,6 +9,7 @@ import { OdoslatMail } from '../components/OdoslatMail'
 import { pracovnychDniMedzi, pridajPracovneDni } from '../../../server/lib/pracovneDni'
 import { Ikona } from '../components/Ikony'
 import { useNeulozeneZmeny } from '../neulozene'
+import { potvrd } from '../components/Oznamenia'
 
 type Formular = {
   cislo: string
@@ -191,7 +192,7 @@ export function FakturaEdit() {
   const stavVoVybere: Stav =
     form.stav === 'koncept' || novaFaktura ? form.stav : celkom > 0 && zostatok <= 0.005 ? 'zaplatena' : 'vystavena'
 
-  function zmenStav(novy: Stav) {
+  async function zmenStav(novy: Stav) {
     if (novaFaktura || novy === 'koncept') return uprav({ stav: novy })
     if (novy === 'zaplatena') {
       // Čo chýba, zapíšeme ako platbu s dnešným dátumom – dá sa hneď upraviť v tabuľke platieb.
@@ -206,7 +207,13 @@ export function FakturaEdit() {
     }
     // Späť na „vystavená": zapísané platby treba odstrániť, inak by ostala zaplatená.
     if (stavVoVybere === 'zaplatena' && form!.platby.length) {
-      if (!confirm('Zrušiť úhradu? Zapísané platby sa z faktúry odstránia (natrvalo po kliknutí na Uložiť zmeny).')) return
+      const ano = await potvrd({
+        nadpis: 'Zrušiť úhradu?',
+        text: 'Zapísané platby sa z faktúry odstránia. Natrvalo až po uložení zmien.',
+        potvrdit: 'Zrušiť úhradu',
+        nebezpecne: true,
+      })
+      if (!ano) return
       return uprav({ stav: 'vystavena', platby: [] })
     }
     uprav({ stav: 'vystavena' })

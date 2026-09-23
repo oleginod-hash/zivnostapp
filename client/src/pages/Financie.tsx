@@ -165,8 +165,8 @@ export function Financie() {
           <ResponsiveContainer key={skryte ? "skryte" : "viditelne"} width="100%" height={300}>
             <BarChart data={mesacne} margin={{ top: 8, right: 8, left: 8, bottom: 0 }}>
               <CartesianGrid vertical={false} />
-              <XAxis dataKey="mesiac" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} tickMargin={8} />
-              <YAxis tickFormatter={kratkeEur} tick={{ fontSize: 11 }} axisLine={false} tickLine={false} width={70} />
+              <XAxis dataKey="mesiac" tick={{ fontSize: 12.5 }} axisLine={false} tickLine={false} tickMargin={8} />
+              <YAxis tickFormatter={kratkeEur} tick={{ fontSize: 12.5 }} axisLine={false} tickLine={false} width={70} />
               <Tooltip
                 formatter={((v: unknown, n: unknown) => [eur(v), n === 'prijmy' ? 'Príjmy' : 'Výdavky']) as never}
                 labelFormatter={(l) => `${l} ${rok}`}

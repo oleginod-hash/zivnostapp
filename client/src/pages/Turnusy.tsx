@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import {
-  api, dlzkaTurnusu, skDatum, skSuma, NAZVY_STAVOV_TURNUSU, STITOK_TURNUSU,
+  api, dlzkaTurnusu, skDatum, skSuma, vratZKosa, NAZVY_STAVOV_TURNUSU, STITOK_TURNUSU,
   type Firma, type Turnus,
 } from '../api'
 import { Ikona } from '../components/Ikony'
 import { FirmaSAvatarom, Karticka } from '../components/Farby'
+import { oznam, oznamChybu } from '../components/Oznamenia'
 import { PrazdnyStav } from '../components/PrazdnyStav'
 
 type SuhrnTurnusov = {
@@ -39,12 +40,18 @@ export function Turnusy() {
   }, [f])
 
   async function zmaz(t: Turnus) {
-    if (!confirm(`Zmazať turnus „${t.nazov}"?`)) return
     try {
       await api.del('/turnusy/' + t.id)
       nacitaj()
+      oznam(`Turnus „${t.nazov}" je v koši.`, {
+        text: 'Vrátiť späť',
+        sprav: async () => {
+          await vratZKosa('tours', t.id)
+          nacitaj()
+        },
+      })
     } catch (e: any) {
-      alert(e.message)
+      oznamChybu(e.message)
     }
   }
 

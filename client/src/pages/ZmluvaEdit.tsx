@@ -5,6 +5,7 @@ import {
   type Firma, type Obnova, type Priloha, type StavZmluvy, type Zmluva,
 } from '../api'
 import { useNeulozeneZmeny } from '../neulozene'
+import { potvrd } from '../components/Oznamenia'
 import { Ikona } from '../components/Ikony'
 
 type Formular = {
@@ -140,7 +141,13 @@ export function ZmluvaEdit() {
   }
 
   async function zmazPrilohu(p: Priloha) {
-    if (!confirm(`Zmazať prílohu „${p.nazov}"?`)) return
+    const ano = await potvrd({
+      nadpis: `Zmazať prílohu „${p.nazov}"?`,
+      text: 'Súbor sa odstráni z počítača a vrátiť sa nedá.',
+      potvrdit: 'Zmazať prílohu',
+      nebezpecne: true,
+    })
+    if (!ano) return
     await api.del('/zmluvy/subory/' + p.id)
     setPrilohy(prilohy.filter((x) => x.id !== p.id))
   }

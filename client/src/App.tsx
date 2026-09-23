@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useState } from 'react'
+import { Fragment, useEffect, useRef, useState } from 'react'
 import { Navigate, NavLink, Route, Routes, useLocation } from 'react-router-dom'
 import { Hladanie } from './components/Hladanie'
 import { Ikona, type KlucIkony } from './components/Ikony'
@@ -6,6 +6,7 @@ import { PrepinacTemy } from './components/Tema'
 import { PrepinacSum } from './components/SkryteSumy'
 import { api, ApiChyba, sledujSkryteSumy, type PolozkaKosa } from './api'
 import { mozemOdist, suNeulozeneZmeny } from './neulozene'
+import { Oznamenia } from './components/Oznamenia'
 import { Prehlad } from './pages/Prehlad'
 import { Faktury } from './pages/Faktury'
 import { FakturaEdit } from './pages/FakturaEdit'
@@ -51,12 +52,8 @@ const MENU: { skupina: string; polozky: PolozkaMenu[] }[] = [
     ],
   },
   {
-    skupina: 'AI asistenti',
-    polozky: [
-      { cesta: '/pomocnik', ikona: 'pomocnik', text: 'Pomocník' },
-      { cesta: '/uctovnik', ikona: 'uctovnik', text: 'Účtovník' },
-      { cesta: '/pravnik', ikona: 'pravnik', text: 'Právnik' },
-    ],
+    skupina: 'Pomoc',
+    polozky: [{ cesta: '/asistent', ikona: 'pomocnik', text: 'Asistent' }],
   },
 ]
 
@@ -77,10 +74,18 @@ export function App() {
       const odkaz = (e.target as Element | null)?.closest?.('a[href]') as HTMLAnchorElement | null
       if (!odkaz || odkaz.target === '_blank' || odkaz.hasAttribute('download')) return
       if (odkaz.origin !== window.location.origin || odkaz.pathname.startsWith('/api/')) return
-      if (!mozemOdist()) {
-        e.preventDefault()
-        e.stopPropagation()
-      }
+      if (!suNeulozeneZmeny()) return
+      if (odchodPovoleny.current) return
+      e.preventDefault()
+      e.stopPropagation()
+      // Otázka je vlastným oknom, takže odpoveď príde až neskôr – potom
+      // klik zopakujeme a tentoraz ho pustíme ďalej.
+      mozemOdist().then((ano) => {
+        if (!ano) return
+        odchodPovoleny.current = true
+        odkaz.click()
+        odchodPovoleny.current = false
+      })
     }
     const zatvorenie = (e: BeforeUnloadEvent) => {
       if (!suNeulozeneZmeny()) return
@@ -116,6 +121,7 @@ export function App() {
   }, [])
 
   // Počet položiek v koši pri odkaze – obnoví sa pri každom prechode medzi stránkami.
+  const odchodPovoleny = useRef(false)
   const miesto = useLocation()
   const [vKosi, setVKosi] = useState(0)
   useEffect(() => {
@@ -193,9 +199,11 @@ export function App() {
           <Route path="/zmluvy/nova" element={<ZmluvaEdit />} />
           <Route path="/zmluvy/:id" element={<ZmluvaEdit />} />
           <Route path="/firmy" element={<Firmy />} />
-          <Route path="/pomocnik" element={<AsistentStranka asistent="pomocnik" />} />
-          <Route path="/uctovnik" element={<AsistentStranka asistent="uctovnik" />} />
-          <Route path="/pravnik" element={<AsistentStranka asistent="pravnik" />} />
+          <Route path="/asistent" element={<AsistentStranka />} />
+          {/* Asistent býval rozdelený na troch – staré odkazy vedú na jedného. */}
+          <Route path="/pomocnik" element={<Navigate to="/asistent" replace />} />
+          <Route path="/uctovnik" element={<Navigate to="/asistent" replace />} />
+          <Route path="/pravnik" element={<Navigate to="/asistent" replace />} />
           {/* Dlhy a zálohy sú teraz záložkami priamo vo faktúrach. */}
           <Route path="/dlhy" element={<Navigate to="/faktury?stav=nevyplatene" replace />} />
           <Route path="/upomienky" element={<Upomienky />} />
@@ -205,6 +213,7 @@ export function App() {
           <Route path="*" element={<div className="prazdne">Stránka neexistuje.</div>} />
         </Routes>
       </main>
+      <Oznamenia />
     </div>
   )
 }

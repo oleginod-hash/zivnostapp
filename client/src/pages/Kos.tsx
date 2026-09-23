@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { api, pocet, skDatum, type PolozkaKosa } from '../api'
 import { Ikona, type KlucIkony } from '../components/Ikony'
 import { PrazdnyStav } from '../components/PrazdnyStav'
+import { potvrd } from '../components/Oznamenia'
 
 /** Ktorá ikona patrí ktorej tabuľke – nech je na prvý pohľad jasné, čo to bolo. */
 const IKONY: Record<string, KlucIkony> = {
@@ -63,12 +64,13 @@ export function Kos() {
   }
 
   async function zmazNatrvalo(p: PolozkaKosa) {
-    if (
-      !confirm(
-        `Zmazať „${p.popis}" natrvalo?\n\nToto je jediná akcia v celej appke, po ktorej sa dáta už nedajú vrátiť.`,
-      )
-    )
-      return
+    const ano = await potvrd({
+      nadpis: `Zmazať „${p.popis}" natrvalo?`,
+      text: 'Toto je jediná akcia v celej appke, po ktorej sa dáta už nedajú vrátiť.',
+      potvrdit: 'Zmazať natrvalo',
+      nebezpecne: true,
+    })
+    if (!ano) return
     await api.del(`/kos/${p.id}`)
     nacitaj()
   }
@@ -92,13 +94,13 @@ export function Kos() {
 
   async function zmazVybrane() {
     const n = vybrane.size
-    if (
-      !confirm(
-        `Zmazať natrvalo ${pocet(n, ['vybranú položku', 'vybrané položky', 'vybraných položiek'])}?\n\n` +
-          'Tieto dáta sa už nebudú dať vrátiť.',
-      )
-    )
-      return
+    const ano = await potvrd({
+      nadpis: `Zmazať natrvalo ${pocet(n, ['vybranú položku', 'vybrané položky', 'vybraných položiek'])}?`,
+      text: 'Tieto dáta sa už nebudú dať vrátiť.',
+      potvrdit: 'Zmazať natrvalo',
+      nebezpecne: true,
+    })
+    if (!ano) return
     setPracujem(true)
     try {
       await api.post('/kos/vysypat', { id: [...vybrane] })
@@ -112,10 +114,15 @@ export function Kos() {
 
   async function vysypVsetko() {
     const n = polozky?.length ?? 0
-    // Dve potvrdenia zámerne: prvé hovorí čo, druhé koľko. Toto je jediné
+    // Otázka je jedna, ale pomenúva presne, čo sa stane. Toto je jediné
     // miesto v appke, kde sa dáta stratia nenávratne.
-    if (!confirm(`Vysypať celý kôš?\n\nZmaže sa ${pocet(n, ['položka', 'položky', 'položiek'])} — natrvalo.`)) return
-    if (!confirm('Naozaj? Po tomto sa už nedá nič vrátiť.')) return
+    const ano = await potvrd({
+      nadpis: 'Vysypať celý kôš?',
+      text: `Zmaže sa ${pocet(n, ['položka', 'položky', 'položiek'])} aj s prílohami. Vrátiť sa to už nedá.`,
+      potvrdit: 'Vysypať kôš',
+      nebezpecne: true,
+    })
+    if (!ano) return
     setPracujem(true)
     try {
       const r = await api.post<{ zmazane: number }>('/kos/vysypat')

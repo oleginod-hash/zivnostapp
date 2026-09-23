@@ -4,6 +4,7 @@ import { OdoslatMail } from '../components/OdoslatMail'
 import { api, pocet, skDatum, skSuma, type PoSplatnosti, type StavMailu } from '../api'
 import { Ikona } from '../components/Ikony'
 import { FirmaSAvatarom, Karticka } from '../components/Farby'
+import { oznam } from '../components/Oznamenia'
 import { PrazdnyStav } from '../components/PrazdnyStav'
 
 export function Upomienky() {
@@ -22,9 +23,20 @@ export function Upomienky() {
   }, [])
 
   async function oznacZaplatenu(f: PoSplatnosti) {
-    if (!confirm(`Označiť faktúru ${f.cislo} ako zaplatenú?`)) return
-    await api.post(`/faktury/${f.id}/stav`, { stav: 'zaplatena' })
+    const r = await api.post<{ platba_id: number | null }>(`/faktury/${f.id}/stav`, { stav: 'zaplatena' })
     nacitaj()
+    oznam(
+      `Faktúra ${f.cislo}: zapísaná platba ${skSuma(f.otvoreny_zostatok)}.`,
+      r.platba_id
+        ? {
+            text: 'Vrátiť späť',
+            sprav: async () => {
+              await api.del(`/faktury/platby/${r.platba_id}`)
+              nacitaj()
+            },
+          }
+        : undefined,
+    )
   }
 
   const spolu = faktury?.reduce((s, f) => s + f.otvoreny_zostatok, 0) ?? 0

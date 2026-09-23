@@ -1,12 +1,11 @@
 import { NAZVY_STAVOV, STITOK_STAVU, type StavZobraz } from '../api'
 import { Ikona, type KlucIkony } from './Ikony'
 
-/** Ikona ku každému stavu faktúry – aby sa dal stav prečítať aj bez farby. */
-const IKONA_STAVU: Record<StavZobraz, KlucIkony> = {
-  koncept: 'upravit',
-  vystavena: 'faktury',
-  zaplatena: 'zaplatena',
-  ciastocne: 'hodiny',
+/**
+ * Ikona len pri stavoch, ktoré treba riešiť. Pri „Vystavená" alebo
+ * „Vyplatená" by len zdvojovala to, čo je napísané slovom.
+ */
+const IKONA_STAVU: Partial<Record<StavZobraz, KlucIkony>> = {
   po_splatnosti: 'pozor',
   po_splatnosti_ciastocne: 'pozor',
 }
@@ -21,11 +20,12 @@ const KRATKY_NAZOV: Partial<Record<StavZobraz, string>> = {
   po_splatnosti_ciastocne: 'Čiastočne',
 }
 
-/** Štítok stavu faktúry s ikonou. */
+/** Štítok stavu faktúry. */
 export function StitokStavu({ stav, kratko = false }: { stav: StavZobraz; kratko?: boolean }) {
+  const ikona = IKONA_STAVU[stav]
   return (
     <span className={'stitok ' + STITOK_STAVU[stav]} title={NAZVY_STAVOV[stav]}>
-      <Ikona nazov={IKONA_STAVU[stav]} velkost={12} hrubka={2.4} />
+      {ikona && <Ikona nazov={ikona} velkost={12} hrubka={2.4} />}
       {(kratko && KRATKY_NAZOV[stav]) || NAZVY_STAVOV[stav]}
     </span>
   )

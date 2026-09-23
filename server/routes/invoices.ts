@@ -463,10 +463,13 @@ invoicesRouter.post('/:id/stav', (req, res) => {
     // Rátame z otvoreného zostatku, takže sa nezapíše znova to, čo už prišlo
     // cez zálohovú faktúru kryjúcu túto faktúru.
     const chyba = zaokruhli(otvorenyZostatok(req.params.id))
+    let platba_id: number | null = null
     if (chyba > 0.005) {
-      pridajPlatbu(Number(req.params.id), String(req.body?.datum_uhrady ?? '') || dnesISO(), chyba, 'doplatok')
+      platba_id = pridajPlatbu(Number(req.params.id), String(req.body?.datum_uhrady ?? '') || dnesISO(), chyba, 'doplatok')
     }
     db.prepare("UPDATE invoices SET stav = 'vystavena' WHERE id = ?").run(req.params.id)
+    // ID zapísanej platby vracia appke možnosť ponúknuť „Vrátiť späť".
+    return res.json({ ok: true, platba_id })
   } else if (stav === 'vystavena') {
     // Zrušenie úhrady = zmazanie platieb; inak by faktúra ostala „zaplatená".
     db.prepare('DELETE FROM invoice_payments WHERE invoice_id = ?').run(req.params.id)

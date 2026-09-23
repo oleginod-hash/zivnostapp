@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import {
-  api, skCislo, skDatum, skSuma, NAZVY_STAVOV_OBJEDNAVKY, STITOK_OBJEDNAVKY,
+  api, skCislo, skDatum, skSuma, vratZKosa, NAZVY_STAVOV_OBJEDNAVKY, STITOK_OBJEDNAVKY,
   type Firma, type Objednavka, type Turnus,
 } from '../api'
 import { Ikona } from '../components/Ikony'
 import { FirmaSAvatarom } from '../components/Farby'
+import { oznam, oznamChybu } from '../components/Oznamenia'
 import { PrazdnyStav } from '../components/PrazdnyStav'
 
 export function Objednavky() {
@@ -34,12 +35,18 @@ export function Objednavky() {
   }, [f])
 
   async function zmaz(o: Objednavka) {
-    if (!confirm(`Zmazať objednávku „${o.cislo || o.popis}"?`)) return
     try {
       await api.del('/objednavky/' + o.id)
       nacitaj()
+      oznam(`Objednávka „${o.cislo || o.popis}" je v koši.`, {
+        text: 'Vrátiť späť',
+        sprav: async () => {
+          await vratZKosa('orders', o.id)
+          nacitaj()
+        },
+      })
     } catch (e: any) {
-      alert(e.message)
+      oznamChybu(e.message)
     }
   }
 

@@ -412,6 +412,14 @@ export function dniDo(iso: string): number {
 }
 
 // ── Kôš ───────────────────────────────────────────────────
+/** Vráti naposledy zmazaný záznam z koša – pre tlačidlo „Vrátiť späť". */
+export async function vratZKosa(tabulka: string, zaznamId: number): Promise<void> {
+  const kos = await api.get<PolozkaKosa[]>('/kos')
+  const polozka = kos.find((k) => k.tabulka === tabulka && k.zaznam_id === zaznamId)
+  if (!polozka) throw new ApiChyba(404, 'Záznam sa už v koši nenašiel.')
+  await api.post(`/kos/${polozka.id}/obnovit`)
+}
+
 export type PolozkaKosa = {
   id: number; tabulka: string; zaznam_id: number; popis: string
   zmazane_at: string; nazov_typu: string

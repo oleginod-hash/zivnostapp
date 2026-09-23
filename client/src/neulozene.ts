@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { potvrd } from './components/Oznamenia'
 
 /**
  * Upozornenie na neuložené zmeny. Formulár ohlási, že sa v ňom niečo zmenilo,
@@ -6,18 +7,24 @@ import { useEffect, useRef, useState } from 'react'
  */
 const neulozene = new Set<symbol>()
 
-export const OTAZKA_ODCHODU = 'Máš neuložené zmeny. Naozaj odísť bez uloženia?'
+export const OTAZKA_ODCHODU = 'Máš neuložené zmeny. Naozaj odísť?'
 
 export function suNeulozeneZmeny(): boolean {
   return neulozene.size > 0
 }
 
-/** Spýta sa, ak treba. Po potvrdení zabudne na zmeny – stránka sa aj tak zatvára. */
-export function mozemOdist(): boolean {
+/** Spýta sa, ak treba. Po potvrdení zabudne na zmeny – formulár sa aj tak opúšťa. */
+export async function mozemOdist(): Promise<boolean> {
   if (!neulozene.size) return true
-  if (!confirm(OTAZKA_ODCHODU)) return false
-  neulozene.clear()
-  return true
+  const ano = await potvrd({
+    nadpis: OTAZKA_ODCHODU,
+    text: 'Čo si vo formulári napísal a neuložil, sa stratí.',
+    potvrdit: 'Odísť bez uloženia',
+    zrusit: 'Ostať tu',
+    nebezpecne: true,
+  })
+  if (ano) neulozene.clear()
+  return ano
 }
 
 /**

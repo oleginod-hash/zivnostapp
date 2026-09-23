@@ -10,6 +10,7 @@ import {
 import { Ikona, type KlucIkony } from '../components/Ikony'
 import { TlacidloSum, useSkryteSumy } from '../components/SkryteSumy'
 import { StitokStavu } from '../components/StitokStavu'
+import { oznam } from '../components/Oznamenia'
 
 type Konverzacia = { id: number; asistent: string; nazov: string; updated_at: string; pocet_sprav: number }
 type Obdobie = 'rok' | 'kvartal' | 'mesiac'
@@ -151,7 +152,7 @@ export function Prehlad() {
     api.get<KategoriaVydavkov[]>(`/financie/kategorie?rok=${ROK}`).then((k) => setKategorieRok(k.slice(0, 5))).catch(() => {})
     api.get<Vydavok[]>('/vydavky?druh=vydavok').then((v) => setVydavky(v.slice(0, 6))).catch(() => {})
     api.get<Turnus[]>('/turnusy').then(setTurnusy).catch(() => {})
-    api.get<Konverzacia[]>('/ai/konverzacie?asistent=pomocnik').then((k) => setKonverzacie(k.slice(0, 5))).catch(() => {})
+    api.get<Konverzacia[]>('/ai/konverzacie').then((k) => setKonverzacie(k.slice(0, 5))).catch(() => {})
     api.get<{ posledna: string | null }>('/zalohy/stav').then((z) => setZaloha(z.posledna)).catch(() => {})
     // Po polnoci sa načíta znova – mení sa, čo je po splatnosti aj aktívny turnus.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -192,9 +193,20 @@ export function Prehlad() {
 
   // ── Vyžaduje pozornosť ──────────────────────────────────────
   async function oznacZaplatenu(f: PoSplatnosti) {
-    if (!confirm(`Označiť faktúru ${f.cislo} ako zaplatenú?\n\nZapíše sa platba ${skSuma(f.otvoreny_zostatok)} s dnešným dátumom.`)) return
-    await api.post(`/faktury/${f.id}/stav`, { stav: 'zaplatena' })
+    const r = await api.post<{ platba_id: number | null }>(`/faktury/${f.id}/stav`, { stav: 'zaplatena' })
     nacitajFaktury()
+    oznam(
+      `Faktúra ${f.cislo}: zapísaná platba ${skSuma(f.otvoreny_zostatok)}.`,
+      r.platba_id
+        ? {
+            text: 'Vrátiť späť',
+            sprav: async () => {
+              await api.del(`/faktury/platby/${r.platba_id}`)
+              nacitajFaktury()
+            },
+          }
+        : undefined,
+    )
   }
 
   const pozornost: Pozornost[] = []
@@ -220,8 +232,7 @@ export function Prehlad() {
       cipy: (
         <>
           <Link className="cip hlavny" to="/upomienky">Poslať upomienku</Link>
-          <button className="cip" onClick={() => oznacZaplatenu(f)}>Označiť zaplatené</button>
-          <Link className="cip" to={'/faktury/' + f.id}>Otvoriť</Link>
+          <button className="cip" onClick={() => oznacZaplatenu(f)}>Zaplatená</button>
         </>
       ),
     })
@@ -543,10 +554,6 @@ export function Prehlad() {
                 </div>
               ))
             )}
-            <div className="pozornost-pata">
-              <Ikona nazov="zaplatena" velkost={13} hrubka={2.4} />
-              Zaplatené faktúry sa tu nikdy nezobrazujú
-            </div>
           </div>
 
           <div className="panel turnus-karta">
@@ -643,11 +650,11 @@ export function Prehlad() {
                         <td className="tlmene" style={{ width: 92 }}>{skDatum(v.datum)}</td>
                         <td>
                           <strong>{v.popis}</strong>
-                          {v.kategoria && <div className="tlmene" style={{ fontSize: 12 }}>{v.kategoria}</div>}
+                          {v.kategoria && <div className="tlmene" style={{ fontSize: 12.5 }}>{v.kategoria}</div>}
                         </td>
                         <td className="cislo">
                           {skSuma(v.suma)}
-                          {v.odpocitat === 0 && <div className="tlmene" style={{ fontSize: 11.5, fontWeight: 500 }}>neuznateľný</div>}
+                          {v.odpocitat === 0 && <div className="tlmene" style={{ fontSize: 12.5, fontWeight: 500 }}>neuznateľný</div>}
                         </td>
                       </tr>
                     ))}
@@ -671,7 +678,7 @@ export function Prehlad() {
                       <tr key={t.id} style={{ cursor: 'pointer' }} onClick={() => navigate('/turnusy/' + t.id)}>
                         <td>
                           <strong>{t.nazov}</strong>
-                          <div className="tlmene" style={{ fontSize: 12 }}>
+                          <div className="tlmene" style={{ fontSize: 12.5 }}>
                             {[t.miesto, t.krajina].filter(Boolean).join(', ') || t.firma_nazov || '—'}
                           </div>
                         </td>
@@ -691,21 +698,21 @@ export function Prehlad() {
         </div>
         <div className="stlpec-dlazdic">
           <Sekcia
-            nadpis="AI pomocník"
-            kam="/pomocnik"
-            odkaz="Otvoriť pomocníka"
+            nadpis="Asistent"
+            kam="/asistent"
+            odkaz="Otvoriť asistenta"
             deti={
               <>
                 {konverzacie.length === 0 ? (
                   <div className="prazdne">
-                    Zatiaľ ste sa nerozprávali. <Link to="/pomocnik">Napíš mu, čo potrebuješ</Link> — vie zapísať
-                    výdavok z fotky bločku, vystaviť faktúru aj nájsť, čo hľadáš.
+                    Zatiaľ žiadna otázka. <Link to="/asistent">Napíš, čo potrebuješ</Link> — asistent vie zapísať
+                    výdavok z fotky dokladu, vystaviť faktúru aj odpovedať na dane a zmluvy.
                   </div>
                 ) : (
                   <table>
                     <tbody>
                       {konverzacie.map((k) => (
-                        <tr key={k.id} style={{ cursor: 'pointer' }} onClick={() => navigate('/pomocnik')}>
+                        <tr key={k.id} style={{ cursor: 'pointer' }} onClick={() => navigate('/asistent')}>
                           <td>
                             <strong>{k.nazov}</strong>
                           </td>
@@ -719,11 +726,8 @@ export function Prehlad() {
                   </table>
                 )}
                 <div className="dlazdica-pata">
-                  <Link className="tlacidlo maly" to="/uctovnik">
-                    <Ikona nazov="uctovnik" velkost={14} /> Účtovník
-                  </Link>
-                  <Link className="tlacidlo maly" to="/pravnik">
-                    <Ikona nazov="pravnik" velkost={14} /> Právnik
+                  <Link className="tlacidlo maly" to="/asistent">
+                    <Ikona nazov="pomocnik" velkost={14} /> Nová otázka
                   </Link>
                   <Link className="tlacidlo maly" to="/danovy-podklad">
                     <Ikona nazov="podklad" velkost={14} /> Daňový podklad

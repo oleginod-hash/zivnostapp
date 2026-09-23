@@ -1,6 +1,10 @@
 import { db } from '../db.js'
 
-export type Asistent = 'uctovnik' | 'pravnik' | 'pomocnik'
+/**
+ * Asistent je jeden. Staršie konverzácie majú v databáze uložené aj
+ * 'uctovnik' a 'pravnik', preto tie názvy ostávajú platné.
+ */
+export type Asistent = 'pomocnik' | 'uctovnik' | 'pravnik'
 export const ASISTENTI: Asistent[] = ['pomocnik', 'uctovnik', 'pravnik']
 
 /**
@@ -46,66 +50,6 @@ Ako odpovedať:
   opíš pravidlo slovami a povedz, že presné znenie treba overiť.
 - Na konci odpovede uveď, čo má používateľ reálne urobiť ako ďalší krok.
 - Keď je vec vážna alebo drahá, jasne odporuč obrátiť sa na odborníka.
-`.trim()
-}
-
-function uctovnik(p: Profil): string {
-  const kto = p.zahranicie
-    ? 'Si účtovnícky a daňový poradca pre slovenských živnostníkov pracujúcich v zahraničí.'
-    : 'Si účtovnícky a daňový poradca pre slovenských živnostníkov.'
-  const domena = p.zahranicie
-    ? `Tvoja doména: daň z príjmu SZČO na Slovensku, paušálne výdavky verzus skutočné výdavky,
-odvody do Sociálnej a zdravotnej poisťovne, vznik a zánik povinnosti platiť odvody,
-daňová rezidencia a zamedzenie dvojitého zdanenia, kedy vzniká povinnosť registrovať sa
-alebo zdaňovať príjem v cudzine, DPH pri službách pre zahraničné firmy (vrátane prenosu
-daňovej povinnosti a registrácie podľa §7a), formulár A1 a príslušnosť k sociálnemu
-systému pri práci v inom štáte EÚ, evidencia dokladov a čo si treba odkladať.`
-    : `Tvoja doména: daň z príjmu SZČO na Slovensku, paušálne výdavky verzus skutočné výdavky,
-odvody do Sociálnej a zdravotnej poisťovne, vznik a zánik povinnosti platiť odvody,
-DPH – kedy vzniká povinnosť registrovať sa a čo znamená registrácia podľa §7a pri službách
-pre zahraničné firmy, daňové priznanie a jeho termíny, evidencia dokladov a čo si treba odkladať.`
-
-  return `
-${kto}
-
-${spolocne(p)}
-
-${domena}
-
-Nie si však jeho účtovník a nevidíš jeho kompletné účtovníctvo. Pri podaní daňového priznania,
-optimalizácii alebo čomkoľvek, kde hrozí pokuta, odporuč konzultáciu s účtovníkom.
-`.trim()
-}
-
-function pravnik(p: Profil): string {
-  const kto = p.zahranicie
-    ? 'Si právny poradca pre slovenských živnostníkov pracujúcich na zahraničných zákazkách.'
-    : 'Si právny poradca pre slovenských živnostníkov.'
-  const domena = p.zahranicie
-    ? `Tvoja doména: zmluvy o dielo a rámcové zmluvy, obchodné podmienky, objednávky, dodacie
-a platobné podmienky, zmluvné pokuty a úroky z omeškania, zádržné, reklamácie a zodpovednosť
-za vady, výpovedné lehoty a ukončenie spolupráce, vymáhanie nezaplatených faktúr, rozdiel
-medzi dodávkou služby a skrytým zamestnaním (a prečo je to riziko), rozhodné právo a súdna
-príslušnosť pri zahraničnom partnerovi, poistenie zodpovednosti, bezpečnosť práce na
-zahraničných stavbách.`
-    : `Tvoja doména: zmluvy o dielo, rámcové a iné obchodné zmluvy, obchodné podmienky, objednávky,
-dodacie a platobné podmienky, zmluvné pokuty a úroky z omeškania, reklamácie a zodpovednosť
-za vady, výpovedné lehoty a ukončenie spolupráce, vymáhanie nezaplatených faktúr, rozdiel
-medzi dodávkou služby a skrytým zamestnaním (a prečo je to riziko), zmluvy so zahraničným
-partnerom, poistenie zodpovednosti.`
-
-  return `
-${kto}
-
-${spolocne(p)}
-
-${domena}
-
-Keď používateľ opisuje konkrétnu zmluvu, pýtaj sa na formulácie, ktoré sú v nej naozaj
-napísané – nepredpokladaj štandardné znenie.
-
-Nie si jeho advokát a toto nie je právne zastúpenie. Pri spore, podpise veľkej zmluvy alebo
-hrozbe súdu odporuč advokáta.
 `.trim()
 }
 
@@ -188,19 +132,53 @@ len vraciaš stav pred svojou vlastnou akciou.
 `.trim()
 }
 
-/** Systémový prompt podľa aktuálnych Nastavení – zmena sa prejaví hneď pri ďalšej otázke. */
-export function systemovyPrompt(asistent: Asistent): string {
+/**
+ * Systémový prompt podľa aktuálnych Nastavení – zmena sa prejaví hneď pri
+ * ďalšej otázke. Asistent je jeden: vie pracovať s dátami v appke a zároveň
+ * odpovedať na daňové a právne otázky.
+ */
+export function systemovyPrompt(_asistent?: Asistent): string {
   const p = profilZNastaveni()
-  if (asistent === 'uctovnik') return uctovnik(p)
-  if (asistent === 'pravnik') return pravnik(p)
-  return pomocnik(p)
+  return `${pomocnik(p)}
+
+${danoveAPravneOtazky(p)}`
+}
+
+/** Daňová a právna časť – pripája sa k pomocníkovi, aby bol asistent jeden. */
+function danoveAPravneOtazky(p: Profil): string {
+  const dane = p.zahranicie
+    ? `daň z príjmu SZČO, paušálne verzus skutočné výdavky, odvody do Sociálnej a zdravotnej
+poisťovne, daňová rezidencia a zamedzenie dvojitého zdanenia, DPH pri službách pre zahraničné
+firmy vrátane registrácie podľa § 7a, formulár A1 a evidencia dokladov`
+    : `daň z príjmu SZČO, paušálne verzus skutočné výdavky, odvody do Sociálnej a zdravotnej
+poisťovne, registrácia pre DPH a evidencia dokladov`
+  const pravo = p.zahranicie
+    ? `zmluvy o dielo a rámcové zmluvy, objednávky, dodacie a platobné podmienky, zmluvné pokuty
+a úroky z omeškania, zádržné, reklamácie, výpovedné lehoty, vymáhanie nezaplatených faktúr,
+rozdiel medzi dodávkou služby a skrytým zamestnaním, rozhodné právo pri zahraničnom partnerovi`
+    : `zmluvy o dielo a iné obchodné zmluvy, objednávky, dodacie a platobné podmienky, zmluvné
+pokuty a úroky z omeškania, reklamácie, výpovedné lehoty, vymáhanie nezaplatených faktúr,
+rozdiel medzi dodávkou služby a skrytým zamestnaním`
+
+  return `DANE, ODVODY A PRÁVO
+Okrem práce s appkou odpovedáš aj na tieto otázky:
+- Dane a odvody: ${dane}.
+- Zmluvy a pohľadávky: ${pravo}.
+
+Pri nich platí:
+- Najprv odpoveď, potom vysvetlenie, na konci konkrétny ďalší krok.
+- Konkrétne sadzby a lehoty sa menia. Keď si nie si istý, že údaj stále platí, povedz to.
+- Nevymýšľaj si paragrafy. Keď nepoznáš presné ustanovenie, opíš pravidlo slovami.
+- Nie si jeho účtovník ani advokát. Pri podaní priznania, spore, veľkej zmluve alebo tam, kde
+  hrozí pokuta, odporuč odborníka.
+- Keď sa otázka týka jeho čísel, najprv si ich pozri nástrojmi a odpovedaj konkrétne.`
 }
 
 export const NAZVY_ASISTENTOV: Record<Asistent, string> = {
-  pomocnik: 'Pomocník',
-  uctovnik: 'Účtovnícky asistent',
-  pravnik: 'Právny asistent',
+  pomocnik: 'Asistent',
+  uctovnik: 'Asistent',
+  pravnik: 'Asistent',
 }
 
-/** Ktorí asistenti majú k dispozícii nástroje na prácu s dátami. */
-export const ASISTENTI_S_NASTROJMI: Asistent[] = ['pomocnik']
+/** Nástroje na prácu s dátami má asistent vždy. */
+export const ASISTENTI_S_NASTROJMI: Asistent[] = ['pomocnik', 'uctovnik', 'pravnik']

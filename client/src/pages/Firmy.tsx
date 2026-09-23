@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
-import { api, type Firma } from '../api'
+import { api, pocet, vratZKosa, type Firma } from '../api'
 import { Ikona } from '../components/Ikony'
 import { Avatar } from '../components/Farby'
+import { oznam, oznamChybu } from '../components/Oznamenia'
 import { PrazdnyStav } from '../components/PrazdnyStav'
 import { useNeulozeneZmeny } from '../neulozene'
 
@@ -70,10 +71,32 @@ export function Firmy() {
   }
 
   async function zmaz(f: Firma) {
-    if (!confirm(`Zmazať firmu ${f.nazov}?\n\nAk na ňu existujú faktúry, firma sa iba archivuje, aby história ostala celá.`)) return
-    const r = await api.del<{ archivovana: boolean; pocetFaktur: number }>('/firmy/' + f.id)
-    if (r.archivovana) alert(`Firma má ${r.pocetFaktur} faktúr, preto bola len archivovaná.`)
-    nacitaj()
+    try {
+      const r = await api.del<{ archivovana: boolean; pocetFaktur: number }>('/firmy/' + f.id)
+      nacitaj()
+      if (r.archivovana) {
+        oznam(
+          `Firma ${f.nazov} má ${pocet(r.pocetFaktur, ['faktúru', 'faktúry', 'faktúr'])}, preto je len archivovaná.`,
+          {
+            text: 'Vrátiť späť',
+            sprav: async () => {
+              await api.post(`/firmy/${f.id}/obnovit`)
+              nacitaj()
+            },
+          },
+        )
+      } else {
+        oznam(`Firma ${f.nazov} je v koši.`, {
+          text: 'Vrátiť späť',
+          sprav: async () => {
+            await vratZKosa('companies', f.id)
+            nacitaj()
+          },
+        })
+      }
+    } catch (e: any) {
+      oznamChybu(e.message)
+    }
   }
 
   return (

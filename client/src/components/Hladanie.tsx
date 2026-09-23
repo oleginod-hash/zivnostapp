@@ -84,8 +84,8 @@ export function Hladanie() {
     return () => clearTimeout(t)
   }, [dopyt])
 
-  function otvor(v: Vysledok) {
-    if (!mozemOdist()) return
+  async function otvor(v: Vysledok) {
+    if (!(await mozemOdist())) return
     navigate(v.cesta)
     setOtvorene(false)
     setDopyt('')

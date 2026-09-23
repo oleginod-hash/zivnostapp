@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import {
-  api, dnesISO, pocet, skDatum, skSuma, turnusPreDatum, velkostSuboru,
+  api, dnesISO, pocet, skDatum, skSuma, turnusPreDatum, velkostSuboru, vratZKosa,
   KATEGORIE_PRIJMOV, KATEGORIE_VYDAVKOV, NAZVY_PLATIEB,
   type DruhVydavku, type Platba, type Priloha, type SuhrnVydavkov, type Turnus, type Vydavok,
 } from '../api'
 import { Ikona } from '../components/Ikony'
 import { FarebnyCip, tonKategorie } from '../components/Farby'
+import { oznam } from '../components/Oznamenia'
 import { PrazdnyStav } from '../components/PrazdnyStav'
 import { useNeulozeneZmeny } from '../neulozene'
 
@@ -185,11 +186,17 @@ export function Vydavky() {
   }
 
   async function zmaz(v: Vydavok) {
-    const co = v.druh === 'prijem' ? 'súkromný príjem' : 'výdavok'
-    if (!confirm(`Zmazať ${co} „${v.popis}"? Aj s dokladmi sa presunie do koša.`)) return
+    const co = v.druh === 'prijem' ? 'Súkromný príjem' : 'Výdavok'
     await api.del('/vydavky/' + v.id)
     if (uprava?.id === v.id) setUprava(null)
     nacitaj()
+    oznam(`${co} „${v.popis}" je v koši aj s dokladmi.`, {
+      text: 'Vrátiť späť',
+      sprav: async () => {
+        await vratZKosa('expenses', v.id)
+        nacitaj()
+      },
+    })
   }
 
   const spolu = vydavky?.reduce((s, v) => s + v.suma, 0) ?? 0

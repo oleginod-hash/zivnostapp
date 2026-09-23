@@ -40,15 +40,17 @@ aiRouter.get('/stav', (_req, res) => {
 
 // ── Konverzácie ───────────────────────────────────────────────
 aiRouter.get('/konverzacie', (req, res) => {
+  // Asistent je jeden; staršie konverzácie od účtovníka a právnika sa
+  // zobrazujú spolu s ostatnými. Filter podľa asistenta ostáva pre istotu.
   const asistent = String(req.query.asistent ?? '')
-  if (!jeAsistent(asistent)) return res.status(400).json({ chyba: 'Neznámy asistent.' })
+  const kde = jeAsistent(asistent) ? 'WHERE k.asistent = @asistent' : ''
   res.json(
     db
       .prepare(
         `SELECT k.*, (SELECT COUNT(*) FROM ai_messages m WHERE m.conversation_id = k.id) AS pocet_sprav
-         FROM ai_conversations k WHERE k.asistent = ? ORDER BY k.updated_at DESC`,
+         FROM ai_conversations k ${kde} ORDER BY k.updated_at DESC`,
       )
-      .all(asistent),
+      .all({ asistent }),
   )
 })
 

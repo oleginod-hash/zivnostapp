@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { api, type NavrhMailu, type StavMailu } from '../api'
+import { potvrd } from './Oznamenia'
 
 type Props = {
   invoiceId: number
@@ -46,9 +47,16 @@ export function OdoslatMail({ invoiceId, typ, zavriet, poOdoslani }: Props) {
    * Iný jazyk = nový predpripravený text. Keď si ho už človek upravil,
    * najprv sa spýtame – inak by jeho úpravy potichu zmizli.
    */
-  function zmenJazyk(novy: string) {
+  async function zmenJazyk(novy: string) {
     const upraveny = navrh && (predmet !== navrh.predmet || text !== navrh.text)
-    if (upraveny && !confirm('Text si už upravil. Nahradiť ho predpripraveným textom v inom jazyku?')) return
+    if (upraveny) {
+      const ano = await potvrd({
+        nadpis: 'Nahradiť upravený text?',
+        text: 'Text, ktorý si upravil, sa prepíše predpripraveným textom v inom jazyku.',
+        potvrdit: 'Nahradiť',
+      })
+      if (!ano) return
+    }
     setJazyk(novy)
   }
 

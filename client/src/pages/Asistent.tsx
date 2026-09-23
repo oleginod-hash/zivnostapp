@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { api, pocet, skDatum } from '../api'
 import { Ikona, type KlucIkony } from '../components/Ikony'
 import type { Ton } from '../components/Farby'
+import { potvrd } from '../components/Oznamenia'
 
 type Asistent = 'pomocnik' | 'uctovnik' | 'pravnik'
 
@@ -45,59 +46,32 @@ type StavAi = { dostupne: boolean; model: string }
 
 type Priklad = { text: string; ikona: KlucIkony; ton: Ton }
 
-type Popis = {
-  nadpis: string
-  ikona: KlucIkony
-  /** Veľká otázka v uvítaní. */
-  otazka: string
-  uvod: string
-  priklady: Priklad[]
-  poznamka?: string
-}
+/**
+ * Príklady otázok sa riadia tým, čo má človek v Nastaveniach: kto nepracuje
+ * na zahraničných turnusoch, nech nečíta o Nórsku a odvodoch v Nemecku.
+ */
+const PRIKLADY_ZAHRANICIE: Priklad[] = [
+  { text: 'Koľko mi ešte nezaplatili a ktoré faktúry sú po splatnosti?', ikona: 'faktury', ton: 'neg' },
+  { text: 'Idem na turnus do Nórska pre Bau GmbH od 5. 9. do 26. 9.', ikona: 'turnusy', ton: 'akcent' },
+  { text: 'Aké odvody riešim na Slovensku, keď pracujem tri mesiace v Nemecku?', ikona: 'penazenka', ton: 'tyrkys' },
+  { text: 'Firma mi nezaplatila faktúru tri mesiace po splatnosti. Ako postupovať?', ikona: 'upomienky', ton: 'warn' },
+]
 
-const POPIS: Record<Asistent, Popis> = {
-  pomocnik: {
-    nadpis: 'Pomocník',
-    ikona: 'pomocnik',
-    otazka: 'S čím ti pomôžem?',
-    uvod:
-      'Napíš, čo potrebuješ — vystaviť faktúru, založiť turnus, zapísať výdavok alebo sa niečo ' +
-      'opýtať na svoje čísla. Vidí všetko, čo máš v appke.',
-    priklady: [
-      { text: 'Koľko mi ešte nezaplatili a ktoré faktúry sú po splatnosti?', ikona: 'faktury', ton: 'neg' },
-      { text: 'Idem na turnus do Nórska pre Bau GmbH od 5.9. do 26.9.', ikona: 'turnusy', ton: 'akcent' },
-      { text: 'Zapíš výdavok 180 € za naftu, dnes, kategória Doprava', ikona: 'vydavky', ton: 'warn' },
-      { text: 'Ktorý turnus mi tento rok zarobil najviac?', ikona: 'financie', ton: 'pos' },
-    ],
-    poznamka: 'Vie zapisovať aj upravovať tvoje záznamy. Mazať nevie nič — to ostáva len na tebe.',
-  },
-  uctovnik: {
-    nadpis: 'Účtovnícky asistent',
-    ikona: 'uctovnik',
-    otazka: 'Čo ťa zaujíma o daniach a odvodoch?',
-    uvod: 'Opýtaj sa na dane, odvody, paušálne výdavky alebo DPH pri zahraničných zákazkách.',
-    priklady: [
-      { text: 'Pracujem 3 mesiace v Nemecku pre nemeckú firmu. Aké odvody mám riešiť na Slovensku?', ikona: 'penazenka', ton: 'akcent' },
-      { text: 'Oplatia sa mi paušálne výdavky, alebo si mám viesť skutočné?', ikona: 'financie', ton: 'pos' },
-      { text: 'Nemecká firma odo mňa chce IČ DPH. Musím sa registrovať, keď nie som platiteľ DPH?', ikona: 'faktury', ton: 'fialova' },
-      { text: 'Čo je formulár A1 a kedy ho potrebujem?', ikona: 'subor', ton: 'tyrkys' },
-    ],
-    poznamka: 'Radí všeobecne. Pri podaní priznania alebo keď hrozí pokuta sa poraď s účtovníčkou.',
-  },
-  pravnik: {
-    nadpis: 'Právny asistent',
-    ikona: 'pravnik',
-    otazka: 'S akou zmluvou alebo problémom ti pomôžem?',
-    uvod: 'Opýtaj sa na zmluvy, objednávky, obchodné podmienky alebo vymáhanie faktúr.',
-    priklady: [
-      { text: 'Firma mi nezaplatila faktúru 3 mesiace po splatnosti. Ako mám postupovať?', ikona: 'upomienky', ton: 'neg' },
-      { text: 'Na čo si dať pozor v rámcovej zmluve so zahraničnou firmou?', ikona: 'zmluvy', ton: 'akcent' },
-      { text: 'V zmluve mám zádržné 10 % na dva roky. Je to bežné a čo to pre mňa znamená?', ikona: 'penazenka', ton: 'warn' },
-      { text: 'Aký je rozdiel medzi dodávkou služby a skrytým zamestnaním?', ikona: 'pravnik', ton: 'fialova' },
-    ],
-    poznamka: 'Nie je to právne zastúpenie. Pri spore alebo veľkej zmluve sa obráť na advokáta.',
-  },
-}
+const PRIKLADY_DOMA: Priklad[] = [
+  { text: 'Koľko mi ešte nezaplatili a ktoré faktúry sú po splatnosti?', ikona: 'faktury', ton: 'neg' },
+  { text: 'Zapíš výdavok 180 € za naftu, dnes, kategória Doprava', ikona: 'vydavky', ton: 'akcent' },
+  { text: 'Oplatia sa mi paušálne výdavky, alebo skutočné?', ikona: 'penazenka', ton: 'tyrkys' },
+  { text: 'Firma mi nezaplatila faktúru tri mesiace po splatnosti. Ako postupovať?', ikona: 'upomienky', ton: 'warn' },
+]
+
+const NADPIS = 'Asistent'
+const OTAZKA = 'S čím ti pomôžem?'
+const UVOD =
+  'Napíš, čo potrebuješ — vystaviť faktúru, založiť turnus, zapísať výdavok, alebo sa opýtať ' +
+  'na dane, odvody a zmluvy. Vidí všetko, čo máš v appke.'
+const POZNAMKA =
+  'Zapisuje a upravuje záznamy, mazať nevie. Pri daniach a zmluvách radí všeobecne — ' +
+  'pri vážnej veci sa obráť na účtovníčku alebo advokáta.'
 
 /** Tučné kúsky **takto** vo vnútri riadku. */
 function STucnym({ text }: { text: string }) {
@@ -156,7 +130,9 @@ function Premysla() {
   )
 }
 
-export function AsistentStranka({ asistent }: { asistent: Asistent }) {
+export function AsistentStranka() {
+  // Nové konverzácie sa ukladajú pod pôvodným kľúčom, aby staré ostali čitateľné.
+  const asistent: Asistent = 'pomocnik'
   const [stav, setStav] = useState<StavAi | null>(null)
   const [konverzacie, setKonverzacie] = useState<Konverzacia[]>([])
   const [aktivna, setAktivna] = useState<number | null>(null)
@@ -169,23 +145,25 @@ export function AsistentStranka({ asistent }: { asistent: Asistent }) {
   const pole = useRef<HTMLTextAreaElement>(null)
   const [chyba, setChyba] = useState('')
   const koniec = useRef<HTMLDivElement>(null)
-  const popis = POPIS[asistent]
+  const [zahranicie, setZahranicie] = useState(false)
+  const priklady = zahranicie ? PRIKLADY_ZAHRANICIE : PRIKLADY_DOMA
 
   useEffect(() => {
     api.get<StavAi>('/ai/stav').then(setStav).catch(() => {})
+    api
+      .get<{ praca_v_zahranici: number }>('/nastavenia')
+      .then((n) => setZahranicie(!!n.praca_v_zahranici))
+      .catch(() => {})
   }, [])
 
   function nacitajKonverzacie() {
-    api.get<Konverzacia[]>('/ai/konverzacie?asistent=' + asistent).then(setKonverzacie).catch(() => {})
+    api.get<Konverzacia[]>('/ai/konverzacie').then(setKonverzacie).catch(() => {})
   }
 
   useEffect(() => {
     nacitajKonverzacie()
-    setAktivna(null)
-    setSpravy([])
-    setChyba('')
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [asistent])
+  }, [])
 
   useEffect(() => {
     koniec.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
@@ -207,7 +185,13 @@ export function AsistentStranka({ asistent }: { asistent: Asistent }) {
   }
 
   async function zmazKonverzaciu(k: Konverzacia) {
-    if (!confirm(`Zmazať konverzáciu „${k.nazov}"?`)) return
+    const ano = await potvrd({
+      nadpis: `Zmazať konverzáciu „${k.nazov}"?`,
+      text: 'Celá sa odstráni a vrátiť sa nedá.',
+      potvrdit: 'Zmazať',
+      nebezpecne: true,
+    })
+    if (!ano) return
     await api.del('/ai/konverzacie/' + k.id)
     if (aktivna === k.id) {
       setAktivna(null)
@@ -322,9 +306,9 @@ Prílohy: ${fotky.map((f) => f.nazov).join(', ')}` : ''
       <div className="hlavicka">
         <h1 className="ai-nadpis">
           <span className="ai-avatar">
-            <Ikona nazov={popis.ikona} velkost={16} hrubka={2} />
+            <Ikona nazov="pomocnik" velkost={16} hrubka={2} />
           </span>
-          {popis.nadpis}
+          {NADPIS}
         </h1>
         <div className="akcie">
           <button
@@ -355,12 +339,12 @@ Prílohy: ${fotky.map((f) => f.nazov).join(', ')}` : ''
             <div className="ai-uvod">
               <div className="ai-uvod-obsah">
                 <span className="ai-avatar velky">
-                  <Ikona nazov={popis.ikona} velkost={26} hrubka={1.8} />
+                  <Ikona nazov="pomocnik" velkost={26} hrubka={1.8} />
                 </span>
-                <div className="ai-uvod-nadpis">{popis.otazka}</div>
-                <p className="ai-uvod-text">{popis.uvod}</p>
+                <div className="ai-uvod-nadpis">{OTAZKA}</div>
+                <p className="ai-uvod-text">{UVOD}</p>
                 <div className="ai-priklady">
-                  {popis.priklady.map((p) => (
+                  {priklady.map((p) => (
                     <button key={p.text} className="ai-priklad" onClick={() => posli(p.text)} disabled={bezKluca}>
                       <span className={`ai-priklad-ikona ton-${p.ton}`}>
                         <Ikona nazov={p.ikona} velkost={15} hrubka={2} />
@@ -369,12 +353,10 @@ Prílohy: ${fotky.map((f) => f.nazov).join(', ')}` : ''
                     </button>
                   ))}
                 </div>
-                {popis.poznamka && (
-                  <p className="ai-poznamka">
-                    <Ikona nazov="zaplatena" velkost={14} hrubka={2.4} />
-                    {popis.poznamka}
-                  </p>
-                )}
+                <p className="ai-poznamka">
+                  <Ikona nazov="zaplatena" velkost={14} hrubka={2.4} />
+                  {POZNAMKA}
+                </p>
               </div>
             </div>
           ) : (
@@ -388,7 +370,7 @@ Prílohy: ${fotky.map((f) => f.nazov).join(', ')}` : ''
                   ) : (
                     <div key={i} className="ai-sprava assistant">
                       <span className="ai-avatar">
-                        <Ikona nazov={popis.ikona} velkost={15} hrubka={2} />
+                        <Ikona nazov="pomocnik" velkost={15} hrubka={2} />
                       </span>
                       <div className="ai-telo">
                         {!!s.akcie?.length && (

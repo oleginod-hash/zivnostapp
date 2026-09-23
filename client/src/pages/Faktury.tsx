@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import {
-  api, dniDoSplatnosti, pocet, skDatum, skSuma,
-  type Faktura, type Firma, type PoctyFaktur, type Suhrn, type Turnus,
+  api, dniDoSplatnosti, pocet, skDatum, skSuma, vratZKosa,
+  type Faktura, type Firma, type PlatbaFaktury, type PoctyFaktur, type Suhrn, type Turnus,
 } from '../api'
+import { oznam, potvrd } from '../components/Oznamenia'
 import { Ikona } from '../components/Ikony'
 import { StitokStavu, StitokZalohy } from '../components/StitokStavu'
 import { PrazdnyStav } from '../components/PrazdnyStav'
@@ -38,31 +39,6 @@ function Dni({ splatnost, otvorene }: { splatnost: string; otvorene: boolean }) 
     <span className="dni po" title={`Po splatnosti už ${pocet(-d, ['deň', 'dni', 'dní'])}`}>
       −{-d} d
     </span>
-  )
-}
-
-/**
- * Koľko z faktúry je uhradené. Ráta sa aj to, čo prišlo cez zálohové
- * faktúry kryjúce ten istý dlh – práve preto sa faktúra vie dostať na
- * 100 % bez toho, aby na nej samotnej bola čo i len jedna platba.
- */
-function Krytie({ f }: { f: Faktura }) {
-  const podiel = f.suma > 0 ? Math.min(100, Math.max(0, (f.uhradene_spolu / f.suma) * 100)) : 0
-  const hotovo = f.otvoreny_zostatok <= 0.005
-  const cezZalohy = f.prijate_zalohami > 0.005
-
-  return (
-    <div className="krytie" title={cezZalohy ? `Z toho ${skSuma(f.prijate_zalohami)} prišlo cez zálohové faktúry` : undefined}>
-      <div className="pruh">
-        <div
-          className={'pruh-vypln' + (hotovo ? '' : podiel > 0 ? ' oranzova' : ' cervena')}
-          style={{ width: podiel + '%' }}
-        />
-      </div>
-      <span className="tlmene" style={{ fontSize: 12.5, whiteSpace: 'nowrap' }}>
-        {Math.round(podiel)} %{cezZalohy && ' ⧉'}
-      </span>
-    </div>
   )
 }
 
@@ -119,17 +95,58 @@ export function Faktury() {
 
   async function zmenStav(id: number, stav: string) {
     const fa = faktury?.find((x) => x.id === id)
-    if (stav === 'vystavena' && !confirm(`Zrušiť úhradu faktúry ${fa?.cislo ?? ''}?\n\nZmažú sa všetky zapísané platby k nej.`)) {
+
+    if (stav === 'vystavena') {
+      const ano = await potvrd({
+        nadpis: `Zrušiť úhradu faktúry ${fa?.cislo ?? ''}?`,
+        text: 'Zapísané platby k nej sa odstránia. Hneď potom sa to ešte dá vrátiť.',
+        potvrdit: 'Zrušiť úhradu',
+        nebezpecne: true,
+      })
+      if (!ano) return
+      // Platby si odložíme, aby sa dali vrátiť jedným kliknutím.
+      const platby = await api.get<PlatbaFaktury[]>(`/faktury/${id}/platby`)
+      await api.post(`/faktury/${id}/stav`, { stav })
+      nacitaj()
+      oznam(`Úhrada faktúry ${fa?.cislo ?? ''} je zrušená.`, {
+        text: 'Vrátiť späť',
+        sprav: async () => {
+          for (const p of platby) await api.post(`/faktury/${id}/platby`, p)
+          nacitaj()
+        },
+      })
       return
     }
-    await api.post(`/faktury/${id}/stav`, { stav })
+
+    const r = await api.post<{ platba_id: number | null }>(`/faktury/${id}/stav`, { stav })
     nacitaj()
+    if (stav === 'zaplatena') {
+      oznam(
+        `Faktúra ${fa?.cislo ?? ''} je označená ako zaplatená.`,
+        r.platba_id
+          ? {
+              text: 'Vrátiť späť',
+              sprav: async () => {
+                await api.del(`/faktury/platby/${r.platba_id}`)
+                nacitaj()
+              },
+            }
+          : undefined,
+      )
+    }
   }
 
   async function zmaz(fa: Faktura) {
-    if (!confirm(`Naozaj zmazať faktúru ${fa.cislo}? Presunie sa do koša.`)) return
+    // Bez otázky: faktúra ide do koša a dá sa hneď vrátiť.
     await api.del(`/faktury/${fa.id}`)
     nacitaj()
+    oznam(`Faktúra ${fa.cislo} je v koši.`, {
+      text: 'Vrátiť späť',
+      sprav: async () => {
+        await vratZKosa('invoices', fa.id)
+        nacitaj()
+      },
+    })
   }
 
   // Súčty pod zoznamom. Koncept ešte nie je vyfakturovaný a zálohová faktúra
@@ -253,7 +270,6 @@ export function Faktury() {
                   <th className="cislo">Fakturované</th>
                   <th className="cislo">Prijaté</th>
                   <th className="cislo">Ešte dlhujú</th>
-                  <th>Uhradené</th>
                   <th>Stav</th>
                   <th aria-label="Akcie"></th>
                 </tr>
@@ -313,26 +329,22 @@ export function Faktury() {
                         )}
                       </td>
                       <td>
-                        <Krytie f={fa} />
-                      </td>
-                      <td>
                         <StitokStavu stav={fa.stav_zobraz} kratko />
                       </td>
                       <td onClick={(e) => e.stopPropagation()}>
                         <div className="akcie-riadku">
                           {otvorene ? (
                             <button
-                              className="ikonove maly vyplatit"
-                              title={`Označiť ako vyplatenú – zapíše doplatok ${skSuma(fa.otvoreny_zostatok)}`}
-                              aria-label="Označiť ako vyplatenú"
+                              className="maly vyplatit"
+                              title={`Zapíše doplatok ${skSuma(fa.otvoreny_zostatok)} s dnešným dátumom`}
                               onClick={() => zmenStav(fa.id, 'zaplatena')}
                             >
-                              <Ikona nazov="zaplatena" velkost={15} hrubka={2.2} />
+                              Zaplatená
                             </button>
                           ) : (
                             <button
-                              className="ikonove maly"
-                              title="Zrušiť úhradu – zmaže zapísané platby"
+                              className="ikonove maly holy"
+                              title="Zrušiť úhradu – odstráni zapísané platby"
                               aria-label="Zrušiť úhradu"
                               onClick={() => zmenStav(fa.id, 'vystavena')}
                             >
@@ -349,6 +361,7 @@ export function Faktury() {
                           >
                             <Ikona nazov="pdf" velkost={15} />
                           </a>
+                          <span className="oddelovac-akcii" aria-hidden="true" />
                           <button
                             className="ikonove maly holy zmazat"
                             title="Presunúť do koša"

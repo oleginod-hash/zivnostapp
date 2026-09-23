@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import {
-  api, pocet, skDatum, NAZVY_STAVOV_ZMLUV, type Firma, type SuhrnZmluv, type Zmluva,
+  api, pocet, skDatum, vratZKosa, NAZVY_STAVOV_ZMLUV, type Firma, type SuhrnZmluv, type Zmluva,
 } from '../api'
 import { Ikona } from '../components/Ikony'
 import { FarebnyCip, FirmaSAvatarom, tonPreText } from '../components/Farby'
+import { oznam } from '../components/Oznamenia'
 import { PrazdnyStav } from '../components/PrazdnyStav'
 
 /** Textový popis toho, ako blízko je koniec platnosti. */
@@ -54,9 +55,15 @@ export function Zmluvy() {
   }, [f])
 
   async function zmaz(z: Zmluva) {
-    if (!confirm(`Naozaj zmazať zmluvu „${z.nazov}"?\n\nZmažú sa aj všetky jej prílohy. Vrátiť sa to nedá.`)) return
     await api.del('/zmluvy/' + z.id)
     nacitaj()
+    oznam(`Zmluva „${z.nazov}" je v koši aj s prílohami.`, {
+      text: 'Vrátiť späť',
+      sprav: async () => {
+        await vratZKosa('contracts', z.id)
+        nacitaj()
+      },
+    })
   }
 
   return (
