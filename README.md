@@ -28,7 +28,7 @@ Všetko je v priečinku nastavenom cez `DATA_DIR` v súbore `.env`, predvolene `
 - `app.db` — databáza (faktúry, firmy, zmluvy, turnusy, výdavky, AI konverzácie, nastavenia)
 - `files/zmluvy/` — naskenované zmluvy a ich prílohy
 - `files/doklady/` — bločky a doklady k výdavkom
-- `files/chat/` — fotky priložené do chatu s pomocníkom
+- `files/chat/` — fotky priložené do chatu s asistentom
 
 Nepresúvaj tento priečinok do OneDrive — synchronizácia vie SQLite súbor poškodiť počas zápisu.
 
@@ -59,25 +59,28 @@ Kto si sadne k tvojmu odomknutému počítaču, appku otvorí — chráni ju hes
 
 Skopíruj `.env.example` na `.env` a vyplň. Súbor `.env` nikdy nepatrí do gitu.
 
-## AI asistenti
+## AI asistent
+
+Appka má jedného **Asistenta**. Vie čítať aj zapisovať tvoje záznamy, čítať fotky dokladov
+a odpovedať aj na otázky o daniach, odvodoch a zmluvách – pri nich si vie rovno pozrieť tvoje čísla.
+Staršie rozhovory s bývalým Pomocníkom, Účtovníkom a Právnikom sú v jeho zozname konverzácií.
 
 V **Nastaveniach → O mojej živnosti** je voľba *Pracujem na zákazkách v zahraničí (turnusy)*.
-Zapnutá = asistenti rátajú s turnusmi, stravným, formulárom A1 a dvojitým zdanením; vypnutá =
-odpovedajú ako bežnému živnostníkovi. Status DPH berú z toho istého miesta.
+Zapnutá = asistent ráta s turnusmi, stravným, formulárom A1 a dvojitým zdanením a ponúka
+k tomu príklady otázok; vypnutá = odpovedá ako bežnému živnostníkovi. Status DPH berie
+z toho istého miesta.
 
-Appka má troch: **Pomocník** (vie čítať aj zapisovať tvoje záznamy), **Účtovník** a **Právnik**
-(len radia, nič nezapisujú). Všetci potrebujú kľúč k Anthropic API. Vytvor si ho na
+Asistent potrebuje kľúč k Anthropic API. Vytvor si ho na
 [console.anthropic.com](https://console.anthropic.com/), vlož do `.env` ako `ANTHROPIC_API_KEY=...`
-a appku reštartuj. Bez kľúča funguje všetko ostatné normálne, len asistenti hlásia, že kľúč chýba.
+a appku reštartuj. Bez kľúča funguje všetko ostatné normálne, len asistent hlási, že kľúč chýba.
 
 Volania idú **výhradne cez backend** — kľúč sa nikdy nedostane do prehliadača. Účtuje ich Anthropic
 podľa spotreby. Predvolený model je `claude-opus-5`; lacnejší `claude-sonnet-5` nastavíš cez
 `ANTHROPIC_MODEL` v `.env`.
 
-Účtovník a právnik vidia tvoje čísla iba vtedy, keď pri otázke zapneš prepínač *Priložiť moje
-čísla z appky*. Pomocník má prístup k dátam vždy — to je jeho účel.
+Otázku pošleš klávesom **Enter**, nový riadok spravíš cez **Shift + Enter**.
 
-### Čo pomocník nevie
+### Čo asistent nevie
 
 **Nemôže nič zmazať.** Nie je to len inštrukcia v prompte — chráni to dvojitá poistka: medzi
 nástrojmi, ktoré má k dispozícii, žiadny mazací neexistuje, a vrstva, cez ktorú volá API appky,
@@ -108,6 +111,12 @@ metódu DELETE odmieta bez ohľadu na to, čo by skúsil. Mazanie ostáva ručno
 - [x] Vzhľad podľa návrhu „Živnosťapp Dashboard" (Claude Design) – svetlý aj tmavý režim
 - [x] Splatnosť faktúry v pracovných dňoch (bez víkendov a slovenských sviatkov)
 - [x] Upozornenie, keď beží stará verzia appky a treba ju reštartovať
+- [x] Appka bez PIN-u, dostupná len z tohto počítača
+- [x] „Vrátiť späť" po zmazaní, označení zaplatenej faktúry a zrušení úhrady
+- [x] Vlastné potvrdzovacie okná namiesto okien prehliadača
+- [x] Čitateľnosť: písmo najmenej 12 px, kontrast podľa normy v oboch režimoch
+- [x] Jeden AI asistent namiesto troch
+- [x] Farebné rozlíšenie firiem a kategórií, prázdne zoznamy s prvým krokom
 
 ### Stravné a dni v zahraničí
 
@@ -154,7 +163,7 @@ Nenávratne sa dá zmazať len ručne priamo v Koši; vtedy (alebo po 30 dňoch)
 súbory príloh.
 
 Položky sa dajú zaškrtnúť (aj kliknutím kamkoľvek na riadok) a potom naraz **vrátiť späť**
-alebo **zmazať natrvalo**. Tlačidlo *Vysypať celý kôš* pýta dve potvrdenia — je to jediné
+alebo **zmazať natrvalo**. Tlačidlo *Vysypať celý kôš* sa pred tým spýta – Kôš je jediné
 miesto v celej appke, kde sa dáta stratia nenávratne.
 
 ### Dlhy a zálohové faktúry
@@ -174,8 +183,8 @@ Ku každej faktúre sa dajú zapisovať **čiastočné platby** s dátumom prija
 
 Keď firma nedoplatí staré faktúry a namiesto toho pýta zálohové, označ zálohu ako typ
 *Zálohová faktúra* a vyber, ktorú starú faktúru kryje. Prijatá záloha potom znižuje dlh na pôvodnej
-faktúre — v stĺpci „Uhradené" to vidno ako percento a keď zálohy pokryjú celú sumu, faktúra sa
-sama presunie medzi **Vyplatené**. Dlh sa pritom **nikde neráta dvakrát**: ani v „čaká na
+faktúre — vidno to v stĺpcoch „Prijaté" a „Ešte dlhujú" a keď zálohy pokryjú celú sumu, faktúra
+sa sama presunie medzi **Vyplatené**. Dlh sa pritom **nikde neráta dvakrát**: ani v „čaká na
 zaplatenie", ani v príjmoch, ani v upomienkach.
 
 ### Vzhľad
@@ -189,7 +198,7 @@ režim je len iná sada tých istých premenných.
 
 V **Nastaveniach → Faktúry** je pri predvolenej splatnosti prepínač **pracovné**. Keď je zapnutý,
 nové faktúry dostanú splatnosť len v pracovných dňoch – bez sobôt, nedieľ a dní pracovného pokoja.
-Platí to aj pre faktúry, ktoré vystaví AI pomocník.
+Platí to aj pre faktúry, ktoré vystaví AI asistent.
 
 Rovnaký prepínač je aj priamo pri faktúre – tam sa dá režim zmeniť len pre tú jednu faktúru. Číslo
 lehoty ostáva, posunie sa dátum.
@@ -228,7 +237,7 @@ v PDF sa nemenia.
 
 Úvodná stránka je rozcestník. Hore sú hlavné čísla (klikateľné — vedú rovno na príslušný
 zoznam), pod nimi dlaždica za každú oblasť: posledné faktúry, financie za rok, posledné
-výdavky, na čo idú peniaze, turnusy, čo je po splatnosti a posledné rozhovory s pomocníkom.
+výdavky, na čo idú peniaze, turnusy, čo je po splatnosti a posledné rozhovory s asistentom.
 Každý riadok v tabuľke je odkaz na konkrétny záznam.
 
 ### Súkromné príjmy
@@ -239,7 +248,7 @@ Je to najrýchlejšia cesta k tomu, čo pôjde do daňového podkladu.
 Na stránke **Výdavky** je druhá záložka **Súkromné príjmy**. Patria tam peniaze, ktoré prišli na
 účet, ale nie sú príjmom z podnikania — vklad vlastných peňazí, prevod od rodiny, vrátka z e-shopu.
 Evidujú sa tu preto, že na bankovom výpise chodia spolu s výdavkami, takže sa dá výpis prepísať
-naraz (aj cez pomocníka zo screenshotu).
+naraz (aj cez asistenta zo screenshotu).
 
 Do ničoho podnikateľského nevstupujú: nie sú v príjmoch, v zisku, ani v daňovom podklade.
 V zošite pre účtovníčku majú vlastný hárok, aby sa nedali zameniť s tržbou.
@@ -252,9 +261,10 @@ v Prehľade, Financiách aj v podklade pre daňové priznanie.
 
 ### Vrátenie zmien
 
-Všetko, čo pomocník zapíše alebo upraví, sa dá vrátiť. Stačí mu v chate napísať *„vráť to"*
-alebo *„daj to ako predtým"*. Vrátenie úpravy obnoví pôvodné hodnoty; záznam, ktorý pomocník
-sám vytvoril, sa odstráni.
+**Tvoje vlastné akcie:** po zmazaní, označení faktúry ako zaplatenej alebo zrušení úhrady sa
+dole ukáže oznámenie s tlačidlom **Vrátiť späť**. Zmazané veci sú navyše 30 dní v Koši.
 
-Vracať sa dajú **len zmeny od pomocníka** — čo si zapíšeš ručne v appke, tá história nesleduje.
-Zoznam svojich zmien vypíše na požiadanie (*„čo si menil?"*).
+**Zmeny od asistenta:** všetko, čo asistent zapíše alebo upraví, sa dá vrátiť. Stačí mu napísať
+*„vráť to"* alebo *„daj to ako predtým"*. Vrátenie úpravy obnoví pôvodné hodnoty aj platby;
+záznam, ktorý asistent sám vytvoril, sa odstráni. Zoznam svojich zmien vypíše na požiadanie
+(*„čo si menil?"*).

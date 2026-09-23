@@ -59,12 +59,47 @@ client/src/
 - **Turnusy:** obdobie práce u firmy, naviazané objednávky, faktúry a výdavky, stravné, dni v krajine.
 - **Výdavky:** kategórie, daňová uznateľnosť, doklady (fotky/PDF), súkromné príjmy oddelene.
 - **Financie a daňový podklad:** príjmy podľa platieb, výdavky, zisk, Excel a CSV pre účtovníčku.
-- **AI asistenti:** Pomocník (číta a zapisuje dáta, číta fotky bločkov), Účtovník, Právnik.
-- **Drobnosti:** globálne hľadanie bez diakritiky, skrytie súm, denná záloha, kôš, tmavý režim.
+- **AI asistent:** jeden – číta a zapisuje dáta, číta fotky dokladov a odpovedá aj na dane,
+  odvody a zmluvy. Mazať nevie; všetko, čo zapíše, sa dá vrátiť.
+- **Drobnosti:** globálne hľadanie bez diakritiky, skrytie súm, denná záloha, kôš,
+  „Vrátiť späť" po ručných akciách, tmavý režim.
 
-## Stav a čo je rozrobené
+## Plány
 
-Appka je v každodennom používaní. Otvorené veci, o ktorých sa vieme baviť:
+Cieľom je ponúkať appku ďalším živnostníkom. Cieľovka: remeselníci a živnostníci 35–55 rokov,
+papiere riešia večer unavení, telefón je ich hlavný počítač, boja sa, že niečo pokazia.
+
+### Schválené a rozrobené
+
+- **Tón textov** – celé rozhranie do formálnejšieho tykania, bez hovorových slov.
+- **Sprievodca pri prvom spustení** – päť otázok namiesto 29 polí; Nastavenia rozdelené na
+  „potrebné hneď" a „pre účtovníčku".
+- **Mobilné rozloženie** – tabuľky ako karty, menu dole. Appka je teraz dostupná len
+  z localhostu, prístup z telefónu treba vyriešiť zvlášť.
+- **Prehľad** – väčšie preusporiadanie až podľa testu s ľuďmi.
+
+### Neskôr (smer)
+
+- **Skutočná appka do telefónu** – inštalovateľná, bez `npm` a súboru `.env`; AI kľúč zadaný
+  v appke alebo žiadny.
+- **Viac používateľov** – vlastné dáta pre každého, prihlásenie, zálohy mimo počítača.
+
+### Nápady na funkcie (zatiaľ neschválené)
+
+1. Import bankového výpisu (CSV) s automatickým párovaním platieb podľa VS a sumy; zvyšok ako
+   súkromný príjem.
+2. Rezerva na dane a odvody – „z každej platby si odlož X €"; evidencia zaplatených odvodov.
+3. Kalendár termínov – daňové priznanie, preddavky, ročné zúčtovanie ZP, koniec zmlúv, splatnosti.
+4. Cudzie meny vo výdavkoch (CZK, NOK, CHF) s kurzom k dátumu dokladu.
+5. Výkaz hodín pri turnuse → faktúra na jeden klik, výkaz ako príloha PDF.
+6. Balík pre účtovníčku – ZIP s Excelom a všetkými dokladmi po mesiacoch.
+7. Šifrovaná záloha mimo počítača (OneDrive, Google Drive).
+8. Fotka dokladu z telefónu cez QR kód, kým nie je appka do telefónu.
+9. Časová os na faktúre (vystavená → odoslaná → upomienka → zaplatená), kostry pri načítaní,
+   Ctrl+K aj na akcie („nová faktúra Dogma"), logo a šablóny PDF faktúry.
+10. Povinná elektronická fakturácia – overiť, či a odkedy sa týka neplatiteľov DPH.
+
+### Známe nedostatky na opravu
 
 1. Denná záloha sa robí len pri spustení appky a zálohy narastajú (kopírujú všetky prílohy).
 2. Predvolený priečinok dát je v kóde zapísaný chybne (bez `.env` skončí v priečinku appky).
@@ -72,5 +107,10 @@ Appka je v každodennom používaní. Otvorené veci, o ktorých sa vieme baviť
 4. Fotky nad ~5 MB odmietne AI API.
 5. Čas na serveri sa ráta v UTC, nie v slovenskom čase.
 6. PDF faktúra nepozná platiteľa DPH (vždy tlačí „Nie je platiteľ DPH").
-7. Pre viacerých používateľov by sa hodilo krátke uvítanie s otázkami (DPH, zahraničie, typ výdavkov),
-   z ktorých sa nastavia asistenti aj faktúra.
+
+### Overenie s ľuďmi
+
+5–8 ľudí (remeselníci na turnusoch, živnostníci doma, účtovníčka, partnerka, ktorá rieši
+papiere), 45–60 minút na ich počítači. Úlohy: zapísať doklad, vystaviť faktúru, zistiť kto
+dlhuje, poslať upomienku, zapísať čiastočnú platbu, pripraviť podklad pre účtovníčku,
+vrátiť omylom zmazanú faktúru. K tomu dvojtýždňový denníček počas turnusu.
