@@ -140,7 +140,7 @@ export function Zmluvy() {
             ikona="zmluvy"
             ton="fialova"
             nadpis="Zatiaľ žiadne zmluvy"
-            text="Ulož si sem zmluvy aj s ich skenmi. Appka ti povie, keď sa blíži koniec platnosti."
+            text="Ulož sem zmluvy aj s ich skenmi. Appka ťa upozorní, keď sa bude blížiť koniec platnosti."
             akcia={
               <Link className="tlacidlo primar" to="/zmluvy/nova">
                 + Pridať prvú zmluvu

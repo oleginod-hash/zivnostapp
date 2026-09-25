@@ -1511,6 +1511,216 @@ td.odberatel-bunka {
   .ai-priklady { grid-template-columns: 1fr; }
 }
 
+/* ── Sprievodca prvým spustením ─────────────────────────────── */
+/* Na celú obrazovku bez menu – jedna otázka naraz, väčšie písmo a polia. */
+.obsah.sprievodca-plocha {
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  padding: 28px 16px 48px;
+}
+.sprievodca { width: 100%; max-width: 620px; }
+.sprievodca-hlava {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+.sprievodca-logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 16.5px;
+  font-weight: 800;
+  letter-spacing: -0.3px;
+  color: var(--ink);
+}
+.sprievodca-karta {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  box-shadow: var(--shadow);
+  padding: 26px 30px 24px;
+}
+.sprievodca-postup { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; margin-bottom: 14px; }
+.sprievodca-postup span { height: 6px; border-radius: 3px; background: var(--soft); }
+.sprievodca-postup span.hotovy { background: var(--accent); opacity: 0.45; }
+.sprievodca-postup span.aktualny { background: var(--accent); }
+.sprievodca-krok {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: var(--ink3);
+}
+.sprievodca h1 { font-size: 28px; line-height: 1.15; margin: 6px 0 8px; }
+.sprievodca-text { font-size: 15px; line-height: 1.55; color: var(--ink2); margin: 0 0 20px; }
+.sprievodca-pole { margin-bottom: 16px; }
+.sprievodca-pole label { font-size: 13px; color: var(--ink2); }
+.sprievodca input, .sprievodca select { font-size: 15px; padding: 10px 12px; }
+.sprievodca .napoveda { font-size: 13px; }
+.sprievodca-riadok { display: flex; gap: 8px; align-items: stretch; flex-wrap: wrap; }
+.sprievodca-riadok input { flex: 1 1 180px; width: auto; }
+.sprievodca-riadok input.splatnost-vlastna { flex: 0 0 96px; text-align: right; }
+.sprievodca-riadok button { font-size: 14px; padding: 9px 14px; }
+.sprievodca-dva { display: grid; grid-template-columns: 1.4fr 1fr; gap: 12px; }
+.napoveda.uspesna { color: var(--pos); font-weight: 600; }
+.napoveda.chybna, .napoveda .chybna { color: var(--neg); font-weight: 600; }
+
+/* Veľká voľba s ikonou – namiesto rozbaľovacieho zoznamu, kde treba vedieť, čo hľadať. */
+.volby { display: grid; gap: 10px; margin-bottom: 14px; }
+.volba,
+button.volba {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  width: 100%;
+  padding: 14px 16px;
+  text-align: left;
+  white-space: normal;
+  border: 1.5px solid var(--line);
+  border-radius: 12px;
+  background: var(--panel);
+  color: var(--ink2);
+  font-size: 14px;
+  font-weight: 500;
+}
+button.volba:hover { border-color: var(--accentLine); background: var(--hover); color: var(--ink2); }
+button.volba.vybrana { border-color: var(--accent); background: var(--accentBg); }
+.volba-ikona {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  background: var(--soft);
+  color: var(--ink2);
+  flex: 0 0 auto;
+}
+.volba.vybrana .volba-ikona { background: var(--accent); color: #fff; }
+.volba-text { display: flex; flex-direction: column; gap: 3px; line-height: 1.45; }
+.volba-text strong { font-size: 15px; color: var(--ink); }
+.volba-text span { color: var(--ink2); }
+
+.zaskrtavacie {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 12px 0 0;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--ink2);
+  cursor: pointer;
+}
+.sprievodca-akcie { display: flex; justify-content: flex-end; gap: 10px; margin-top: 24px; flex-wrap: wrap; }
+.sprievodca-akcie button,
+.sprievodca-akcie .tlacidlo { font-size: 14.5px; padding: 10px 18px; }
+.sprievodca-koniec { text-align: center; }
+.sprievodca-koniec .info-pruh { text-align: left; }
+.sprievodca-koniec .sprievodca-akcie { justify-content: center; }
+.sprievodca-hotovo-ikona {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  display: inline-grid;
+  place-items: center;
+  background: var(--posBg);
+  color: var(--pos);
+  margin-bottom: 6px;
+}
+@media (max-width: 560px) {
+  .sprievodca-karta { padding: 20px 18px; }
+  .sprievodca h1 { font-size: 24px; }
+  .sprievodca-dva { grid-template-columns: 1fr; }
+}
+
+/* Termíny – dátum v rámčeku, názov a čo treba urobiť. Blížiaci sa termín je zvýraznený. */
+.terminy-zoznam { display: flex; flex-direction: column; }
+.termin-polozka {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 18px;
+  border-top: 1px solid var(--soft);
+  color: var(--ink2);
+  text-decoration: none;
+}
+.termin-polozka:hover { background: var(--hover); text-decoration: none; color: var(--ink2); }
+.termin-datum {
+  flex: 0 0 auto;
+  width: 44px;
+  padding: 4px 0;
+  border-radius: 9px;
+  background: var(--soft);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1.1;
+}
+.termin-datum strong { font-size: 17px; color: var(--ink); }
+.termin-datum span { font-size: 12px; font-weight: 700; color: var(--ink3); }
+.termin-polozka.blizko .termin-datum { background: var(--warnBg); }
+.termin-polozka.blizko .termin-datum strong,
+.termin-polozka.blizko .termin-datum span { color: var(--warn); }
+.termin-telo { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.termin-nazov { font-size: 14px; font-weight: 700; color: var(--ink); }
+.termin-popis { font-size: 12.5px; color: var(--ink3); }
+.termin-popis strong { color: var(--ink2); }
+.termin-polozka.blizko .termin-popis strong { color: var(--warn); }
+.termin-ikona { flex: 0 0 auto; color: var(--ink3); }
+.terminy-zoznam.kompaktny .termin-polozka { padding: 9px 18px; }
+
+/* Rezerva na dane a odvody – percento sa dá zmeniť priamo vo Financiách. */
+.rezerva-nastavenie { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.rezerva-nastavenie label { margin: 0; font-size: 13.5px; color: var(--ink2); }
+.rezerva-nastavenie input { width: 80px; text-align: right; }
+.rezerva-nastavenie span { font-size: 13.5px; color: var(--ink2); }
+
+/* Výpis z banky – postup, už zapísané platby a posledné importy. */
+.kroky-postupu { margin: 0 0 12px; padding-left: 20px; font-size: 14px; line-height: 1.6; color: var(--ink2); }
+.kroky-postupu li { margin-bottom: 4px; }
+tr.tlmeny-riadok td, tr.tlmeny-riadok td strong { color: var(--ink3); }
+.zoznam-importov { list-style: none; margin: 0; padding: 0; }
+.zoznam-importov li {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--soft);
+  font-size: 13.5px;
+}
+.zoznam-importov li:last-child { border-bottom: 0; }
+
+/* Podnadpis vnútri karty (napr. sadzby stravného pod zákazkami v zahraničí). */
+.panel h3.podnadpis { font-size: 15.5px; margin: 20px 0 6px; }
+
+/* Zložiteľná karta – v Nastaveniach údaje pre účtovníčku, ktoré netreba hneď. */
+details.skladaci > summary {
+  list-style: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+details.skladaci > summary::-webkit-details-marker { display: none; }
+details.skladaci > summary h2 { margin: 0; }
+details.skladaci > summary .skladaci-meta { font-size: 13px; font-weight: 600; color: var(--ink3); }
+details.skladaci > summary::after {
+  content: '';
+  margin-left: auto;
+  width: 9px;
+  height: 9px;
+  border-right: 2px solid var(--ink3);
+  border-bottom: 2px solid var(--ink3);
+  transform: rotate(45deg);
+  transition: transform 0.15s;
+}
+details.skladaci[open] > summary::after { transform: rotate(-135deg); }
+details.skladaci[open] > summary { margin-bottom: 14px; }
+details.skladaci > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; border-radius: 6px; }
+
 /* Nižšie okno: menu sa zmestí celé, aby sa v ňom nemuselo posúvať. */
 @media (max-height: 820px) {
   .sidebar { padding: 10px 10px 8px; }
@@ -1580,6 +1790,211 @@ td.odberatel-bunka {
 }
 
 /* ── Tlač (daňový podklad) ───────────────────────────────────── */
+/* ── 6. Telefón ────────────────────────────────────────────────
+   Na úzkej obrazovke sa bočné menu vysúva cez „Viac", dole je lišta
+   s najčastejšími stránkami, tabuľky s viac stĺpcami sa ukážu ako karty
+   a všetko, čo sa ťuká prstom, má aspoň 40 px. */
+.spodne-menu,
+.menu-zavoj { display: none; }
+
+@media (max-width: 820px) {
+  .layout { display: block; }
+
+  .sidebar {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: min(300px, 86vw);
+    height: auto;
+    z-index: 40;
+    overflow-y: auto;
+    transform: translateX(-104%);
+    transition: transform 0.22s ease;
+    padding-bottom: calc(14px + env(safe-area-inset-bottom));
+  }
+  .layout.menu-otvorene .sidebar { transform: none; box-shadow: var(--shadow-dialog); }
+  .layout.menu-otvorene .menu-zavoj {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 35;
+    background: rgba(13, 17, 23, 0.5);
+  }
+  .sidebar a, .sidebar .odhlasit { min-height: 42px; }
+
+  .spodne-menu {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 2px;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 30;
+    padding: 6px 6px calc(6px + env(safe-area-inset-bottom));
+    background: var(--panel);
+    border-top: 1px solid var(--line);
+    box-shadow: 0 -6px 18px rgba(16, 24, 40, 0.07);
+  }
+  .spodne-menu a,
+  .spodne-menu button {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    min-height: 54px;
+    padding: 4px 2px;
+    border: 0;
+    border-radius: 10px;
+    background: none;
+    box-shadow: none;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--ink3);
+    text-decoration: none;
+    white-space: nowrap;
+  }
+  .spodne-menu a:hover,
+  .spodne-menu button:hover { background: var(--hover); color: var(--ink); text-decoration: none; }
+  .spodne-menu a.aktivny,
+  .spodne-menu button.aktivny { background: var(--accentBg); color: var(--accentInk); }
+
+  .obsah { padding: 0 14px calc(90px + env(safe-area-inset-bottom)); }
+  .obsah:has(.ai-stranka) { padding-bottom: calc(90px + env(safe-area-inset-bottom)); }
+  .hlavicka { margin: 0 -14px 16px; padding: 12px 14px; gap: 10px; }
+  .hlavicka h1 { font-size: 22px; }
+  .panel { padding: 14px 14px 16px; border-radius: 12px; }
+  .panel.tesny { padding: 0; }
+
+  /* Prsty potrebujú väčšie ciele a pri písme pod 16 px by iPhone stránku priblížil. */
+  input, select, textarea { font-size: 16px; }
+  button, .tlacidlo { min-height: 40px; }
+  .ikonove, button.ikonove { width: 40px; height: 40px; }
+  .ikonove.maly, button.ikonove.maly { width: 36px; height: 36px; }
+  .vzorka-farby { min-height: 0; }
+
+  .filtre > div { flex: 1 1 calc(50% - 5px); min-width: 0; }
+  .filtre .hladanie { flex-basis: 100%; min-width: 0; }
+
+  .karty, .karty.kompaktne { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .karty.rezerva-karty { grid-template-columns: 1fr; }
+  .karta .hodnota { font-size: 20px; }
+  .kpi-bunka { padding: 12px 14px; }
+  .kpi-hodnota { font-size: 21px; letter-spacing: -0.5px; }
+  .prekryv { padding: 10px; }
+  .dialog { padding: 16px; max-height: calc(100vh - 20px); }
+  .oznamy { bottom: calc(84px + env(safe-area-inset-bottom)); width: calc(100% - 24px); }
+  .oznam { max-width: 100%; }
+
+  /* Tabuľky s viac ako tromi stĺpcami ako karty – popisy stĺpcov dopĺňa App.tsx. */
+  table[data-karty],
+  table[data-karty] > tbody,
+  table[data-karty] > tfoot,
+  table[data-karty] tr { display: block; width: 100%; }
+  table[data-karty] > thead { display: none; }
+  .panel.tesny table[data-karty] { padding: 12px 12px 2px; }
+  table[data-karty] tr {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 6px 14px;
+    margin-bottom: 10px;
+  }
+  table[data-karty] > tfoot tr { background: var(--soft); }
+  table[data-karty] td {
+    display: flex;
+    justify-content: flex-end;
+    align-items: baseline;
+    flex-wrap: wrap;
+    column-gap: 8px;
+    row-gap: 2px;
+    width: auto !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    padding: 6px 0 !important;
+    border: 0 !important;
+    text-align: right !important;
+    white-space: normal !important;
+  }
+  table[data-karty] td::before {
+    content: attr(data-popis);
+    margin-right: auto;
+    padding-right: 12px;
+    text-align: left;
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--ink3);
+  }
+  table[data-karty] td[data-popis='']::before { content: none; }
+  table[data-karty] td[data-popis=''] { justify-content: flex-start; text-align: left !important; }
+  /* Prvá bunka je nadpis karty. */
+  table[data-karty] td:first-child {
+    justify-content: flex-start;
+    text-align: left !important;
+    font-size: 15px;
+    padding-top: 8px !important;
+  }
+  table[data-karty] td:first-child::before { content: none; }
+  /* Akcie na spodku karty, oddelené čiarou. */
+  table[data-karty] td:last-child:has(button, .tlacidlo) {
+    justify-content: flex-start;
+    border-top: 1px solid var(--line) !important;
+    margin-top: 4px;
+    padding-top: 10px !important;
+  }
+  table[data-karty] td:last-child:has(button, .tlacidlo)::before { content: none; }
+  /* Políčka vo formulároch (položky faktúry, platby) – popis nad políčkom. */
+  table[data-karty] td:has(input:not([type='checkbox']), select, textarea) {
+    flex-direction: column;
+    align-items: stretch;
+    text-align: left !important;
+  }
+  table[data-karty] td:has(input:not([type='checkbox']), select, textarea)::before { margin: 0; padding: 0 0 2px; }
+
+  /* Vnútri panela sú riadky zoznam oddelený čiarami – nie krabica v krabici. */
+  table[data-karty] tr { display: flex; flex-direction: column; position: relative; }
+  .panel table[data-karty] tr {
+    background: none;
+    border: 0;
+    border-bottom: 1px solid var(--line);
+    border-radius: 0;
+    margin: 0;
+    padding: 8px 0;
+  }
+  .panel table[data-karty] > tbody > tr:last-child { border-bottom: 0; }
+  .panel.tesny table[data-karty] { padding: 0 14px; }
+
+  /* Hlavná bunka (napr. popis výdavku) ide ako nadpis na začiatok karty. */
+  table[data-karty] td.hlavna-bunka {
+    order: -1;
+    justify-content: flex-start;
+    text-align: left !important;
+    font-size: 15px;
+    padding-top: 8px !important;
+  }
+  table[data-karty] td.hlavna-bunka::before { content: none; }
+  table[data-karty] tr:has(> td.hlavna-bunka) > td:first-child:not(.hlavna-bunka) {
+    justify-content: flex-end;
+    text-align: right !important;
+    font-size: inherit;
+    padding-top: 6px !important;
+  }
+  table[data-karty] tr:has(> td.hlavna-bunka) > td:first-child:not(.hlavna-bunka)::before { content: attr(data-popis); }
+  /* Výber zaškrtávacím políčkom (Kôš) je v rohu karty. */
+  table[data-karty] td:has(> input[type='checkbox']:only-child) {
+    position: absolute;
+    top: 10px;
+    right: 0;
+    padding: 0 !important;
+  }
+
+  /* Záložky sa zalomia do riadkov – posúvaním do strany by sa posledná ľahko prehliadla. */
+  .taby { display: flex; flex-wrap: wrap; overflow: visible; }
+  .mini-prepinac { min-height: 32px; }
+}
+
 @media print {
   .sidebar, .hlavicka .akcie, .netlacit, .aktualizacia { display: none !important; }
   .obsah { padding: 0; }

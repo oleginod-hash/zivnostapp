@@ -36,10 +36,11 @@ export function modulServera(cesta, dotaz = '') {
  * pred načítaním servera – .env ich potom neprepíše, takže testy nikdy
  * nesiahnu na skutočné dáta, nezavolajú skutočné AI ani neodošlú e-mail.
  */
-export async function spustiServer(dataDir, port) {
+export async function spustiServer(dataDir, port, { aiKluc = '' } = {}) {
   process.env.DATA_DIR = dataDir
   process.env.PORT = String(port)
-  process.env.ANTHROPIC_API_KEY = ''
+  // Skutočný kľúč nikdy – pri teste obrazoviek len vymyslený, aby sa asistent tváril zapnutý.
+  process.env.ANTHROPIC_API_KEY = aiKluc
   process.env.SMTP_HOST = ''
   process.env.CASOVE_PASMO = 'Europe/Bratislava'
   if (!fs.existsSync(path.join(KOREN, 'dist-server', 'index.js'))) {

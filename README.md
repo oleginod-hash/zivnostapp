@@ -21,6 +21,18 @@ npm run dev
 
 Vývojový režim beží na `http://localhost:5173`, API na `3000`.
 
+## Prvé spustenie
+
+Pri prvom otvorení sa namiesto prázdneho Prehľadu ukáže **sprievodca**. Pýta sa na päť vecí, bez
+ktorých sa nedá vystaviť správna faktúra: meno a IČO, adresu, IBAN, či pracuješ na turnusoch
+v zahraničí, a DPH so splatnosťou. Podľa IČO doplní meno, adresu aj zápis v živnostenskom registri
+z verejného registra. Každý krok sa hneď uloží; sprievodca sa dá preskočiť a kedykoľvek spustiť znova
+tlačidlom *Sprievodca nastavením* v Nastaveniach.
+
+**Nastavenia** sú rozdelené podľa toho, kedy ich treba: údaje na faktúre, platby, faktúry, zákazky
+v zahraničí (aj so sadzbami stravného) a zložená časť *Pre účtovníčku* – predmety podnikania, dátum
+vzniku živnosti, spôsob uplatnenia výdavkov a zdravotná poisťovňa –, ktorú netreba vyplniť hneď.
+
 ## Kontrola po zmenách
 
 ```bash
@@ -34,8 +46,9 @@ Zostaví appku a spustí tri sady kontrol, každú nad dočasnou kópiou dát:
   v slovenskom čase, automatická záloha, ochrana pred cudzími stránkami a to, že asistent nemôže mazať.
 - **Kópia skutočných dát** – migrácie, neporušenosť databázy, všetky zoznamy a prehľady sa načítajú
   a súčty z rôznych miest appky sedia. Tvoje dáta sa len skopírujú, nič sa v nich nezmení.
-- **Obrazovky** v neviditeľnom Chrome (1275 × 748, svetlý režim) – žiadne chyby, nič nepretŕča
-  do strany, písmo aspoň 12 px, kontrast podľa normy, zmazanie a „Zaplatená" s vrátením späť.
+- **Obrazovky** v neviditeľnom Chrome (1275 × 748 aj šírka telefónu, svetlý aj tmavý režim) – žiadne
+  chyby, nič nepretŕča do strany, písmo aspoň 12 px, kontrast podľa normy, sprievodca prvým
+  spustením, menu na telefóne, zmazanie a „Zaplatená" s vrátením späť.
 
 Na konci vypíše *Všetko v poriadku* alebo presne to, čo nesedí. Keď chýba Chrome alebo skutočné
 dáta, príslušnú sadu preskočí. Len vybrané sady: `node scripts/overenie/index.mjs api ui`.
@@ -74,6 +87,11 @@ len prírastkové migrácie, ktoré pridávajú nové stĺpce a tabuľky a exist
 Vľavo dole v menu prepneš **svetlý / tmavý režim**, alebo necháš *Auto* — vtedy sa appka riadi
 nastavením Windows. Voľba sa pamätá.
 
+Na úzkej obrazovke (telefón, úzke okno) sa appka prestaví: dole je lišta s najčastejšími stránkami
+(Prehľad, Faktúry, Výdavky a Turnusy alebo Asistent), celé menu sa vysunie tlačidlom **Viac**
+a tabuľky sa zobrazia ako karty s popisom pri každej hodnote. Z telefónu sa však k appke zatiaľ
+nedostaneš – beží len na tomto počítači (pozri *Prístup*).
+
 ## Prístup
 
 Appka sa nezamyká PIN-om. Namiesto toho je dostupná **len z tohto počítača**: server počúva iba na
@@ -106,6 +124,9 @@ podľa spotreby. Predvolený model je `claude-opus-5`; lacnejší `claude-sonnet
 
 Otázku pošleš klávesom **Enter**, nový riadok spravíš cez **Shift + Enter**.
 
+Fotky z mobilu appka pred odoslaním asistentovi zmenší na 2000 px na dlhšej strane – bloček ostane
+čitateľný, nahrá sa rýchlejšie a zmestí sa do limitov Claude API.
+
 ### Čo asistent nevie
 
 **Nemôže nič zmazať.** Nie je to len inštrukcia v prompte — chráni to dvojitá poistka: medzi
@@ -123,14 +144,14 @@ metódu DELETE odmieta bez ohľadu na to, čo by skúsil. Mazanie ostáva ručno
 - [x] Globálne vyhľadávanie (Ctrl+K)
 - [x] Automatické priradenie výdavkov k turnusu podľa dátumu
 - [x] Objednávky na hodinovú sadzbu
-- [x] AI pomocník s prístupom k dátam a rozpoznávaním fotiek bločkov
+- [x] Asistent s prístupom k dátam a rozpoznávaním fotiek dokladov
 - [x] Čiastočné platby, zálohové faktúry kryjúce staré dlhy, prehľad dlhov
 - [x] Prílohy (fotky, PDF, dokumenty) pri všetkých AI asistentoch
 - [x] Záložky vo faktúrach (všetky / nevyplatené / vyplatené / zálohové) s odpočtom do splatnosti
 - [x] Súkromné príjmy vedené vedľa výdavkov, mimo podnikania
 - [x] Podklad pre účtovníčku ako zošit .xlsx
 - [x] Prehľad ako rozcestník — každá oblasť má vlastnú dlaždicu s ukážkou
-- [x] Hromadný výber v koši, vysypanie celého koša
+- [x] Hromadný výber v koši, vyprázdnenie celého koša
 - [x] Skrytie všetkých súm jedným prepínačom
 - [x] Údaje o živnosti (predmety podnikania, zápis v registri, DPH režim)
 - [x] Nová podoba faktúry s farebným akcentom
@@ -143,6 +164,13 @@ metódu DELETE odmieta bez ohľadu na to, čo by skúsil. Mazanie ostáva ručno
 - [x] Čitateľnosť: písmo najmenej 12 px, kontrast podľa normy v oboch režimoch
 - [x] Jeden AI asistent namiesto troch
 - [x] Farebné rozlíšenie firiem a kategórií, prázdne zoznamy s prvým krokom
+- [x] Texty vo formálnejšom tykaní, bez hovorových slov a účtovníckeho žargónu
+- [x] Sprievodca pri prvom spustení (5 krokov, údaje z registra podľa IČO), Nastavenia rozdelené podľa potreby
+- [x] Rozloženie pre telefón – spodná lišta, vysúvacie menu, tabuľky ako karty
+- [x] Import výpisu z banky (CSV) s párovaním platieb podľa VS a sumy
+- [x] Rezerva na dane a odvody s pripomienkou pri každej platbe
+- [x] Kalendár termínov – splatnosti, zmluvy, turnusy, odvody, daňové priznanie
+- [x] Fotky pre asistenta sa pred odoslaním zmenšia
 
 ### Stravné a dni v zahraničí
 
@@ -284,6 +312,41 @@ V zošite pre účtovníčku majú vlastný hárok, aby sa nedali zameniť s tr�
 Do príjmov sa ráta **dátum, kedy peniaze prišli na účet**, nie dátum vystavenia faktúry.
 Faktúra vystavená v roku 2025 a zaplatená v roku 2026 patrí do príjmov roka 2026. Platí to
 v Prehľade, Financiách aj v podklade pre daňové priznanie.
+
+### Výpis z banky
+
+V menu *Výpis z banky* nahráš výpis z internet bankingu vo formáte **CSV**. Appka z neho vezme
+prichádzajúce platby a ku každej navrhne faktúru – podľa variabilného symbolu, a keď chýba, podľa
+sumy (tá je označená „skontroluj"). Platbu môžeš priradiť aj k inej faktúre, zapísať ako súkromný
+príjem alebo nezapísať. Zapíše sa až to, čo potvrdíš, a celý import sa dá hneď vrátiť.
+
+Výpis sa dá nahrať aj viackrát – každý zapísaný pohyb si appka pamätá a druhýkrát ho nezapíše.
+Zvláda bežné exporty slovenských bánk (kódovanie windows-1250 aj UTF-8, bodkočiarka aj čiarka,
+desatinná čiarka aj bodka, variabilný symbol v stĺpci aj v správe „/VS…/SS/KS"). Keď stĺpce
+nenájde, ponúkne ich priradiť ručne. Odchádzajúce platby sa nezapisujú – výdavok patrí zapísať
+s dokladom.
+
+### Rezerva na dane a odvody
+
+Vo *Financiách* si nastavíš, koľko percent z každej prijatej platby si odkladáš na daň a odvody
+(dá sa aj v Nastaveniach). Appka potom pri každej zapísanej platbe pripomenie „odlož si z nej X €"
+a vo Financiách ukáže, koľko si mal za rok odložiť, koľko si už na daniach a odvodoch zaplatil
+(výdavky v kategóriách *Daň* a *Odvody (SP/ZP)*, rozozná aj „Sociálna poisťovňa" a pod.) a koľko
+má ešte zostať odložené. Daň appka nepočíta – percento treba prebrať s účtovníčkou.
+
+### Termíny
+
+Stránka *Termíny* a panel *Najbližšie termíny* na Prehľade ukazujú, čo ťa čaká: splatnosti
+neuhradených faktúr, koniec zmlúv a posledný deň na výpoveď pri automatickej obnove, začiatok
+turnusov. K tomu všeobecné termíny živnostníka – odvody do 8. dňa v mesiaci, daňové priznanie
+do 31. marca a pri registrácii podľa § 7a súhrnný výkaz do 25. dňa (len keď boli v predchádzajúcom
+mesiaci vystavené faktúry firmám s IČ DPH z inej krajiny EÚ). Termín na víkend alebo sviatok sa posunie
+na najbližší pracovný deň. Všeobecné termíny sa dajú vypnúť v Nastaveniach.
+
+### Číslovanie faktúr
+
+Nová faktúra dostane nasledujúce voľné číslo – aj číslo faktúry, ktorá sa zmazala. Keď sa potom
+zmazaná faktúra vracia z koša a jej číslo už má iná faktúra, appka ju nevráti a povie prečo.
 
 ### Vrátenie zmien
 

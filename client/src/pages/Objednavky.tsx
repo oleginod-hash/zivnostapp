@@ -114,7 +114,7 @@ export function Objednavky() {
             ikona="objednavky"
             ton="akcent"
             nadpis="Zatiaľ žiadne objednávky"
-            text="Objednávka drží dohodnutú sadzbu a hodiny. Z nej potom vystavíš faktúru na jeden klik."
+            text="Objednávka obsahuje dohodnutú sadzbu a počet hodín. Faktúru z nej potom vystavíš jedným kliknutím."
             akcia={
               <Link className="tlacidlo primar" to="/objednavky/nova">
                 + Pridať prvú objednávku
@@ -129,7 +129,7 @@ export function Objednavky() {
                 <th>Firma</th>
                 <th>Turnus</th>
                 <th>Dátum</th>
-                <th className="cislo">Hodinovka</th>
+                <th className="cislo">Sadzba</th>
                 <th className="cislo">Hodnota</th>
                 <th>Stav</th>
                 <th style={{ width: 50 }}></th>

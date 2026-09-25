@@ -83,7 +83,7 @@ export function DanovyPodklad() {
       [],
       ['FAKTÚRY'],
       ['Číslo', 'Typ', 'Odberateľ', 'Vystavená', 'Splatnosť', 'Fakturovaná suma',
-        `Prijaté v roku ${d.rok}`, 'Dátum poslednej platby', 'Ešte neuhradené', 'Stav', 'Kryje faktúru'],
+        `Prijaté v roku ${d.rok}`, 'Dátum poslednej platby', 'Ešte neuhradené', 'Stav', 'Splátka faktúry'],
       ...d.faktury.map((f) => [
         f.cislo,
         f.typ === 'zaloha' ? 'Zálohová' : 'Faktúra',
@@ -99,7 +99,7 @@ export function DanovyPodklad() {
       ]),
       [],
       ['PLATBY (zdroj sumy príjmov)'],
-      ['Dátum', 'Faktúra', 'Typ', 'Odberateľ', 'Suma', 'Kryje faktúru', 'Poznámka'],
+      ['Dátum', 'Faktúra', 'Typ', 'Odberateľ', 'Suma', 'Splátka faktúry', 'Poznámka'],
       ...d.platby.map((p) => [
         csvDatum(p.datum),
         p.cislo,
@@ -189,7 +189,7 @@ export function DanovyPodklad() {
 
       <div className="info-pruh netlacit">
         Toto je súhrn tvojej evidencie, nie vypočítané daňové priznanie. Skutočný základ dane závisí od toho,
-        či použiješ paušálne alebo skutočné výdavky, od odvodov a ďalších vecí, ktoré appka nepozná —
+        či použiješ paušálne alebo skutočné výdavky, od odvodov a ďalších okolností, ktoré appka nepozná –
         to posúdi účtovníčka. Excel má samostatný hárok na súhrn, faktúry, platby, výdavky aj turnusy.
       </div>
 
@@ -214,7 +214,7 @@ export function DanovyPodklad() {
           ton="akcent"
           popis="Rozdiel"
           hodnota={skSuma(d.zaklad_dane)}
-          pod="pred paušálom a odvodmi"
+          pod="ešte bez paušálnych výdavkov a odvodov"
         />
         <Karticka
           ikona="pozor"
@@ -230,7 +230,7 @@ export function DanovyPodklad() {
         <div className="info-pruh">
           Súkromné príjmy za rok {d.rok}: <strong>{skSuma(d.sukromne_prijmy.suma)}</strong> v{' '}
           {pocet(d.sukromne_prijmy.pocet, ['položke', 'položkách', 'položkách'])}. Do príjmov z podnikania ani
-          do základu dane sa nerátajú — v Exceli sú na vlastnom hárku, aby ich účtovníčka nezamenila s tržbou.
+          do základu dane sa nezapočítavajú – v Exceli sú na vlastnom hárku, aby ich účtovníčka nezamenila s tržbou.
         </div>
       )}
 
@@ -321,7 +321,7 @@ export function DanovyPodklad() {
         <div style={{ padding: '16px 20px 0' }}>
           <h2 style={{ margin: 0 }}>Faktúry ({d.faktury.length})</h2>
           <div className="napoveda" style={{ marginTop: 4 }}>
-            Do príjmu ide stĺpec „Prijaté v roku", nie fakturovaná suma — peniaze mohli prísť aj v inom roku.
+            Do príjmov sa počíta stĺpec „Prijaté v roku", nie fakturovaná suma – peniaze mohli prísť aj v inom roku.
           </div>
         </div>
         <table style={{ marginTop: 12 }}>

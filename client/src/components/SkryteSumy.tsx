@@ -15,7 +15,7 @@ export function PrepinacSum() {
   return (
     <button
       className={'prepinac-sum' + (skryte ? ' aktivna' : '')}
-      title={skryte ? 'Zobraziť sumy' : 'Skryť sumy (napr. keď ti niekto pozerá cez plece)'}
+      title={skryte ? 'Zobraziť sumy' : 'Skryť sumy (napríklad keď sa na obrazovku pozerá niekto ďalší)'}
       aria-pressed={skryte}
       aria-label={skryte ? 'Zobraziť sumy' : 'Skryť sumy'}
       onClick={prepni}

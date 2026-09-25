@@ -88,7 +88,7 @@ export function Oznamenia() {
     try {
       await o.akcia?.sprav()
     } catch (e: any) {
-      oznamChybu(e?.message || 'Nepodarilo sa to vrátiť.')
+      oznamChybu(e?.message || 'Zmenu sa nepodarilo vrátiť.')
     }
   }
 

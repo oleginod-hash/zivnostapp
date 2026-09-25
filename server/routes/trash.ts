@@ -27,14 +27,14 @@ trashRouter.delete('/:id', (req, res) => {
  */
 trashRouter.post('/vysypat', (req, res) => {
   const idcka = Array.isArray(req.body?.id) ? req.body.id.map(Number).filter(Boolean) : null
-  if (idcka && !idcka.length) return res.status(400).json({ chyba: 'Nevybral si nič na zmazanie.' })
+  if (idcka && !idcka.length) return res.status(400).json({ chyba: 'Nie je vybraná žiadna položka na zmazanie.' })
   res.json({ ok: true, zmazane: vysypVybrane(idcka ?? undefined) })
 })
 
 /** Hromadné vrátenie vybraných položiek späť do evidencie. */
 trashRouter.post('/obnovit', (req, res) => {
   const idcka = Array.isArray(req.body?.id) ? req.body.id.map(Number).filter(Boolean) : []
-  if (!idcka.length) return res.status(400).json({ chyba: 'Nevybral si nič na vrátenie.' })
+  if (!idcka.length) return res.status(400).json({ chyba: 'Nie je vybraná žiadna položka na vrátenie.' })
   res.json({ ok: true, ...obnovVybrane(idcka) })
 })
 

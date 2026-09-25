@@ -43,8 +43,14 @@ export type Nastavenia = {
   cislo_vzor: string; splatnost_dni: number; poznamka_pati: string
   /** 1 = predvolená splatnosť sa ráta v pracovných dňoch. */
   splatnost_pracovne: number
-  /** 1 = pracuje na zákazkách v zahraničí – AI asistenti s tým rátajú. */
+  /** 1 = pracuje na zákazkách v zahraničí – asistent s tým počíta. */
   praca_v_zahranici: number
+  /** 1 = sprievodca prvým spustením je za nami (dokončený alebo preskočený). */
+  sprievodca_hotovy: number
+  /** Koľko % z každej prijatej platby si odkladá na dane a odvody (0 = nepripomínať). */
+  rezerva_percento: number
+  /** 1 = v kalendári termínov sú aj odvody a daňové priznanie. */
+  terminy_zakonne: number
   /** Údaje o živnosti. */
   predmety: string; datum_vzniku: string; urad_zr: string; cislo_zr: string
   dph_rezim: DphRezim; ic_dph: string; vydavky_typ: TypVydavkov
@@ -305,10 +311,10 @@ export function velkostSuboru(b: number): string {
 export const NAZVY_STAVOV: Record<StavZobraz, string> = {
   koncept: 'Koncept',
   vystavena: 'Vystavená',
-  zaplatena: 'Vyplatená',
+  zaplatena: 'Uhradená',
   ciastocne: 'Čiastočne uhradená',
-  po_splatnosti: 'Nevyplatená',
-  po_splatnosti_ciastocne: 'Čiastočne, po termíne',
+  po_splatnosti: 'Neuhradená',
+  po_splatnosti_ciastocne: 'Čiastočne, po splatnosti',
 }
 
 /** Farba štítku podľa stavu – čiastočné úhrady majú vlastnú. */
@@ -496,4 +502,24 @@ export type PoSplatnosti = {
 export type Sablona = {
   id: number; nazov: string; company_id: number | null; firma_nazov: string | null
   poznamka: string; polozky: Polozka[]
+}
+
+/** Pripomienka k zapísanej platbe, koľko si z nej odložiť na dane a odvody (prázdna, keď rezerva nie je nastavená). */
+export function vetaORezerve(odlozit: number | undefined, z = 'z nej'): string {
+  return odlozit && odlozit > 0 ? ` Odlož si ${z} ${skSuma(odlozit)} na dane a odvody.` : ''
+}
+
+/**
+ * Kontrolný súčet IBAN-u (mod 97). Zachytí preklep – chýbajúcu, prebytočnú
+ * alebo prehodenú číslicu – skôr, než faktúra s chybným účtom odíde zákazníkovi.
+ */
+export function ibanJePlatny(iban: string): boolean {
+  const s = iban.replace(/\s/g, '').toUpperCase()
+  if (!/^[A-Z]{2}\d{2}[A-Z0-9]{11,30}$/.test(s)) return false
+  let zvysok = 0
+  for (const znak of s.slice(4) + s.slice(0, 4)) {
+    const cislice = /[A-Z]/.test(znak) ? String(znak.charCodeAt(0) - 55) : znak
+    for (const c of cislice) zvysok = (zvysok * 10 + Number(c)) % 97
+  }
+  return zvysok === 1
 }

@@ -34,14 +34,14 @@ function TerminVypovede({ platnostDo, vypovedDni }: { platnostDo: string; vypove
   if (dni < 0) {
     return (
       <div className="chyba" style={{ marginTop: 14, marginBottom: 0 }}>
-        Termín na výpoveď ({skDatum(terminISO)}) už uplynul — ak si zmluvu nevypovedal, automaticky sa obnoví.
+        Termín na výpoveď ({skDatum(terminISO)}) už uplynul – ak zmluva nebola vypovedaná, automaticky sa obnoví.
       </div>
     )
   }
   return (
     <div className="info-pruh" style={{ marginTop: 14, marginBottom: 0 }}>
       Zmluva sa obnovuje automaticky. Ak ju nechceš predĺžiť, vypovedz ju najneskôr{' '}
-      <strong>{skDatum(terminISO)}</strong> — {dni === 0 ? 'to je dnes' : `zostáva ${dni} dní`}.
+      <strong>{skDatum(terminISO)}</strong> – {dni === 0 ? 'to je dnes' : `zostáva ${dni} dní`}.
     </div>
   )
 }
@@ -232,7 +232,7 @@ export function ZmluvaEdit() {
           <div>
             <label>Platnosť do</label>
             <input type="date" value={form.platnost_do} onChange={(e) => uprav({ platnost_do: e.target.value })} />
-            <div className="napoveda">Prázdne = zmluva na neurčito, appka nebude nič pripomínať.</div>
+            <div className="napoveda">Nevyplnené znamená zmluvu na dobu neurčitú – appka nebude nič pripomínať.</div>
           </div>
           <div>
             <label>Obnova</label>
@@ -275,7 +275,7 @@ export function ZmluvaEdit() {
         <h2>Prílohy</h2>
         {novaZmluva ? (
           <p className="tlmene" style={{ margin: 0 }}>
-            Zmluvu najprv ulož — potom sem budeš vedieť pridať naskenované PDF a ďalšie súbory.
+            Najprv zmluvu ulož – potom sem budeš môcť pridať naskenované PDF a ďalšie súbory.
           </p>
         ) : (
           <>

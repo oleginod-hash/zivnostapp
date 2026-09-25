@@ -52,7 +52,7 @@ export function OdoslatMail({ invoiceId, typ, zavriet, poOdoslani }: Props) {
     if (upraveny) {
       const ano = await potvrd({
         nadpis: 'Nahradiť upravený text?',
-        text: 'Text, ktorý si upravil, sa prepíše predpripraveným textom v inom jazyku.',
+        text: 'Upravený text sa nahradí predpripraveným textom v inom jazyku.',
         potvrdit: 'Nahradiť',
       })
       if (!ano) return
@@ -78,11 +78,11 @@ export function OdoslatMail({ invoiceId, typ, zavriet, poOdoslani }: Props) {
   return (
     <div className="prekryv" onClick={(e) => e.target === e.currentTarget && zavriet()}>
       <div className="dialog">
-        <h2>{typ === 'upomienka' ? 'Poslať upomienku' : 'Poslať faktúru mailom'}</h2>
+        <h2>{typ === 'upomienka' ? 'Poslať upomienku' : 'Poslať faktúru e-mailom'}</h2>
 
         {stav && !stav.nastavene && (
           <div className="chyba">
-            Odosielanie mailov nie je nastavené. Doplň <code>SMTP_HOST</code>, <code>SMTP_USER</code> a{' '}
+            Odosielanie e-mailov nie je nastavené. Doplň <code>SMTP_HOST</code>, <code>SMTP_USER</code> a{' '}
             <code>SMTP_PASS</code> do súboru <code>.env</code> a reštartuj appku.
           </div>
         )}
@@ -94,7 +94,7 @@ export function OdoslatMail({ invoiceId, typ, zavriet, poOdoslani }: Props) {
             <label>Komu</label>
             <input value={komu} placeholder="email@firma.sk" onChange={(e) => setKomu(e.target.value)} />
             {navrh && !navrh.komu && (
-              <div className="napoveda">Firma nemá uložený e-mail — doplň ho tu alebo v karte firmy.</div>
+              <div className="napoveda">Firma nemá uložený e-mail – doplň ho tu alebo v karte firmy.</div>
             )}
           </div>
           <div>

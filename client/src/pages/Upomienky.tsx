@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { OdoslatMail } from '../components/OdoslatMail'
-import { api, pocet, skDatum, skSuma, type PoSplatnosti, type StavMailu } from '../api'
+import { api, pocet, skDatum, skSuma, vetaORezerve, type PoSplatnosti, type StavMailu } from '../api'
 import { Ikona } from '../components/Ikony'
 import { FirmaSAvatarom, Karticka } from '../components/Farby'
 import { oznam } from '../components/Oznamenia'
@@ -23,10 +23,10 @@ export function Upomienky() {
   }, [])
 
   async function oznacZaplatenu(f: PoSplatnosti) {
-    const r = await api.post<{ platba_id: number | null }>(`/faktury/${f.id}/stav`, { stav: 'zaplatena' })
+    const r = await api.post<{ platba_id: number | null; odlozit?: number }>(`/faktury/${f.id}/stav`, { stav: 'zaplatena' })
     nacitaj()
     oznam(
-      `Faktúra ${f.cislo}: zapísaná platba ${skSuma(f.otvoreny_zostatok)}.`,
+      `Faktúra ${f.cislo}: zapísaná platba ${skSuma(f.otvoreny_zostatok)}.${vetaORezerve(r.odlozit)}`,
       r.platba_id
         ? {
             text: 'Vrátiť späť',
@@ -51,8 +51,8 @@ export function Upomienky() {
 
       {stavMailu && !stavMailu.nastavene && (
         <div className="info-pruh">
-          Odosielanie mailov ešte nie je nastavené — texty upomienok si zatiaľ vieš aspoň skopírovať.
-          Na priame odosielanie doplň SMTP údaje do súboru <code>.env</code>.
+          Odosielanie e-mailov zatiaľ nie je nastavené – texty upomienok si môžeš aspoň skopírovať.
+          Na priame odosielanie doplň údaje SMTP do súboru <code>.env</code>.
         </div>
       )}
 
@@ -82,7 +82,7 @@ export function Upomienky() {
             ikona="zaplatena"
             ton="pos"
             nadpis="Nikto ti nedlhuje"
-            text="Všetky faktúry sú uhradené včas. Keď sa niektorá dostane po splatnosti, objaví sa tu aj s textom upomienky."
+            text="Žiadna faktúra nie je po splatnosti. Keď sa niektorá dostane po splatnosti, zobrazí sa tu aj s textom upomienky."
           />
         ) : (
           <table>
@@ -129,7 +129,7 @@ export function Upomienky() {
                     </button>{' '}
                     <button className="maly" onClick={() => oznacZaplatenu(f)}>
                       <Ikona nazov="zaplatena" velkost={14} hrubka={2.2} />
-                      Zaplatená
+                      Uhradená
                     </button>
                   </td>
                 </tr>

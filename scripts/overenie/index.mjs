@@ -3,6 +3,7 @@
 //
 //   npm run overenie                          zostaví appku a spustí všetko
 //   node scripts/overenie/index.mjs api ui    len vybrané testy (bez zostavenia)
+//   (na výber: api, kopia, ui, ui-tmavy)
 import { spawn } from 'node:child_process'
 import fs from 'node:fs'
 import os from 'node:os'
@@ -11,27 +12,29 @@ import { fileURLToPath } from 'node:url'
 import { PRESKOCENE } from './spolocne.mjs'
 
 const TU = path.dirname(fileURLToPath(import.meta.url))
+/** [kľúč, súbor, názov, premenné prostredia navyše] */
 const TESTY = [
-  ['api', 'Logika servera'],
-  ['kopia', 'Kópia skutočných dát'],
-  ['ui', 'Obrazovky appky'],
+  ['api', 'api', 'Logika servera', {}],
+  ['kopia', 'kopia', 'Kópia skutočných dát', {}],
+  ['ui', 'ui', 'Obrazovky appky – svetlý režim', {}],
+  ['ui-tmavy', 'ui', 'Obrazovky appky – tmavý režim', { OVERENIE_TEMA: 'tmavy' }],
 ]
 const LIMIT_MS = 4 * 60 * 1000
 
 const vybrane = process.argv.slice(2)
-const nezname = vybrane.filter((v) => !TESTY.some(([subor]) => subor === v))
+const nezname = vybrane.filter((v) => !TESTY.some(([kluc]) => kluc === v))
 if (nezname.length) {
-  console.log(`Neznámy test: ${nezname.join(', ')}. Na výber: ${TESTY.map(([s]) => s).join(', ')}.`)
+  console.log(`Neznámy test: ${nezname.join(', ')}. Na výber: ${TESTY.map(([k]) => k).join(', ')}.`)
   process.exit(1)
 }
 
 const vysledky = []
-for (const [subor, nazov] of TESTY.filter(([s]) => !vybrane.length || vybrane.includes(s))) {
+for (const [, subor, nazov, prostredie] of TESTY.filter(([k]) => !vybrane.length || vybrane.includes(k))) {
   const data = fs.mkdtempSync(path.join(os.tmpdir(), 'zivnostapp-overenie-'))
   const kod = await new Promise((hotovo) => {
     const proces = spawn(process.execPath, [path.join(TU, `${subor}.mjs`)], {
       stdio: 'inherit',
-      env: { ...process.env, OVERENIE_DATA: data },
+      env: { ...process.env, ...prostredie, OVERENIE_DATA: data },
     })
     const strazca = setTimeout(() => {
       console.log(`\n   ${nazov}: vypršal časový limit, test zastavujem.`)

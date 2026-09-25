@@ -237,8 +237,8 @@ export function TurnusEdit() {
                 )}
               </div>
               <div className="napoveda" style={{ marginTop: 10 }}>
-                Sadzbu si zadávaš sám a sám ju aj aktualizuješ — appka žiadne čísla nepredpisuje.
-                Či na stravné máš nárok a v akej výške, over si u účtovníčky.
+                Sadzbu zadávaš a aktualizuješ v Nastaveniach – appka žiadne sadzby nepredpisuje.
+                Či máš na stravné nárok a v akej výške, over si u účtovníčky.
               </div>
             </>
           )}
@@ -248,7 +248,7 @@ export function TurnusEdit() {
       {novyTurnus ? (
         <div className="panel">
           <p className="tlmene" style={{ margin: 0 }}>
-            Turnus najprv ulož — potom naň budeš vedieť naviazať objednávky a faktúry.
+            Najprv turnus ulož – potom k nemu budeš môcť pridať objednávky a faktúry.
           </p>
         </div>
       ) : (
@@ -268,7 +268,7 @@ export function TurnusEdit() {
                   <tr>
                     <th>Objednávka</th>
                     <th>Dátum</th>
-                    <th className="cislo">Hodinovka</th>
+                    <th className="cislo">Sadzba</th>
                     <th className="cislo">Hodnota</th>
                     <th>Stav</th>
                   </tr>
@@ -307,7 +307,7 @@ export function TurnusEdit() {
               </Link>
             </div>
             {!turnus?.faktury?.length ? (
-              <div className="prazdne">Za tento turnus si zatiaľ nič nefakturoval.</div>
+              <div className="prazdne">K tomuto turnusu zatiaľ nie je žiadna faktúra.</div>
             ) : (
               <table style={{ marginTop: 12 }}>
                 <thead>

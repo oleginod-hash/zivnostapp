@@ -3,6 +3,7 @@ import { api, pocet, skDatum } from '../api'
 import { Ikona, type KlucIkony } from '../components/Ikony'
 import type { Ton } from '../components/Farby'
 import { potvrd } from '../components/Oznamenia'
+import { zmensiFotku } from '../obrazky'
 
 type Asistent = 'pomocnik' | 'uctovnik' | 'pravnik'
 
@@ -13,17 +14,17 @@ type Sprava = { id?: number; rola: 'user' | 'assistant'; obsah: string; akcie?: 
 /** Ľudský popis toho, čo pomocník práve robí. */
 const POPIS_NASTROJA: Record<string, string> = {
   hladaj: 'Hľadám v appke',
-  zoznam_faktur: 'Pozerám faktúry',
+  zoznam_faktur: 'Prezerám faktúry',
   detail_faktury: 'Otváram faktúru',
-  zoznam_firiem: 'Pozerám firmy',
-  zoznam_turnusov: 'Pozerám turnusy',
+  zoznam_firiem: 'Prezerám firmy',
+  zoznam_turnusov: 'Prezerám turnusy',
   detail_turnusu: 'Otváram turnus',
-  zoznam_objednavok: 'Pozerám objednávky',
-  zoznam_zmluv: 'Pozerám zmluvy',
+  zoznam_objednavok: 'Prezerám objednávky',
+  zoznam_zmluv: 'Prezerám zmluvy',
   detail_zmluvy: 'Otváram zmluvu',
-  zoznam_vydavkov: 'Pozerám výdavky',
+  zoznam_vydavkov: 'Prezerám výdavky',
   financie: 'Počítam financie',
-  nastavenia: 'Pozerám nastavenia',
+  nastavenia: 'Prezerám nastavenia',
   vytvor_firmu: 'Zakladám firmu',
   uprav_firmu: 'Upravujem firmu',
   vytvor_turnus: 'Zakladám turnus',
@@ -39,7 +40,7 @@ const POPIS_NASTROJA: Record<string, string> = {
   uprav_zmluvu: 'Upravujem zmluvu',
   uprav_nastavenia: 'Upravujem nastavenia',
   priloz_fotku_k_vydavku: 'Prikladám doklad',
-  co_som_zmenil: 'Pozerám, čo som menil',
+  co_som_zmenil: 'Prezerám posledné zmeny',
   vrat_spat: 'Vraciam zmenu späť',
 }
 type StavAi = { dostupne: boolean; model: string }
@@ -65,13 +66,13 @@ const PRIKLADY_DOMA: Priklad[] = [
 ]
 
 const NADPIS = 'Asistent'
-const OTAZKA = 'S čím ti pomôžem?'
+const OTAZKA = 'S čím ti môžem pomôcť?'
 const UVOD =
-  'Napíš, čo potrebuješ — vystaviť faktúru, založiť turnus, zapísať výdavok, alebo sa opýtať ' +
-  'na dane, odvody a zmluvy. Vidí všetko, čo máš v appke.'
+  'Napíš, čo potrebuješ – vystaviť faktúru, založiť turnus, zapísať výdavok alebo sa opýtať ' +
+  'na dane, odvody a zmluvy. Asistent vidí všetky údaje v appke.'
 const POZNAMKA =
-  'Zapisuje a upravuje záznamy, mazať nevie. Pri daniach a zmluvách radí všeobecne — ' +
-  'pri vážnej veci sa obráť na účtovníčku alebo advokáta.'
+  'Záznamy môže zapisovať a upravovať, mazať ich nemôže. Pri daniach a zmluvách radí všeobecne – ' +
+  'v dôležitých veciach sa obráť na účtovníčku alebo advokáta.'
 
 /** Tučné kúsky **takto** vo vnútri riadku. */
 function STucnym({ text }: { text: string }) {
@@ -187,7 +188,7 @@ export function AsistentStranka() {
   async function zmazKonverzaciu(k: Konverzacia) {
     const ano = await potvrd({
       nadpis: `Zmazať konverzáciu „${k.nazov}"?`,
-      text: 'Celá sa odstráni a vrátiť sa nedá.',
+      text: 'Konverzácia sa odstráni natrvalo a nedá sa vrátiť.',
       potvrdit: 'Zmazať',
       nebezpecne: true,
     })
@@ -288,7 +289,7 @@ Prílohy: ${fotky.map((f) => f.nazov).join(', ')}` : ''
     setNahravaFotky(true)
     try {
       const data = new FormData()
-      for (const s of Array.from(subory)) data.append('fotky', s)
+      for (const s of await Promise.all(Array.from(subory).map(zmensiFotku))) data.append('fotky', s)
       const r = await api.upload<{ fotky: { id: number; nazov: string }[] }>('/ai/fotky', data)
       setFotky((f) => [...f, ...r.fotky])
     } catch (e: any) {
@@ -465,7 +466,7 @@ Prílohy: ${fotky.map((f) => f.nazov).join(', ')}` : ''
             {konverzacie.length > 0 && <span className="pocet">{konverzacie.length}</span>}
           </div>
           {konverzacie.length === 0 ? (
-            <p className="ai-historia-prazdne">Tu uvidíš svoje predošlé otázky.</p>
+            <p className="ai-historia-prazdne">Tu nájdeš svoje predchádzajúce otázky.</p>
           ) : (
             konverzacie.map((k) => (
               <div key={k.id} className={'ai-polozka' + (aktivna === k.id ? ' aktivna' : '')}>

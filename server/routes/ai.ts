@@ -221,7 +221,7 @@ aiRouter.post('/konverzacie/:id/sprava', async (req, res) => {
       e?.status === 401
         ? 'API kľúč nie je platný. Skontroluj ANTHROPIC_API_KEY v .env.'
         : e?.status === 429
-          ? 'Prekročený limit volaní. Skús to o chvíľu.'
+          ? 'Asistent je momentálne preťažený. Skús to o chvíľu znova.'
           : e?.message || 'Volanie AI zlyhalo.'
     posli('chyba', { chyba: sprava })
   }

@@ -35,6 +35,8 @@ t.sekcia('Databáza')
 t.over('prešla migráciami na aktuálnu verziu', db.pragma('user_version', { simple: true }), VERZIA_SCHEMY)
 t.over('nie je poškodená', db.pragma('integrity_check', { simple: true }), 'ok')
 t.over('väzby medzi tabuľkami sedia', db.pragma('foreign_key_check').length, 0)
+const profil = db.prepare('SELECT meno, sprievodca_hotovy FROM settings WHERE id = 1').get()
+t.over('kto appku už používa, sprievodcu prvým spustením neuvidí', profil.meno ? profil.sprievodca_hotovy : 1, 1)
 
 t.sekcia('Stránky appky')
 const rok = dnesISO().slice(0, 4)

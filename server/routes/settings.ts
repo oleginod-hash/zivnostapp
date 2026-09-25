@@ -13,9 +13,11 @@ const POLIA = [
 /**
  * Zapnuté / vypnuté voľby (v databáze 1 / 0).
  * splatnost_pracovne – predvolená splatnosť v pracovných dňoch,
- * praca_v_zahranici – AI asistenti rátajú so zákazkami v zahraničí (turnusy).
+ * praca_v_zahranici – asistent počíta so zákazkami v zahraničí (turnusy),
+ * sprievodca_hotovy – sprievodca prvým spustením je za nami (dokončený alebo preskočený),
+ * terminy_zakonne – v kalendári termínov sú aj odvody a daňové priznanie.
  */
-const PREPINACE = ['splatnost_pracovne', 'praca_v_zahranici'] as const
+const PREPINACE = ['splatnost_pracovne', 'praca_v_zahranici', 'sprievodca_hotovy', 'terminy_zakonne'] as const
 
 /** Polia s pevným zoznamom hodnôt – čokoľvek iné sa vráti na predvolenú. */
 const VOLBY: Record<string, { povolene: string[]; predvolena: string }> = {
@@ -54,6 +56,14 @@ settingsRouter.put('/', (req, res) => {
     hodnoty.splatnost_dni = Number.isFinite(dni) && dni >= 0 && dni <= 365 ? Math.round(dni) : 14
   }
 
+  // Rezerva na dane a odvody v percentách z prijatých platieb (0 = vypnutá).
+  if (b.rezerva_percento === undefined) {
+    hodnoty.rezerva_percento = teraz.rezerva_percento
+  } else {
+    const p = Number(String(b.rezerva_percento).replace(',', '.'))
+    hodnoty.rezerva_percento = Number.isFinite(p) && p >= 0 && p <= 60 ? Math.round(p * 10) / 10 : 0
+  }
+
   // Prepínače môžu prísť ako true/false z formulára aj ako 1/0 od asistenta.
   for (const prepinac of PREPINACE) {
     const v = b[prepinac] === undefined ? teraz[prepinac] : b[prepinac]
@@ -69,7 +79,7 @@ settingsRouter.put('/', (req, res) => {
   const farba = b.farba_faktury === undefined ? teraz.farba_faktury : b.farba_faktury
   hodnoty.farba_faktury = /^#[0-9a-fA-F]{6}$/.test(String(farba ?? '')) ? farba : '#2f6fd6'
 
-  const set = [...POLIA, 'splatnost_dni', ...PREPINACE, ...Object.keys(VOLBY), 'farba_faktury']
+  const set = [...POLIA, 'splatnost_dni', 'rezerva_percento', ...PREPINACE, ...Object.keys(VOLBY), 'farba_faktury']
     .map((p) => `${p} = @${p}`)
     .join(', ')
   db.prepare(`UPDATE settings SET ${set} WHERE id = 1`).run(hodnoty)

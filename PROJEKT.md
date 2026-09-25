@@ -59,8 +59,14 @@ client/src/
 - **Turnusy:** obdobie práce u firmy, naviazané objednávky, faktúry a výdavky, stravné, dni v krajine.
 - **Výdavky:** kategórie, daňová uznateľnosť, doklady (fotky/PDF), súkromné príjmy oddelene.
 - **Financie a daňový podklad:** príjmy podľa platieb, výdavky, zisk, Excel a CSV pre účtovníčku.
+- **Výpis z banky:** CSV z internet bankingu, platby sa párujú k faktúram podľa VS a sumy.
+- **Rezerva na dane a odvody:** percento z každej platby, odrátanie zaplatených daní a odvodov.
+- **Termíny:** splatnosti, zmluvy, turnusy, odvody, daňové priznanie, súhrnný výkaz pri § 7a.
 - **AI asistent:** jeden – číta a zapisuje dáta, číta fotky dokladov a odpovedá aj na dane,
   odvody a zmluvy. Mazať nevie; všetko, čo zapíše, sa dá vrátiť.
+- **Prvé spustenie:** sprievodca s piatimi otázkami (údaje z registra podľa IČO), Nastavenia
+  rozdelené na údaje na faktúru a zloženú časť pre účtovníčku.
+- **Telefón:** pod 820 px spodná lišta, vysúvacie menu a tabuľky ako karty.
 - **Drobnosti:** globálne hľadanie bez diakritiky, skrytie súm, denná záloha, kôš,
   „Vrátiť späť" po ručných akciách, tmavý režim.
 
@@ -71,11 +77,8 @@ papiere riešia večer unavení, telefón je ich hlavný počítač, boja sa, ž
 
 ### Schválené a rozrobené
 
-- **Tón textov** – celé rozhranie do formálnejšieho tykania, bez hovorových slov.
-- **Sprievodca pri prvom spustení** – päť otázok namiesto 29 polí; Nastavenia rozdelené na
-  „potrebné hneď" a „pre účtovníčku".
-- **Mobilné rozloženie** – tabuľky ako karty, menu dole. Appka je teraz dostupná len
-  z localhostu, prístup z telefónu treba vyriešiť zvlášť.
+- **Prístup z telefónu** – rozloženie pre telefón je hotové, appka je však dostupná len
+  z localhostu. Treba vyriešiť bezpečný prístup (súvisí so skutočnou appkou do telefónu).
 - **Prehľad** – väčšie preusporiadanie až podľa testu s ľuďmi.
 
 ### Neskôr (smer)
@@ -86,24 +89,20 @@ papiere riešia večer unavení, telefón je ich hlavný počítač, boja sa, ž
 
 ### Nápady na funkcie (zatiaľ neschválené)
 
-1. Import bankového výpisu (CSV) s automatickým párovaním platieb podľa VS a sumy; zvyšok ako
-   súkromný príjem.
-2. Rezerva na dane a odvody – „z každej platby si odlož X €"; evidencia zaplatených odvodov.
-3. Kalendár termínov – daňové priznanie, preddavky, ročné zúčtovanie ZP, koniec zmlúv, splatnosti.
-4. Cudzie meny vo výdavkoch (CZK, NOK, CHF) s kurzom k dátumu dokladu.
-5. Výkaz hodín pri turnuse → faktúra na jeden klik, výkaz ako príloha PDF.
-6. Balík pre účtovníčku – ZIP s Excelom a všetkými dokladmi po mesiacoch.
-7. Šifrovaná záloha mimo počítača (OneDrive, Google Drive).
-8. Fotka dokladu z telefónu cez QR kód, kým nie je appka do telefónu.
-9. Časová os na faktúre (vystavená → odoslaná → upomienka → zaplatená), kostry pri načítaní,
+1. Cudzie meny vo výdavkoch (CZK, NOK, CHF) s kurzom k dátumu dokladu.
+2. Výkaz hodín pri turnuse → faktúra na jeden klik, výkaz ako príloha PDF.
+3. Balík pre účtovníčku – ZIP s Excelom a všetkými dokladmi po mesiacoch.
+4. Šifrovaná záloha mimo počítača (OneDrive, Google Drive).
+5. Fotka dokladu z telefónu cez QR kód, kým nie je appka do telefónu.
+6. Časová os na faktúre (vystavená → odoslaná → upomienka → uhradená), kostry pri načítaní,
    Ctrl+K aj na akcie („nová faktúra Dogma"), logo a šablóny PDF faktúry.
-10. Povinná elektronická fakturácia – overiť, či a odkedy sa týka neplatiteľov DPH.
+7. Povinná elektronická fakturácia – overiť, či a odkedy sa týka neplatiteľov DPH.
+8. Výpis z banky aj pre výdavky (odchádzajúce platby) a priamo z banky cez API.
 
 ### Známe nedostatky na opravu
 
-1. Číslo zmazanej faktúry sa použije znova — účtovne to nie je správne.
-2. Fotky nad ~5 MB odmietne AI API.
-3. PDF faktúra nepozná platiteľa DPH (vždy tlačí „Nie je platiteľ DPH").
+1. PDF faktúra nepozná platiteľa DPH – appka je zatiaľ len pre neplatiteľov a registrovaných
+   podľa § 7a.
 
 ### Overenie s ľuďmi
 

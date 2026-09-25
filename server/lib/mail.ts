@@ -115,7 +115,7 @@ export function textUpomienky(invoiceId: number, jazyk: 'sk' | 'en' | 'de' = 'sk
   // Poistka proti trápnosti: upomienku na zaplatenú faktúru radšej vôbec
   // nevygenerujeme, než by mala klientovi odísť výzva na 0,00 €.
   if (dlzna <= 0.005) {
-    throw new Error(`Faktúra ${faktura.cislo} je už uhradená – upomienka nemá čo pýtať.`)
+    throw new Error(`Faktúra ${faktura.cislo} je už uhradená, upomienka nie je potrebná.`)
   }
   const ciastocne = dlzna < faktura.suma - 0.005
 

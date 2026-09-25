@@ -71,6 +71,11 @@ export function fotkaPreClaude(f: Fotka): any {
   const obsah = fs.readFileSync(cestaFotky(f))
 
   if (OBRAZKY.includes(f.mime)) {
+    // Claude API prijme obrázok najviac 10 MB v base64 (asi 7,5 MB súboru). Appka
+    // fotky zmenšuje už v prehliadači; toto je poistka, aby celá odpoveď nezlyhala.
+    if (obsah.length > 7.5 * 1024 * 1024) {
+      return { type: 'text', text: `(Fotka ${f.nazov} je príliš veľká – nad 7,5 MB – a asistent ju neprečíta. Treba ju zmenšiť.)` }
+    }
     return {
       type: 'image',
       source: { type: 'base64', media_type: f.mime, data: obsah.toString('base64') },

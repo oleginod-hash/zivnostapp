@@ -22,6 +22,8 @@ import { taxReportRouter } from './routes/taxreport.js'
 import { mailRouter } from './routes/mail.js'
 import { registryRouter } from './routes/registry.js'
 import { templatesRouter } from './routes/templates.js'
+import { bankaRouter } from './routes/banka.js'
+import { terminyRouter } from './routes/terminy.js'
 import { spustiAutoZalohy, stavZaloh } from './lib/autoZaloha.js'
 import { upracKos } from './lib/kos.js'
 
@@ -72,6 +74,8 @@ app.use('/api/danovy-podklad', taxReportRouter)
 app.use('/api/mail', mailRouter)
 app.use('/api/register', registryRouter)
 app.use('/api/sablony', templatesRouter)
+app.use('/api/banka', bankaRouter)
+app.use('/api/terminy', terminyRouter)
 
 // Keď appka beží dlho a medzitým sa zostaví nová verzia, stránky sa načítajú
 // už nové, no server v pamäti ostane starý – a nové polia potichu zahodí.

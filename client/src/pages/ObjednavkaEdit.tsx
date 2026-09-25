@@ -164,7 +164,7 @@ export function ObjednavkaEdit() {
             </select>
           </div>
           <div>
-            <label>Dohodnutá hodinovka (€/h)</label>
+            <label>Dohodnutá hodinová sadzba (€/h)</label>
             <input
               type="number"
               step="0.01"
@@ -182,7 +182,7 @@ export function ObjednavkaEdit() {
               value={form.hodiny}
               onChange={(e) => uprav({ hodiny: Number(e.target.value) })}
             />
-            <div className="napoveda">Nechaj 0, ak ešte nevieš rozsah.</div>
+            <div className="napoveda">Ak rozsah ešte nepoznáš, nechaj 0.</div>
           </div>
           <div>
             <label>Alebo pevná suma (€)</label>
@@ -195,8 +195,8 @@ export function ObjednavkaEdit() {
             />
             <div className="napoveda">
               {form.hodinovka > 0 && form.hodiny > 0
-                ? 'Počíta sa z hodinovky.'
-                : 'Pre zákazky dohodnuté paušálom, nie na hodiny.'}
+                ? 'Vypočíta sa z hodinovej sadzby.'
+                : 'Pre zákazky s pevnou cenou, nie na hodiny.'}
             </div>
           </div>
           <div>

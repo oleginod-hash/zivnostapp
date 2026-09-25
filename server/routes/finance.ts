@@ -1,6 +1,7 @@
 import { Router } from 'express'
 import { db } from '../db.js'
 import { dnesISO } from '../lib/format.js'
+import { rezervaZaRok } from '../lib/rezerva.js'
 import { UHRADENE_SQL, VYFAKTUROVANE_SQL } from '../lib/platby.js'
 
 export const financeRouter = Router()
@@ -74,6 +75,12 @@ financeRouter.get('/prehlad', (req, res) => {
     zisk: Math.round((prijmy.suma - vydavky.suma) * 100) / 100,
     caka_na_zaplatenie: caka.suma,
   })
+})
+
+// ── Rezerva na dane a odvody ──────────────────────────────────
+financeRouter.get('/rezerva', (req, res) => {
+  const rok = /^\d{4}$/.test(String(req.query.rok ?? '')) ? String(req.query.rok) : dnesISO().slice(0, 4)
+  res.json(rezervaZaRok(rok))
 })
 
 // ── Mesačný priebeh pre graf ──────────────────────────────────

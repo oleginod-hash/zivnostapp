@@ -57,7 +57,7 @@ export function obnovZKosa(kosId: number): { ok: boolean; sprava: string } {
   if (!entita) return { ok: false, sprava: `Neznámy typ záznamu (${polozka.tabulka}).` }
 
   const uzExistuje = db.prepare(`SELECT 1 FROM ${polozka.tabulka} WHERE id = ?`).get(polozka.zaznam_id)
-  if (uzExistuje) return { ok: false, sprava: 'Záznam s týmto číslom už zase existuje.' }
+  if (uzExistuje) return { ok: false, sprava: 'Záznam s týmto číslom už znova existuje.' }
 
   const stav = JSON.parse(polozka.stav)
   const stlpce = stlpceStavu(stav)
@@ -65,6 +65,10 @@ export function obnovZKosa(kosId: number): { ok: boolean; sprava: string } {
 
   // Faktúru, ktorú zálohová faktúra kryla, mohol medzitým niekto zmazať.
   // Zálohu vrátime aj tak, len bez tej väzby.
+  // Číslo zmazanej faktúry mohla medzitým dostať nová faktúra.
+  if (polozka.tabulka === 'invoices' && db.prepare('SELECT 1 FROM invoices WHERE cislo = ?').get(stlpce.cislo)) {
+    return { ok: false, sprava: `Faktúru ${stlpce.cislo} nemožno vrátiť – medzitým vznikla iná faktúra s rovnakým číslom.` }
+  }
   if (polozka.tabulka === 'invoices' && stlpce.kryje_id) {
     if (!db.prepare('SELECT 1 FROM invoices WHERE id = ?').get(stlpce.kryje_id)) stlpce.kryje_id = null
   }

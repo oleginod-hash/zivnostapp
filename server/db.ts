@@ -394,6 +394,65 @@ const migrations: string[] = [
   -- neskoršej úprave sumy vedel zapísať platbu, ktorá neprišla.
   UPDATE invoices SET stav = 'vystavena' WHERE stav = 'zaplatena';
   `,
+
+  // 15 – sprievodca pri prvom spustení. Kto appku už používa, ten ho nepotrebuje.
+  `
+  ALTER TABLE settings ADD COLUMN sprievodca_hotovy INTEGER NOT NULL DEFAULT 0;
+  UPDATE settings SET sprievodca_hotovy = 1 WHERE meno <> '' OR EXISTS (SELECT 1 FROM invoices);
+  `,
+
+  // 16 – číslo zmazanej faktúry sa už nepridelí inej faktúre
+  `
+  CREATE TABLE zmazane_cisla (
+    cislo      TEXT PRIMARY KEY,
+    zmazane_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+  INSERT OR IGNORE INTO zmazane_cisla (cislo)
+    SELECT json_extract(stav, '$.cislo') FROM kos
+     WHERE tabulka = 'invoices' AND json_extract(stav, '$.cislo') IS NOT NULL;
+  `,
+
+  // 17 – import výpisu z banky
+  `
+  CREATE TABLE bankove_importy (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    nazov_suboru TEXT NOT NULL DEFAULT '',
+    created_at   TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+
+  -- Zapísané pohyby z výpisu. Podľa odtlačku sa ten istý pohyb nezapíše dvakrát.
+  -- Keď používateľ platbu alebo príjem neskôr zmaže, zabudne sa aj pohyb –
+  -- pri ďalšom nahratí výpisu ho appka ponúkne znova.
+  CREATE TABLE bankove_pohyby (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    odtlacok    TEXT NOT NULL UNIQUE,
+    import_id   INTEGER NOT NULL REFERENCES bankove_importy(id) ON DELETE CASCADE,
+    datum       TEXT NOT NULL,
+    suma        REAL NOT NULL,
+    vs          TEXT NOT NULL DEFAULT '',
+    protistrana TEXT NOT NULL DEFAULT '',
+    sprava      TEXT NOT NULL DEFAULT '',
+    akcia       TEXT NOT NULL CHECK (akcia IN ('platba', 'prijem')),
+    platba_id   INTEGER REFERENCES invoice_payments(id) ON DELETE CASCADE,
+    vydavok_id  INTEGER REFERENCES expenses(id) ON DELETE CASCADE,
+    created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+  CREATE INDEX idx_bankove_pohyby_import ON bankove_pohyby(import_id);
+  `,
+
+  // 18 – rezerva na dane a odvody, pripomienky zákonných termínov
+  `
+  -- Koľko percent z každej prijatej platby si odkladať (0 = nepripomínať).
+  ALTER TABLE settings ADD COLUMN rezerva_percento REAL NOT NULL DEFAULT 0;
+  -- 1 = v kalendári termínov sú aj odvody a daňové priznanie.
+  ALTER TABLE settings ADD COLUMN terminy_zakonne INTEGER NOT NULL DEFAULT 1;
+  `,
+
+  // 19 – číslo zmazanej faktúry sa pri novej faktúre znova použije (tak to chce
+  // používateľ), zoznam zmazaných čísel z migrácie 16 preto netreba
+  `
+  DROP TABLE IF EXISTS zmazane_cisla;
+  `,
 ]
 
 /** Verzia schémy, na ktorú databázu dostanú migrácie – kontrolujú ju aj testy. */

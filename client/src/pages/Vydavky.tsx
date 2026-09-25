@@ -87,7 +87,7 @@ export function Vydavky() {
   const [parametre, setParametre] = useSearchParams()
   useEffect(() => {
     if (parametre.get('novy') !== '1') return
-    otvorNovy()
+    otvorNovy(parametre.get('kategoria') ?? '')
     setParametre({}, { replace: true })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [parametre])
@@ -104,8 +104,8 @@ export function Vydavky() {
     setF({ ...f, kategoria: '', turnus: '' })
   }
 
-  function otvorNovy() {
-    setUprava(PRAZDNY(druh))
+  function otvorNovy(kategoria = '') {
+    setUprava({ ...PRAZDNY(druh), kategoria })
     setPrilohy([])
     setCakajuceSubory([])
     setChyba('')
@@ -218,7 +218,7 @@ export function Vydavky() {
           <Link className="tlacidlo" to="/financie">
             Prehľad financií
           </Link>
-          <button className="primar" onClick={otvorNovy}>
+          <button className="primar" onClick={() => otvorNovy()}>
             {prijem ? '+ Nový súkromný príjem' : '+ Nový výdavok'}
           </button>
         </div>
@@ -239,9 +239,9 @@ export function Vydavky() {
 
       {prijem && (
         <div className="napoveda" style={{ marginTop: -8, marginBottom: 12 }}>
-          Sem si zapíš peniaze, ktoré prišli na účet, ale nie sú príjmom z podnikania — vklad vlastných peňazí,
-          prevod od rodiny, vrátku z e-shopu. Do daňového podkladu ani do zisku nevstupujú, evidujú sa len preto,
-          aby ti sedel bankový výpis.
+          Sem zapíš peniaze, ktoré prišli na účet, ale nie sú príjmom z podnikania – vklad vlastných peňazí,
+          prevod od rodiny, vrátené peniaze z e-shopu. Do daňového podkladu ani do zisku sa nezapočítavajú,
+          evidujú sa len preto, aby súhlasil výpis z banky.
         </div>
       )}
 
@@ -275,7 +275,7 @@ export function Vydavky() {
               />
             </div>
             <div>
-              <label>Čo to je</label>
+              <label>Druh záznamu</label>
               <select
                 value={uprava.druh}
                 onChange={(e) => {
@@ -337,8 +337,8 @@ export function Vydavky() {
                 </select>
                 <div className="napoveda">
                   {navrhnutyTurnus
-                    ? `${skDatum(uprava.datum)} spadá do turnusu ${navrhnutyTurnus.nazov} — priradí sa naň sám.`
-                    : 'Vďaka priradeniu k turnusu appka spočíta jeho reálny zisk.'}
+                    ? `${skDatum(uprava.datum)} spadá do turnusu ${navrhnutyTurnus.nazov} – priradí sa k nemu automaticky.`
+                    : 'Vďaka priradeniu k turnusu appka spočíta jeho skutočný zisk.'}
                 </div>
               </div>
             )}
@@ -372,7 +372,7 @@ export function Vydavky() {
           </div>
 
           <div style={{ marginTop: 18, paddingTop: 16, borderTop: '1px solid var(--ciara)' }}>
-            <label>{upravujemPrijem ? 'Doklady (napr. výpis z banky)' : 'Doklady a bločky'}</label>
+            <label>{upravujemPrijem ? 'Doklady (napr. výpis z banky)' : 'Doklady'}</label>
             {!uprava.id ? (
               <>
                 {cakajuceSubory.length > 0 && (
@@ -408,8 +408,8 @@ export function Vydavky() {
                 </button>
                 <div className="napoveda">
                   {cakajuceSubory.length
-                    ? 'Doklady sa pripoja hneď po uložení.'
-                    : 'Odfoť bloček alebo vyber PDF — pripne sa po uložení.'}
+                    ? 'Doklady sa priložia hneď po uložení.'
+                    : 'Odfoť doklad alebo vyber PDF – priloží sa po uložení.'}
                 </div>
               </>
             ) : (
@@ -528,15 +528,15 @@ export function Vydavky() {
                   ? 'Žiadny daňovo uznateľný výdavok'
                   : f.kategoria === PODLA_DANE.neuznatelne
                     ? 'Žiadny neuznateľný výdavok'
-                    : 'Za vybrané obdobie tu nič nie je'
+                    : 'Za vybrané obdobie nie sú žiadne záznamy'
             }
             text={
               prijem
-                ? 'Peniaze, ktoré prišli na účet, ale nie sú príjmom z podnikania. Evidujú sa len preto, aby ti sedel výpis z banky.'
-                : 'Zapíš výdavok aj s fotkou bločku — z fotky ti ho vie vyplniť aj AI pomocník.'
+                ? 'Peniaze, ktoré prišli na účet, ale nie sú príjmom z podnikania. Evidujú sa len preto, aby súhlasil výpis z banky.'
+                : 'Zapíš výdavok aj s fotkou dokladu – asistent ho z fotky môže vyplniť za teba.'
             }
             akcia={
-              <button className="primar" onClick={otvorNovy}>
+              <button className="primar" onClick={() => otvorNovy()}>
                 {prijem ? '+ Nový súkromný príjem' : '+ Nový výdavok'}
               </button>
             }
@@ -558,7 +558,7 @@ export function Vydavky() {
               {vydavky.map((v) => (
                 <tr key={v.id} style={{ cursor: 'pointer' }} onClick={() => otvorUpravu(v)}>
                   <td>{skDatum(v.datum)}</td>
-                  <td>
+                  <td className="hlavna-bunka">
                     <strong>{v.popis}</strong>
                     {v.druh === 'vydavok' && v.odpocitat === 0 && (
                       <span className="stitok koncept" style={{ marginLeft: 8 }}>
@@ -610,7 +610,7 @@ export function Vydavky() {
           {prijem ? (
             <>
               Spolu {pocet(vydavky.length, ['súkromný príjem', 'súkromné príjmy', 'súkromných príjmov'])} ·{' '}
-              <strong>{skSuma(spolu)}</strong> — do dane nevstupuje
+              <strong>{skSuma(spolu)}</strong> – do dane nevstupuje
             </>
           ) : (
             <>

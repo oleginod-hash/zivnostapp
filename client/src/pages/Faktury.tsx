@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import {
-  api, dniDoSplatnosti, pocet, skDatum, skSuma, vratZKosa,
+  api, dniDoSplatnosti, pocet, skDatum, skSuma, vetaORezerve, vratZKosa,
   type Faktura, type Firma, type PlatbaFaktury, type PoctyFaktur, type Suhrn, type Turnus,
 } from '../api'
 import { oznam, potvrd } from '../components/Oznamenia'
@@ -13,8 +13,8 @@ type Zalozka = '' | 'nevyplatene' | 'vyplatene' | 'zalohy'
 
 const ZALOZKY: { kluc: Zalozka; text: string }[] = [
   { kluc: '', text: 'Všetky' },
-  { kluc: 'nevyplatene', text: 'Nevyplatené' },
-  { kluc: 'vyplatene', text: 'Vyplatené' },
+  { kluc: 'nevyplatene', text: 'Neuhradené' },
+  { kluc: 'vyplatene', text: 'Uhradené' },
   { kluc: 'zalohy', text: 'Zálohové faktúry' },
 ]
 
@@ -118,11 +118,11 @@ export function Faktury() {
       return
     }
 
-    const r = await api.post<{ platba_id: number | null }>(`/faktury/${id}/stav`, { stav })
+    const r = await api.post<{ platba_id: number | null; odlozit?: number }>(`/faktury/${id}/stav`, { stav })
     nacitaj()
     if (stav === 'zaplatena') {
       oznam(
-        `Faktúra ${fa?.cislo ?? ''} je označená ako zaplatená.`,
+        `Faktúra ${fa?.cislo ?? ''} je označená ako uhradená.${vetaORezerve(r.odlozit)}`,
         r.platba_id
           ? {
               text: 'Vrátiť späť',
@@ -225,8 +225,8 @@ export function Faktury() {
 
       {zalozka === 'zalohy' && (
         <div className="napoveda" style={{ marginTop: -8, marginBottom: 12 }}>
-          Zálohová faktúra so stĺpcom „kryje" je splátkou staršieho dlhu — jej suma sa nepočíta druhýkrát,
-          len znižuje neuhradený zostatok pôvodnej faktúry.
+          Zálohová faktúra s označením „splátka" spláca staršiu faktúru – jej suma sa do príjmov nepočíta
+          druhýkrát, len znižuje dlh na pôvodnej faktúre.
         </div>
       )}
 
@@ -235,21 +235,21 @@ export function Faktury() {
           <div className="nacitava">Načítavam…</div>
         ) : faktury.length === 0 ? (
           zalozka === 'nevyplatene' ? (
-            <PrazdnyStav ikona="zaplatena" ton="pos" nadpis="Nikto ti nedlhuje" text="Všetko, čo si vystavil, je uhradené." />
+            <PrazdnyStav ikona="zaplatena" ton="pos" nadpis="Nikto ti nedlhuje" text="Všetky vystavené faktúry sú uhradené." />
           ) : zalozka === 'vyplatene' ? (
             <PrazdnyStav ikona="faktury" nadpis="Zatiaľ žiadna uhradená faktúra" text="Keď platba príde, faktúra sa presunie sem." />
           ) : zalozka === 'zalohy' ? (
             <PrazdnyStav
               ikona="zaloha"
               nadpis="Žiadne zálohové faktúry"
-              text="Zálohovú faktúru vystavíš pri novej faktúre výberom typu dokladu. Môže kryť aj starší dlh."
+              text="Zálohovú faktúru vystavíš pri novej faktúre výberom typu dokladu. Môže slúžiť aj ako splátka staršej faktúry."
             />
           ) : (
             <PrazdnyStav
               ikona="faktury"
               ton="akcent"
-              nadpis="Zatiaľ tu nič nie je"
-              text="Vystav prvú faktúru — číslo, dátumy aj splatnosť si appka doplní podľa Nastavení."
+              nadpis="Zatiaľ žiadne faktúry"
+              text="Vystav prvú faktúru – číslo, dátumy aj splatnosť si appka doplní podľa Nastavení."
               akcia={
                 <Link className="tlacidlo primar" to="/faktury/nova">
                   + Vystaviť prvú faktúru
@@ -285,7 +285,7 @@ export function Faktury() {
                         {fa.typ === 'zaloha' && (
                           <>
                             <StitokZalohy />
-                            {fa.kryje_cislo && <span className="pod-textom">kryje {fa.kryje_cislo}</span>}
+                            {fa.kryje_cislo && <span className="pod-textom">splátka {fa.kryje_cislo}</span>}
                           </>
                         )}
                       </td>
@@ -339,7 +339,7 @@ export function Faktury() {
                               title={`Zapíše doplatok ${skSuma(fa.otvoreny_zostatok)} s dnešným dátumom`}
                               onClick={() => zmenStav(fa.id, 'zaplatena')}
                             >
-                              Zaplatená
+                              Uhradená
                             </button>
                           ) : (
                             <button

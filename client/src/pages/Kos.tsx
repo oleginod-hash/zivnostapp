@@ -117,16 +117,16 @@ export function Kos() {
     // Otázka je jedna, ale pomenúva presne, čo sa stane. Toto je jediné
     // miesto v appke, kde sa dáta stratia nenávratne.
     const ano = await potvrd({
-      nadpis: 'Vysypať celý kôš?',
-      text: `Zmaže sa ${pocet(n, ['položka', 'položky', 'položiek'])} aj s prílohami. Vrátiť sa to už nedá.`,
-      potvrdit: 'Vysypať kôš',
+      nadpis: 'Vyprázdniť celý kôš?',
+      text: `Natrvalo sa zmaže ${pocet(n, ['položka', 'položky', 'položiek'])} aj s prílohami. Vrátiť sa to už nedá.`,
+      potvrdit: 'Vyprázdniť kôš',
       nebezpecne: true,
     })
     if (!ano) return
     setPracujem(true)
     try {
       const r = await api.post<{ zmazane: number }>('/kos/vysypat')
-      oznam(`Kôš vysypaný — zmazaných ${pocet(r.zmazane, ['položka', 'položky', 'položiek'])}.`)
+      oznam(`Kôš je vyprázdnený. Natrvalo zmazané: ${pocet(r.zmazane, ['položka', 'položky', 'položiek'])}.`)
       nacitaj()
     } catch (e: any) {
       setChyba(e.message)
@@ -144,7 +144,7 @@ export function Kos() {
         {!!polozky?.length && (
           <div className="akcie">
             <button className="nebezpecne" onClick={vysypVsetko} disabled={pracujem}>
-              Vysypať celý kôš
+              Vyprázdniť kôš
             </button>
           </div>
         )}
@@ -154,8 +154,8 @@ export function Kos() {
       {sprava && <div className="uspech">{sprava}</div>}
 
       <div className="info-pruh">
-        Zmazané záznamy tu počkajú <strong>30 dní</strong> a potom zmiznú samy. Dovtedy sa dajú vrátiť späť.
-        Prílohy a doklady k nim ostávajú uložené, takže sa obnovia aj tie.
+        Zmazané záznamy tu zostanú <strong>30 dní</strong>, potom sa odstránia automaticky. Dovtedy sa dajú
+        vrátiť. Prílohy a doklady k nim ostávajú uložené, takže sa obnovia aj tie.
       </div>
 
       {vybrane.size > 0 && (
@@ -184,7 +184,7 @@ export function Kos() {
           <PrazdnyStav
             ikona="kos"
             nadpis="Kôš je prázdny"
-            text="Čokoľvek v appke zmažeš, počká tu 30 dní a dá sa vrátiť späť aj s platbami a dokladmi."
+            text="Všetko, čo v appke zmažeš, tu zostane 30 dní a dá sa vrátiť aj s platbami a dokladmi."
           />
         ) : (
           <table>
@@ -199,7 +199,7 @@ export function Kos() {
                     onChange={prepniVsetky}
                   />
                 </th>
-                <th>Čo to bolo</th>
+                <th>Položka</th>
                 <th>Typ</th>
                 <th>Zmazané</th>
                 <th style={{ width: 250 }}></th>
@@ -222,7 +222,7 @@ export function Kos() {
                       onChange={() => prepni(p.id)}
                     />
                   </td>
-                  <td>
+                  <td className="hlavna-bunka">
                     <strong>{p.popis}</strong>
                   </td>
                   <td className="tlmene">

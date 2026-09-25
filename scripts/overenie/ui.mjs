@@ -1,7 +1,7 @@
 // Obrazovky appky v neviditeľnom Chrome (1275 × 748, svetlý režim) nad
 // vymyslenými údajmi: žiadne chyby v konzole, nič nepretŕča do strany,
 // písmo aspoň 12 px, kontrast textu podľa normy (WCAG AA) a základné
-// akcie – zmazanie a „Zaplatená" s vrátením späť, vlastné okná s otázkou.
+// akcie – zmazanie a „Uhradená" s vrátením späť, vlastné okná s otázkou.
 import { spawn } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -9,7 +9,9 @@ import {
   KOREN, cakaj, docasnyPriecinok, kontroly, modulServera, nahodnyPort, pockaj, preskoc, spustiServer, vytvorApi,
 } from './spolocne.mjs'
 
-const NAZOV = 'Obrazovky appky (Chrome, 1275 × 748, svetlý režim)'
+// Tmavý režim: OVERENIE_TEMA=tmavy node scripts/overenie/ui.mjs
+const TEMA = process.env.OVERENIE_TEMA === 'tmavy' ? 'tmavy' : 'svetly'
+const NAZOV = `Obrazovky appky (Chrome, 1275 × 748, ${TEMA === 'tmavy' ? 'tmavý' : 'svetlý'} režim)`
 const SIRKA = 1275
 const VYSKA = 748
 
@@ -33,9 +35,11 @@ if (!fs.existsSync(path.join(KOREN, 'dist', 'index.html'))) {
 const t = kontroly(NAZOV)
 const DATA = docasnyPriecinok()
 const PORT = nahodnyPort()
-const api = vytvorApi(await spustiServer(DATA, PORT))
+// Vymyslený kľúč: asistent sa tvári zapnutý (dá sa priložiť fotka), no nikdy sa nevolá.
+const api = vytvorApi(await spustiServer(DATA, PORT, { aiKluc: 'test-kluc-nikdy-sa-nepouzije' }))
 const ADRESA = `http://localhost:${PORT}`
 const { dnesISO } = await modulServera('lib/format.js')
+const { db, FILES_DIR } = await modulServera('db.js')
 
 // ── Vymyslené údaje, aby mali obrazovky čo ukázať ─────────────
 const dnes = dnesISO()
@@ -59,7 +63,8 @@ const faktury = [
   { company_id: firmy[0], datum_vystav: posun(-2), datum_splat: posun(12), polozky: [{ popis: 'Oprava konštrukcie', mnozstvo: 8, jednotka: 'hod', cena: 30 }] },
   { company_id: firmy[1], stav: 'koncept', datum_vystav: dnes, polozky: [{ popis: 'Rozpracovaná zákazka', mnozstvo: 1, cena: 900 }] },
 ]
-for (const f of faktury) await api('POST', '/faktury', f)
+const idFaktur = []
+for (const f of faktury) idFaktur.push((await api('POST', '/faktury', f)).d.id)
 for (const [dni, popis, kategoria, suma] of [
   [-35, 'Zváracie elektródy', 'Materiál', 64.9],
   [-25, 'Nafta cestou na turnus', 'PHM', 88.4],
@@ -151,7 +156,7 @@ await cdp('Log.enable')
 await cdp('Emulation.setDeviceMetricsOverride', { width: SIRKA, height: VYSKA, deviceScaleFactor: 1, mobile: false })
 await cdp('Page.navigate', { url: ADRESA + '/' })
 await cakaj(1500)
-await js(`localStorage.setItem('zivnostapp-tema', 'svetly'); true`)
+await js(`localStorage.setItem('zivnostapp-tema', '${TEMA}'); true`)
 
 // ── Každá obrazovka: chyby, šírka, písmo, kontrast ────────────
 // Kontrast počítame ako prehliadač: priesvitné pozadia a farby sa skladajú
@@ -169,7 +174,7 @@ const MERANIE = `(() => {
   const slabe = []
   let najmensie = 99
   let najmensieKde = ''
-  for (const el of document.querySelectorAll('.obsah *')) {
+  for (const el of document.querySelectorAll('.obsah *, .spodne-menu *')) {
     const text = [...el.childNodes].filter((n) => n.nodeType === 3).map((n) => n.textContent.trim()).join('')
     if (text.length < 2) continue
     const r = el.getBoundingClientRect()
@@ -195,10 +200,73 @@ const MERANIE = `(() => {
   }
 })()`
 
+// ── Prvé spustenie: sprievodca ────────────────────────────────
+// React si hodnotu poľa drží sám – nastavíme ju tak, ako keby ju napísal človek.
+const nastav = (selektor, hodnota) =>
+  js(`(() => {
+    const e = document.querySelector(${JSON.stringify(selektor)})
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(e, ${JSON.stringify(hodnota)})
+    e.dispatchEvent(new Event('input', { bubbles: true }))
+    return true
+  })()`)
+const krokSprievodcu = () => js(`document.querySelector('.sprievodca-krok')?.textContent.trim() ?? null`)
+const dalej = async () => {
+  await klik('.sprievodca-akcie button[type=submit]')
+  await cakaj(400)
+}
+const zmeraj = async (nazov) => {
+  const m = await js(MERANIE)
+  t.over(`${nazov}: nič nepretŕča, písmo aspoň 12 px, kontrast podľa normy`, [m.stranaSaPosuva, m.pretekajuce, m.najmensie >= 12, m.slabe], [false, [], true, []])
+}
+
+t.sekcia('Sprievodca prvým spustením')
+chybyKonzoly.length = 0
+await otvor('/')
+t.over('nová appka otvorí najprv sprievodcu', await js('location.pathname'), '/sprievodca')
+t.over('začína prvým z piatich krokov', await krokSprievodcu(), 'Krok 1 z 5')
+await zmeraj('krok 1')
+await nastav('#s-meno', '')
+await dalej()
+t.over('bez mena nepustí ďalej a povie prečo', [await krokSprievodcu(), await js(`document.querySelector('.sprievodca .chyba')?.textContent`)], ['Krok 1 z 5', 'Vyplň meno – bez neho sa faktúra vystaviť nedá.'])
+await nastav('#s-meno', 'Ján Testovací')
+await dalej()
+t.over('po vyplnení mena ide na adresu', await krokSprievodcu(), 'Krok 2 z 5')
+await nastav('#s-adresa', 'Hlavná 12')
+await nastav('#s-psc', '089 01 Svidník')
+await dalej()
+await nastav('#s-iban', 'SK24 1100 0000 0026 1234 5679')
+await cakaj(200)
+t.over('preklep v IBAN-e appka zbadá', await js(`!!document.querySelector('.sprievodca .napoveda .chybna')`), true)
+await nastav('#s-iban', 'SK24 1100 0000 0026 1234 5678')
+await cakaj(200)
+t.over('správny IBAN prejde', await js(`!document.querySelector('.sprievodca .napoveda .chybna')`), true)
+await dalej()
+t.over('štvrtý krok: kde pracuje', await krokSprievodcu(), 'Krok 4 z 5')
+await zmeraj('krok 4 (voľby)')
+await klik('.volba', 1)
+t.over('voľba „turnusy v zahraničí" je vybraná', await js(`document.querySelectorAll('.volba')[1].getAttribute('aria-checked')`), 'true')
+await dalej()
+await klik('.volba', 1)
+t.over('pri § 7a sa objaví pole na IČ DPH', await js(`!!document.querySelector('#s-icdph')`), true)
+await klik('.volba', 0)
+await klik('.sprievodca-riadok button', 2)
+await dalej()
+t.over('na konci „Hotovo"', await js(`document.querySelector('.sprievodca h1')?.textContent`), 'Hotovo, môžeš začať')
+await zmeraj('záver')
+const ulozene = (await api('GET', '/nastavenia')).d
+t.over(
+  'všetko sa uložilo',
+  [ulozene.sprievodca_hotovy, ulozene.adresa, ulozene.iban, ulozene.praca_v_zahranici, ulozene.dph_rezim, ulozene.splatnost_dni],
+  [1, 'Hlavná 12', 'SK24 1100 0000 0026 1234 5678', 1, 'neplatitel', 30],
+)
+t.over('bez chýb v konzole', chybyKonzoly, [])
+await otvor('/')
+t.over('po sprievodcovi sa appka otvára Prehľadom', await js('location.pathname'), '/')
+
 const OBRAZOVKY = [
-  ['/', 'Prehľad'], ['/faktury', 'Faktúry'], ['/faktury/nova', 'Nová faktúra'], ['/upomienky', 'Upomienky'],
+  ['/', 'Prehľad'], ['/terminy', 'Termíny'], ['/faktury', 'Faktúry'], ['/faktury/nova', 'Nová faktúra'], ['/upomienky', 'Upomienky'],
   ['/turnusy', 'Turnusy'], ['/objednavky', 'Objednávky'], ['/zmluvy', 'Zmluvy'], ['/firmy', 'Firmy'],
-  ['/vydavky', 'Výdavky'], ['/financie', 'Financie'], ['/danovy-podklad', 'Daňový podklad'],
+  ['/vydavky', 'Výdavky'], ['/banka', 'Výpis z banky'], ['/financie', 'Financie'], ['/danovy-podklad', 'Daňový podklad'],
   ['/asistent', 'Asistent'], ['/kos', 'Kôš'], ['/nastavenia', 'Nastavenia'],
 ]
 for (const [cesta, nazov] of OBRAZOVKY) {
@@ -211,6 +279,82 @@ for (const [cesta, nazov] of OBRAZOVKY) {
   t.over('písmo aspoň 12 px', m.najmensie >= 12 ? true : `${m.najmensie} px (${m.najmensieKde})`, true)
   t.over('kontrast textu podľa normy', m.slabe, [])
 }
+
+// ── Fotka pre asistenta ───────────────────────────────────────
+// Fotka z mobilu (tu 4000 × 3000) sa pred odoslaním zmenší na 2000 px na dlhšej strane.
+t.sekcia('Fotka pre asistenta')
+await otvor('/asistent')
+await js(`(async () => {
+  const platno = document.createElement('canvas')
+  platno.width = 4000
+  platno.height = 3000
+  const k = platno.getContext('2d')
+  for (let i = 0; i < 400; i++) {
+    k.fillStyle = 'hsl(' + (i * 37) % 360 + ', 70%, 50%)'
+    k.fillRect((i * 97) % 4000, (i * 53) % 3000, 300, 200)
+  }
+  const blob = await new Promise((r) => platno.toBlob(r, 'image/jpeg', 0.98))
+  const prenos = new DataTransfer()
+  prenos.items.add(new File([blob], 'blocik z mobilu.jpg', { type: 'image/jpeg' }))
+  const vstup = document.querySelector('.ai-stranka input[type=file]')
+  vstup.files = prenos.files
+  vstup.dispatchEvent(new Event('change', { bubbles: true }))
+  return true
+})()`)
+await pockaj(() => !!db.prepare('SELECT 1 FROM chat_files').get(), 8000)
+const nahrata = db.prepare('SELECT nazov, ulozeny_nazov, mime, velkost FROM chat_files ORDER BY id DESC LIMIT 1').get()
+/** Šírka a výška JPEG-u z hlavičky (značka SOF). */
+function rozmeryJpeg(b) {
+  for (let i = 2; i + 9 < b.length; i += 2 + b.readUInt16BE(i + 2)) {
+    if (b[i] !== 0xff) return null
+    if ([0xc0, 0xc1, 0xc2].includes(b[i + 1])) return [b.readUInt16BE(i + 7), b.readUInt16BE(i + 5)]
+  }
+  return null
+}
+const subor = nahrata && fs.readFileSync(path.join(FILES_DIR, 'chat', nahrata.ulozeny_nazov))
+t.over('fotka sa nahrala ako JPEG', [nahrata?.nazov, nahrata?.mime], ['blocik z mobilu.jpg', 'image/jpeg'])
+t.over('zmenšená na 2000 × 1500 px', subor && rozmeryJpeg(subor), [2000, 1500])
+t.over('a má menej než 2 MB', !!nahrata && nahrata.velkost < 2 * 1024 * 1024, true)
+
+// ── Termíny ───────────────────────────────────────────────────
+t.sekcia('Termíny')
+const najblizsiaSplatnost = (await api('GET', `/faktury/${idFaktur[3]}`)).d.cislo
+await otvor('/')
+t.over(
+  'Prehľad ukazuje najbližšie termíny aj splatnosť faktúry',
+  await js(`[...document.querySelectorAll('.terminy-zoznam .termin-nazov')].map((e) => e.textContent).includes('Splatnosť faktúry ${najblizsiaSplatnost}')`),
+  true,
+)
+await otvor('/terminy')
+t.over('stránka Termíny ich zoskupí po mesiacoch', await js(`document.querySelectorAll('.panel .terminy-zoznam').length > 0`), true)
+
+// ── Výpis z banky ─────────────────────────────────────────────
+t.sekcia('Výpis z banky')
+const najstarsia = (await api('GET', `/faktury/${idFaktur[0]}`)).d
+const vypisCsv = [
+  'Dátum;Suma;Variabilný symbol;Názov protiúčtu;Správa pre príjemcu',
+  `${posun(-1).split('-').reverse().join('.')};${String(najstarsia.otvoreny_zostatok).replace('.', ',')};${najstarsia.variabilny};Ľubica Nováková s.r.o.;Úhrada faktúry`,
+].join('\n')
+await otvor('/banka')
+await js(`(() => {
+  const prenos = new DataTransfer()
+  prenos.items.add(new File([${JSON.stringify(vypisCsv)}], 'vypis.csv', { type: 'text/csv' }))
+  const vstup = document.querySelector('.hlavicka input[type=file]')
+  vstup.files = prenos.files
+  vstup.dispatchEvent(new Event('change', { bubbles: true }))
+  return true
+})()`)
+await pockaj(() => js(`!!document.querySelector('.tabulka-obal tbody select')`), 8000)
+t.over('platba z výpisu je navrhnutá k správnej faktúre', await js(`document.querySelector('.tabulka-obal tbody select').value`), `f:${idFaktur[0]}`)
+await klik('.riadok-akcii button.primar')
+await cakaj(600)
+const oznamBanky = `document.querySelector('.oznam .oznam-text')?.textContent ?? ''`
+t.over('zápis ohlási, čo sa zapísalo', (await js(oznamBanky)).startsWith('Zapísané: 1 platba k faktúram'), true)
+t.over('faktúra je uhradená', (await api('GET', `/faktury/${idFaktur[0]}`)).d.stav_zobraz, 'zaplatena')
+t.over('platba je vo výpise označená ako zapísaná', await js(`document.querySelector('.tabulka-obal tbody .stitok')?.textContent`), 'už zapísaná')
+await klik('.oznam-akcia')
+await cakaj(1000)
+t.over('„Vrátiť späť" import zruší', (await api('GET', `/faktury/${idFaktur[0]}`)).d.stav_zobraz !== 'zaplatena', true)
 
 // ── Akcie s „Vrátiť späť" a vlastné okná ─────────────────────
 t.sekcia('Akcie na faktúrach')
@@ -232,11 +376,11 @@ const nezaplatena = await js(
   `[...document.querySelectorAll('.tabulka-faktur tbody tr')].find((r) => r.querySelector('.vyplatit'))?.querySelector('.cislo-faktury').textContent`,
 )
 await klik('.tabulka-faktur .akcie-riadku .vyplatit')
-t.over('„Zaplatená": oznámenie', (await js(oznam))?.startsWith(`Faktúra ${nezaplatena}`), true)
-t.over('…faktúra je vyplatená', await stavRiadku(nezaplatena), 'Vyplatená')
+t.over('„Uhradená": oznámenie', (await js(oznam))?.startsWith(`Faktúra ${nezaplatena}`), true)
+t.over('…faktúra je vyplatená', await stavRiadku(nezaplatena), 'Uhradená')
 await klik('.oznam-akcia')
 await cakaj(800)
-t.over('…a „Vrátiť späť" platbu zruší', (await stavRiadku(nezaplatena)) !== 'Vyplatená', true)
+t.over('…a „Vrátiť späť" platbu zruší', (await stavRiadku(nezaplatena)) !== 'Uhradená', true)
 
 t.sekcia('Otázky vo vlastnom okne')
 await otvor('/faktury/nova')
@@ -244,7 +388,7 @@ await js(`(() => { const e = document.querySelector('.obsah input:not([type=date
 await cdp('Input.insertText', { text: '2099999' })
 await cakaj(400)
 await klik('a[href="/vydavky"]')
-t.over('odchod z rozpísanej faktúry: appka sa spýta', (await js(`document.querySelector('.dialog.maly h2')?.textContent`)) ?? null, 'Máš neuložené zmeny. Naozaj odísť?')
+t.over('odchod z rozpísanej faktúry: appka sa spýta', (await js(`document.querySelector('.dialog.maly h2')?.textContent`)) ?? null, 'Máš neuložené zmeny. Naozaj chceš odísť?')
 await klik('.dialog.maly .riadok-akcii button', 0)
 t.over('…po „Ostať tu" ostane formulár otvorený', await js(`location.pathname`), '/faktury/nova')
 await klik('a[href="/vydavky"]')
@@ -259,6 +403,40 @@ t.over('zmazanie natrvalo sa pýta vo vlastnom okne', (await js(`document.queryS
 await klik('.dialog.maly .riadok-akcii button', 0)
 t.over('…po „Zrušiť" sa okno zavrie', await js(`!document.querySelector('.dialog.maly')`), true)
 t.over('appka nepoužila ani jedno systémové okno', systemoveOkna, 0)
+
+// ── Telefón ───────────────────────────────────────────────────
+// Rovnaké obrazovky na šírke telefónu: bočné menu sa vysúva, dole je lišta,
+// tabuľky s viac stĺpcami sú karty a nič nesmie pretŕčať do strany.
+await cdp('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: true })
+for (const [cesta, nazov] of OBRAZOVKY) {
+  chybyKonzoly.length = 0
+  await otvor(cesta)
+  const m = await js(MERANIE)
+  t.sekcia(`${nazov} – telefón`)
+  t.over('bez chýb v konzole', chybyKonzoly, [])
+  t.over(
+    'nič nepretŕča, písmo aspoň 12 px, kontrast podľa normy',
+    [m.stranaSaPosuva, m.pretekajuce, m.najmensie >= 12 ? true : `${m.najmensie} px (${m.najmensieKde})`, m.slabe],
+    [false, [], true, []],
+  )
+}
+
+t.sekcia('Ovládanie na telefóne')
+await otvor('/faktury')
+const bocneMenuVidno = () => js(`document.querySelector('.sidebar').getBoundingClientRect().right > 0`)
+t.over('dole je lišta s hlavnými stránkami', await js(`getComputedStyle(document.querySelector('.spodne-menu')).display`), 'grid')
+t.over('bočné menu je schované', await bocneMenuVidno(), false)
+t.over(
+  'faktúry sú karty s popisom pri každej hodnote',
+  await js(`(() => { const t = document.querySelector('.tabulka-faktur'); return [t.hasAttribute('data-karty'), getComputedStyle(t.querySelector('thead')).display, t.querySelector('tbody td:nth-child(2)').dataset.popis] })()`),
+  [true, 'none', 'Odberateľ'],
+)
+await klik('.spodne-menu button')
+await cakaj(300)
+t.over('„Viac" vysunie celé menu', await bocneMenuVidno(), true)
+await klik('.sidebar a[href="/firmy"]')
+await cakaj(300)
+t.over('po výbere stránky sa menu samo zavrie', [await js('location.pathname'), await bocneMenuVidno()], ['/firmy', false])
 
 ws.close()
 chrome.kill()

@@ -46,7 +46,7 @@ export function Firmy() {
       })
       setSprava(
         n.chyba_v_registri?.length
-          ? `Doplnené z registra. ${n.chyba_v_registri.join(', ')} register neposkytuje — doplň ich ručne.`
+          ? `Doplnené z registra. ${n.chyba_v_registri.join(', ')} register neposkytuje – doplň ich ručne.`
           : 'Doplnené z registra.',
       )
       setTimeout(() => setSprava(''), 8000)
@@ -128,7 +128,7 @@ export function Firmy() {
               <label>Kontaktná osoba</label>
               <input
                 value={uprava.kontaktna_osoba ?? ''}
-                placeholder="napr. Miloslav Červeň — objaví sa na faktúre pod názvom firmy"
+                placeholder="napr. Miloslav Červeň – zobrazí sa na faktúre pod názvom firmy"
                 onChange={(e) => setUprava({ ...uprava, kontaktna_osoba: e.target.value })}
               />
             </div>

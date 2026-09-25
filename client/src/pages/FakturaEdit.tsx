@@ -362,7 +362,7 @@ export function FakturaEdit() {
         <div className="akcie">
           {!novaFaktura && (
             <>
-              <button onClick={() => setPosielam(true)}>Poslať mailom</button>
+              <button onClick={() => setPosielam(true)}>Poslať e-mailom</button>
               <button onClick={ulozAkoSablonu}>Uložiť ako šablónu</button>
             </>
           )}
@@ -415,7 +415,7 @@ export function FakturaEdit() {
             </select>
             {firmy.length === 0 && (
               <div className="napoveda">
-                Zatiaľ nemáš žiadnu firmu. <Link to="/firmy">Pridaj ju tu</Link>.
+                Zatiaľ nemáš žiadnu firmu. <Link to="/firmy">Pridať firmu</Link>.
               </div>
             )}
           </div>
@@ -431,9 +431,9 @@ export function FakturaEdit() {
           </div>
           {form.typ === 'zaloha' && (
             <div>
-              <label>Kryje starú faktúru</label>
+              <label>Splátka staršej faktúry</label>
               <select value={form.kryje_id} onChange={(e) => uprav({ kryje_id: e.target.value })}>
-                <option value="">— nekryje žiadny dlh —</option>
+                <option value="">— nie je splátkou inej faktúry —</option>
                 {krytaFaktura &&
                   !nevyplatene.some((n) => n.id === krytaFaktura.id) && (
                     <option value={krytaFaktura.id}>{krytaFaktura.cislo} · už uhradená</option>
@@ -448,8 +448,8 @@ export function FakturaEdit() {
                   ))}
               </select>
               <div className="napoveda">
-                Suma tejto zálohy sa odráta z dlhu na pôvodnej faktúre. Do príjmov sa ráta len raz —
-                keď platba reálne príde.
+                Suma tejto zálohovej faktúry zníži dlh na pôvodnej faktúre. Do príjmov sa započíta len raz –
+                keď platba skutočne príde.
               </div>
             </div>
           )}
@@ -502,7 +502,7 @@ export function FakturaEdit() {
                 type="button"
                 className={'mini-prepinac' + (pracovneDni ? ' zapnuty' : '')}
                 aria-pressed={pracovneDni}
-                title="Rátať splatnosť len v pracovných dňoch – bez víkendov a sviatkov"
+                title="Počítať splatnosť len v pracovných dňoch – bez víkendov a sviatkov"
                 onClick={prepniPracovneDni}
               >
                 <span className="mini-prepinac-draha" aria-hidden="true" />
@@ -525,8 +525,8 @@ export function FakturaEdit() {
             </datalist>
             <div className="napoveda">
               {pracovneDni
-                ? 'Len pracovné dni — bez víkendov a sviatkov. Predvolené v Nastaveniach.'
-                : 'Napíš si vlastný počet dní, alebo vyber z bežných lehôt.'}
+                ? 'Len pracovné dni – bez víkendov a sviatkov. Predvolené v Nastaveniach.'
+                : 'Zadaj vlastný počet dní alebo vyber bežnú lehotu.'}
             </div>
           </div>
           <div>
@@ -535,7 +535,7 @@ export function FakturaEdit() {
             {dniSplatnosti !== null && (
               <div className="napoveda">
                 {kalendarnych !== null && kalendarnych < 0
-                  ? `${-kalendarnych} dní PRED vystavením — to asi nechceš.`
+                  ? `Splatnosť je ${pocet(-kalendarnych, ['deň', 'dni', 'dní'])} pred dátumom vystavenia – skontroluj ju.`
                   : pracovneDni
                     ? `${pocet(dniSplatnosti, ['pracovný deň', 'pracovné dni', 'pracovných dní'])} od vystavenia (${pocet(kalendarnych ?? 0, ['kalendárny', 'kalendárne', 'kalendárnych'])}).`
                     : `${dniSplatnosti} dní od vystavenia.`}
@@ -547,7 +547,7 @@ export function FakturaEdit() {
             <select value={stavVoVybere} onChange={(e) => zmenStav(e.target.value as Stav)}>
               <option value="koncept">Koncept</option>
               <option value="vystavena">Vystavená</option>
-              <option value="zaplatena">Zaplatená</option>
+              <option value="zaplatena">Uhradená</option>
             </select>
           </div>
           {novaFaktura && form.stav === 'zaplatena' && (
@@ -637,7 +637,7 @@ export function FakturaEdit() {
           <h2>Prijaté platby</h2>
           {form.platby.length === 0 ? (
             <p className="tlmene" style={{ marginTop: 0 }}>
-              Zatiaľ neprišlo nič.
+              Zatiaľ neprišla žiadna platba.
             </p>
           ) : (
             <table style={{ marginBottom: 14 }}>
@@ -688,7 +688,7 @@ export function FakturaEdit() {
 
           {kryteZalohami.length > 0 && (
             <div className="info-pruh" style={{ marginTop: 0, marginBottom: 14 }}>
-              Túto faktúru {kryteZalohami.length === 1 ? 'kryje zálohová faktúra' : 'kryjú zálohové faktúry'}{' '}
+              Túto faktúru {kryteZalohami.length === 1 ? 'spláca zálohová faktúra' : 'splácajú zálohové faktúry'}{' '}
               {kryteZalohami.map((z, i) => (
                 <span key={z.id}>
                   {i > 0 && ', '}
@@ -696,8 +696,8 @@ export function FakturaEdit() {
                   {z.prijate > 0.005 ? `prijaté ${skSuma(z.prijate)}` : 'zatiaľ neprišla'})
                 </span>
               ))}
-              . Spolu už týmto spôsobom prišlo <strong>{skSuma(zoZaloh)}</strong> — tie sumy sú v príjmoch
-              vedené pod číslami tých záloh, sem sa druhýkrát nezapisujú.
+              . Spolu už takto prišlo <strong>{skSuma(zoZaloh)}</strong> – v príjmoch sú tieto sumy vedené pod
+              číslami zálohových faktúr, preto sa sem druhýkrát nezapisujú.
             </div>
           )}
 
@@ -717,7 +717,7 @@ export function FakturaEdit() {
             </div>
           </div>
           <div className="napoveda" style={{ marginTop: 8 }}>
-            Do príjmov sa počíta dátum, kedy peniaze prišli na účet — nie dátum vystavenia faktúry.
+            Do príjmov sa počíta dátum, kedy peniaze prišli na účet – nie dátum vystavenia faktúry.
           </div>
         </div>
       )}
@@ -726,7 +726,7 @@ export function FakturaEdit() {
         <h2>Poznámka na faktúre</h2>
         <textarea
           value={form.poznamka}
-          placeholder="voliteľné — objaví sa dole na PDF"
+          placeholder="nepovinné – zobrazí sa v spodnej časti PDF"
           onChange={(e) => uprav({ poznamka: e.target.value })}
         />
       </div>

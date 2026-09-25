@@ -1,7 +1,7 @@
 import {
   ArrowDown, ArrowRight, ArrowUp, Bell, Building2, Calculator, Calendar, CalendarClock,
-  ChartNoAxesColumn, Check, ClipboardList, Clock, Coins, Download, Eye, EyeOff, FileDown, FilePen,
-  FileSpreadsheet, FileText, FolderOpen, Info, LayoutDashboard, Lock, Mail, MessageSquare,
+  ChartNoAxesColumn, Check, CircleCheckBig, ClipboardList, Clock, Coins, Download, Eye, EyeOff, FileDown,
+  FilePen, FileSpreadsheet, FileText, FolderOpen, Globe, House, Info, Landmark, LayoutDashboard, Lock, Mail, Menu, MessageSquare,
   Moon, Paperclip, Pencil, PiggyBank, Plus, Printer, ReceiptText, RotateCcw, Scale, ScanLine,
   Search, Send, SlidersHorizontal, Sparkles, Sun, Trash2, TriangleAlert, Wallet, X,
   type LucideIcon,
@@ -42,6 +42,11 @@ const IKONY = {
   kalendar: Calendar,
   info: Info,
   ai: Sparkles,
+  hotovo: CircleCheckBig,
+
+  // Sprievodca prvým spustením
+  domov: House,
+  svet: Globe,
 
   // Akcie
   plus: Plus,
@@ -59,6 +64,10 @@ const IKONY = {
   subor: FolderOpen,
   pdf: FileDown,
   penazenka: Wallet,
+  banka: Landmark,
+
+  // Mobilné menu
+  menu: Menu,
 
   // Téma a súkromie
   slnko: Sun,

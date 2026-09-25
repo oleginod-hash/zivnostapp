@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useSkryteSumy } from '../components/SkryteSumy'
 import { Karticka } from '../components/Farby'
+import { RezervaNaDane } from '../components/Rezerva'
 import {
   Bar, BarChart, CartesianGrid, Cell, Legend, Pie, PieChart,
   ResponsiveContainer, Tooltip, XAxis, YAxis,
@@ -68,7 +69,7 @@ export function Financie() {
             ikona="hore"
             ton="pos"
             farebnaHodnota
-            popis="Príjmy (zaplatené faktúry)"
+            popis="Príjmy (uhradené faktúry)"
             hodnota={skSuma(prehlad.prijmy)}
             pod={pocet(prehlad.pocet_faktur, ['faktúra', 'faktúry', 'faktúr'])}
           />
@@ -105,9 +106,11 @@ export function Financie() {
       )}
 
       <div className="info-pruh">
-        Príjem sa počíta ku dňu, keď ti faktúru <strong>zaplatili</strong> — nie keď si ju vystavil. Nezaplatené
-        faktúry sa do príjmov nerátajú, nájdeš ich v poslednej kartičke.
+        Príjem sa počíta ku dňu, keď ti faktúru <strong>zaplatili</strong> – nie ku dňu jej vystavenia. Nezaplatené
+        faktúry sa do príjmov nezapočítavajú, nájdeš ich v poslednej karte.
       </div>
+
+      <RezervaNaDane rok={rok} />
 
       {dni && dni.krajiny.length > 0 && (
         <div className="panel">
@@ -151,7 +154,7 @@ export function Financie() {
             </tbody>
           </table>
           <div className="napoveda" style={{ marginTop: 10 }}>
-            Hranica {dni.hranica} dní je orientačná — po jej prekročení sa v mnohých krajinách rieši daňová
+            Hranica {dni.hranica} dní je orientačná – po jej prekročení sa v mnohých krajinách rieši daňová
             rezidencia. Appka to nevyhodnocuje, len počíta dni z tvojich turnusov. Posúdenie patrí účtovníčke.
           </div>
         </div>
@@ -181,7 +184,7 @@ export function Financie() {
       </div>
 
       <div className="panel">
-        <h2>Na čo idú peniaze</h2>
+        <h2>Výdavky podľa kategórií</h2>
         {kategorie.length === 0 ? (
           <div className="prazdne">
             Za rok {rok} nemáš zapísané žiadne výdavky. <Link to="/vydavky">Pridaj prvý</Link>.
@@ -243,7 +246,7 @@ export function Financie() {
         <div style={{ padding: '16px 20px 0' }}>
           <h2 style={{ margin: 0 }}>Zisk podľa turnusov</h2>
           <div className="napoveda" style={{ marginTop: 4 }}>
-            Vyfakturované mínus výdavky, ktoré si k turnusu priradil.
+            Vyfakturovaná suma mínus výdavky priradené k turnusu.
           </div>
         </div>
         {turnusy.length === 0 ? (
@@ -255,7 +258,7 @@ export function Financie() {
                 <th>Turnus</th>
                 <th>Obdobie</th>
                 <th className="cislo">Vyfakturované</th>
-                <th className="cislo">Zaplatené</th>
+                <th className="cislo">Uhradené</th>
                 <th className="cislo">Výdavky</th>
                 <th className="cislo">Zisk</th>
               </tr>

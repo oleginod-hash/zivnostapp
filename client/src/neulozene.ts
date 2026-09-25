@@ -7,7 +7,7 @@ import { potvrd } from './components/Oznamenia'
  */
 const neulozene = new Set<symbol>()
 
-export const OTAZKA_ODCHODU = 'Máš neuložené zmeny. Naozaj odísť?'
+export const OTAZKA_ODCHODU = 'Máš neuložené zmeny. Naozaj chceš odísť?'
 
 export function suNeulozeneZmeny(): boolean {
   return neulozene.size > 0
@@ -18,7 +18,7 @@ export async function mozemOdist(): Promise<boolean> {
   if (!neulozene.size) return true
   const ano = await potvrd({
     nadpis: OTAZKA_ODCHODU,
-    text: 'Čo si vo formulári napísal a neuložil, sa stratí.',
+    text: 'Neuložené údaje z formulára sa stratia.',
     potvrdit: 'Odísť bez uloženia',
     zrusit: 'Ostať tu',
     nebezpecne: true,

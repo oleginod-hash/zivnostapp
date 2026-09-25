@@ -1,10 +1,10 @@
 import { Fragment, useEffect, useRef, useState } from 'react'
-import { Navigate, NavLink, Route, Routes, useLocation } from 'react-router-dom'
+import { Navigate, NavLink, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import { Hladanie } from './components/Hladanie'
 import { Ikona, type KlucIkony } from './components/Ikony'
 import { PrepinacTemy } from './components/Tema'
 import { PrepinacSum } from './components/SkryteSumy'
-import { api, ApiChyba, sledujSkryteSumy, type PolozkaKosa } from './api'
+import { api, ApiChyba, sledujSkryteSumy, type Nastavenia as TNastavenia, type PolozkaKosa } from './api'
 import { mozemOdist, suNeulozeneZmeny } from './neulozene'
 import { Oznamenia } from './components/Oznamenia'
 import { Prehlad } from './pages/Prehlad'
@@ -24,6 +24,9 @@ import { Kos } from './pages/Kos'
 import { DanovyPodklad } from './pages/DanovyPodklad'
 import { Upomienky } from './pages/Upomienky'
 import { Nastavenia } from './pages/Nastavenia'
+import { Sprievodca } from './pages/Sprievodca'
+import { Banka } from './pages/Banka'
+import { Terminy } from './pages/Terminy'
 
 type PolozkaMenu = { cesta: string; ikona: KlucIkony; text: string }
 
@@ -32,13 +35,20 @@ type PolozkaMenu = { cesta: string; ikona: KlucIkony; text: string }
  * za čas. Skupiny sú len nadpisy nad položkami – poradie nemenia.
  */
 const MENU: { skupina: string; polozky: PolozkaMenu[] }[] = [
-  { skupina: 'Prehľad', polozky: [{ cesta: '/', ikona: 'prehlad', text: 'Prehľad' }] },
+  {
+    skupina: 'Prehľad',
+    polozky: [
+      { cesta: '/', ikona: 'prehlad', text: 'Prehľad' },
+      { cesta: '/terminy', ikona: 'kalendar', text: 'Termíny' },
+    ],
+  },
   {
     skupina: 'Peniaze',
     polozky: [
       { cesta: '/faktury', ikona: 'faktury', text: 'Faktúry' },
       { cesta: '/financie', ikona: 'financie', text: 'Financie' },
       { cesta: '/vydavky', ikona: 'vydavky', text: 'Výdavky' },
+      { cesta: '/banka', ikona: 'banka', text: 'Výpis z banky' },
     ],
   },
   {
@@ -128,9 +138,88 @@ export function App() {
     api.get<PolozkaKosa[]>('/kos').then((k) => setVKosi(k.length)).catch(() => {})
   }, [miesto.pathname])
 
+  // Prvé spustenie: kým sprievodca nie je za nami, úvodná obrazovka ho ukáže
+  // namiesto prázdneho Prehľadu. Priamy odkaz na inú stránku nepresmerúvame.
+  // Z nastavení si berieme aj to, či pracuje v zahraničí – podľa toho je
+  // v spodnej lište na telefóne Turnusy alebo Asistent.
+  const presmeruj = useNavigate()
+  const [pracaVZahranici, setPracaVZahranici] = useState(false)
+  useEffect(() => {
+    api
+      .get<TNastavenia>('/nastavenia')
+      .then((n) => {
+        setPracaVZahranici(!!n.praca_v_zahranici)
+        if (!n.sprievodca_hotovy && miesto.pathname === '/') presmeruj('/sprievodca', { replace: true })
+      })
+      .catch(() => {})
+  }, [miesto.pathname, presmeruj])
+
+  // Telefón: bočné menu sa vysúva cez „Viac" v spodnej lište a po výbere stránky sa zavrie.
+  const [menuOtvorene, setMenuOtvorene] = useState(false)
+  useEffect(() => setMenuOtvorene(false), [miesto.pathname])
+  useEffect(() => {
+    if (!menuOtvorene) return
+    const klaves = (e: KeyboardEvent) => e.key === 'Escape' && setMenuOtvorene(false)
+    window.addEventListener('keydown', klaves)
+    return () => window.removeEventListener('keydown', klaves)
+  }, [menuOtvorene])
+
+  // Na úzkej obrazovke sa riadky tabuliek zobrazia ako karty. Každá bunka dostane
+  // popis zo záhlavia svojho stĺpca – naraz pre všetky tabuľky v appke, nech sa
+  // nemusí dopĺňať ručne v každej stránke. Tabuľky s najviac tromi stĺpcami sa
+  // zmestia aj na telefón, tie ostávajú tabuľkami.
+  useEffect(() => {
+    let caka = 0
+    const oznac = () => {
+      caka = 0
+      for (const tabulka of document.querySelectorAll<HTMLTableElement>('main.obsah table')) {
+        const zahlavie = [...tabulka.querySelectorAll(':scope > thead > tr:first-child > th')].map(
+          (th) => th.textContent?.trim() ?? '',
+        )
+        tabulka.toggleAttribute('data-karty', zahlavie.length > 3)
+        for (const riadok of tabulka.querySelectorAll(':scope > tbody > tr, :scope > tfoot > tr')) {
+          let stlpec = 0
+          for (const bunka of riadok.children as HTMLCollectionOf<HTMLTableCellElement>) {
+            const popis = zahlavie[stlpec] ?? ''
+            if (bunka.getAttribute('data-popis') !== popis) bunka.setAttribute('data-popis', popis)
+            stlpec += bunka.colSpan || 1
+          }
+        }
+      }
+    }
+    const pozorovatel = new MutationObserver(() => {
+      if (!caka) caka = requestAnimationFrame(oznac)
+    })
+    pozorovatel.observe(document.body, { childList: true, subtree: true, characterData: true })
+    oznac()
+    return () => {
+      pozorovatel.disconnect()
+      cancelAnimationFrame(caka)
+    }
+  }, [])
+
+  // Sprievodca je na celú obrazovku – bez menu, nech nič neodvádza pozornosť.
+  if (miesto.pathname === '/sprievodca') {
+    return (
+      <main className="obsah sprievodca-plocha">
+        <Sprievodca />
+        <Oznamenia />
+      </main>
+    )
+  }
+
+  const spodneMenu: PolozkaMenu[] = [
+    { cesta: '/', ikona: 'prehlad', text: 'Prehľad' },
+    { cesta: '/faktury', ikona: 'faktury', text: 'Faktúry' },
+    { cesta: '/vydavky', ikona: 'vydavky', text: 'Výdavky' },
+    pracaVZahranici
+      ? { cesta: '/turnusy', ikona: 'turnusy', text: 'Turnusy' }
+      : { cesta: '/asistent', ikona: 'pomocnik', text: 'Asistent' },
+  ]
+
   return (
-    <div className="layout">
-      <nav className="sidebar">
+    <div className={'layout' + (menuOtvorene ? ' menu-otvorene' : '')}>
+      <nav className="sidebar" aria-label="Menu">
         <div className="logo">
           <span className="logo-dlazdica">
             <Ikona nazov="logo" velkost={15} hrubka={2.2} />
@@ -178,12 +267,13 @@ export function App() {
         {zastarana && (
           <div className="aktualizacia" role="status">
             <Ikona nazov="vratit" velkost={15} hrubka={2} />
-            Appka bola aktualizovaná, ale beží ešte stará verzia. Zatvor jej čierne okno a spusti ju znova —
-            dovtedy sa niektoré zmeny nemusia uložiť.
+            Appka bola aktualizovaná, ale stále beží predchádzajúca verzia. Zatvor jej čierne okno a spusti ju
+            znova – dovtedy sa niektoré zmeny nemusia uložiť.
           </div>
         )}
         <Routes>
           <Route path="/" element={<Prehlad />} />
+          <Route path="/terminy" element={<Terminy />} />
           <Route path="/faktury" element={<Faktury />} />
           <Route path="/faktury/nova" element={<FakturaEdit />} />
           <Route path="/faktury/:id" element={<FakturaEdit />} />
@@ -195,6 +285,7 @@ export function App() {
           <Route path="/objednavky/:id" element={<ObjednavkaEdit />} />
           <Route path="/financie" element={<Financie />} />
           <Route path="/vydavky" element={<Vydavky />} />
+          <Route path="/banka" element={<Banka />} />
           <Route path="/zmluvy" element={<Zmluvy />} />
           <Route path="/zmluvy/nova" element={<ZmluvaEdit />} />
           <Route path="/zmluvy/:id" element={<ZmluvaEdit />} />
@@ -213,6 +304,26 @@ export function App() {
           <Route path="*" element={<div className="prazdne">Stránka neexistuje.</div>} />
         </Routes>
       </main>
+
+      {/* Len na telefóne: zatemnenie pod vysunutým menu a spodná lišta. */}
+      <div className="menu-zavoj" onClick={() => setMenuOtvorene(false)} aria-hidden="true" />
+      <nav className="spodne-menu" aria-label="Hlavné stránky">
+        {spodneMenu.map((p) => (
+          <NavLink key={p.cesta} to={p.cesta} end={p.cesta === '/'} className={trieda}>
+            <Ikona nazov={p.ikona} velkost={20} />
+            {p.text}
+          </NavLink>
+        ))}
+        <button
+          type="button"
+          className={menuOtvorene ? 'aktivny' : ''}
+          aria-expanded={menuOtvorene}
+          onClick={() => setMenuOtvorene(!menuOtvorene)}
+        >
+          <Ikona nazov="menu" velkost={20} />
+          Viac
+        </button>
+      </nav>
       <Oznamenia />
     </div>
   )

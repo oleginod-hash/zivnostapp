@@ -60,18 +60,35 @@ na používanie v [README.md](README.md).
   (`server/lib/pracovneDni.ts`).
 - Dnešný dátum v SQL je `dnes()` (časové pásmo appky, `CASOVE_PASMO`), nikdy `date('now')` –
   to je UTC a po polnoci by appka žila ešte vo včerajšku. V kóde servera `dnesISO()` z `lib/format.ts`.
+- Číslo zmazanej faktúry sa pri novej faktúre **použije znova** – používateľ to tak chce
+  (rozhodol 2026-09-24, pokus o opak vrátil). Nemeniť bez jeho súhlasu.
+- Výpis z banky: každý zapísaný pohyb má odtlačok v `bankove_pohyby` – ten istý výpis sa nezapíše
+  dvakrát, import sa dá vrátiť a zmazaním platby sa pohyb zabudne (ON DELETE CASCADE).
+- Rezerva na dane a odvody je len percento z Nastavení – daň appka nepočíta. Zaplatené dane
+  a odvody rozoznáva podľa kategórie výdavku (`server/lib/rezerva.ts`).
+- Zákonné termíny (odvody do 8., daňové priznanie 31. 3., súhrnný výkaz do 25. pri § 7a) sú
+  pripomienky s posunom na pracovný deň v `server/routes/terminy.ts` – pri zmene zákona uprav tam.
 - Uložená príloha sa už nikdy nemení na mieste – automatická záloha na ňu robí pevný odkaz, takže
   prepísanie súboru by zmenilo aj všetky zálohy. Upravená príloha = nový súbor.
 
 ## Štýl
 
 - **Texty v rozhraní:** slovenčina, formálnejšie tykanie, bez hovorových slov („spočíta", nie
-  „zráta"; „trvalo zmazať", nie „vysypať"). Slová „turnus" a „appka" ostávajú.
+  „zráta"; „vyprázdniť kôš", nie „vysypať"). Slová „turnus" a „appka" ostávajú.
+  - Zaužívané pojmy: *splátka* (zálohová faktúra s `kryje_id`, nie „kryje"), *doklad* (nie „bloček"),
+    *hodinová sadzba* (nie „hodinovka"), *e-mail* (nie „mail"), *asistent* (nie „AI pomocník").
+  - „Môcť", nie „vedieť" v zmysle schopnosti („budeš môcť pridať", nie „budeš vedieť pridať").
+  - Rodovo neutrálne vety – papiere často vybavuje partnerka („vystavené faktúry", nie „si vystavil").
+  - Pomlčka vo vete je krátka s medzerami ( – ), nie dlhá (—).
 - **Kód:** názvy a komentáre po slovensky ako v celom projekte; komentáre vysvetľujú prečo.
 - **Vzhľad:** premenné v `client/src/styles.css` (svetlá téma `:root`, tmavá `[data-tema='tmavy']`),
   farebné tóny `.ton-*`. Spoločné prvky sú v `client/src/components` (Farby, Oznamenia,
   PrazdnyStav, StitokStavu, Ikony) – použi ich, nekopíruj.
 - Písmo najmenej 12 px, kontrast aspoň AA v oboch témach.
+- **Telefón (pod 820 px):** tabuľky s viac ako tromi stĺpcami sa samy zobrazia ako karty – popisy
+  buniek dopĺňa `App.tsx` zo záhlavia stĺpca, takže nová tabuľka potrebuje `<thead>`. Bunku, ktorá má
+  byť nadpisom karty (keď to nie je prvý stĺpec), označ `className="hlavna-bunka"`. `npm run overenie`
+  kontroluje každú obrazovku aj na šírke 390 px.
 - Potvrdenia cez `potvrd()` a oznámenia cez `oznam()` z `components/Oznamenia.tsx`, nikdy
   `confirm()` ani `alert()`. Po vratnej akcii ponúkni „Vrátiť späť".
 

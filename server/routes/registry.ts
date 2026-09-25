@@ -21,6 +21,14 @@ type Najdena = {
   poznamka: string
   /** Čo register neposkytuje, aby to appka vedela používateľovi povedať. */
   chyba_v_registri: string[]
+  /**
+   * Zápis po zložkách – sprievodca prvým spustením z neho pri živnostníkovi
+   * vyplní úrad a číslo živnostenského registra, ktoré sa tlačia na faktúru.
+   */
+  register: string
+  urad: string
+  cislo_registra: string
+  vznik: string
 }
 
 registryRouter.get('/ico/:ico', async (req, res) => {
@@ -38,7 +46,7 @@ registryRouter.get('/ico/:ico', async (req, res) => {
 
     const data = (await odpoved.json()) as any
     const zaznam = data?.results?.[0]
-    if (!zaznam) return res.status(404).json({ chyba: `Firma s IČO ${ico} sa v registri nenašla.` })
+    if (!zaznam) return res.status(404).json({ chyba: `IČO ${ico} sa v registri nenašlo.` })
 
     // Register vracia aj historické názvy a adresy – zaujíma nás len ten platný,
     // teda bez dátumu ukončenia platnosti (alebo posledný v poradí).
@@ -69,6 +77,10 @@ registryRouter.get('/ico/:ico', async (req, res) => {
       // Register právnických osôb tieto údaje neobsahuje – sú buď kontaktné,
       // alebo ich spravuje finančná správa. Treba ich doplniť ručne.
       chyba_v_registri: ['DIČ', 'IČ DPH', 'e-mail', 'telefón'],
+      register: sr.value?.value ?? '',
+      urad: sud,
+      cislo_registra: znacka,
+      vznik: zaznam.establishment ?? '',
     }
 
     if (!najdena.nazov) return res.status(404).json({ chyba: 'Register nevrátil názov firmy.' })

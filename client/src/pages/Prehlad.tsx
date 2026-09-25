@@ -2,11 +2,12 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Area, ComposedChart, CartesianGrid, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import {
-  api, dniDoSplatnosti, pocet, skDatum, skSuma, suSumySkryte, SKRYTA_SUMA,
+  api, dniDoSplatnosti, pocet, skDatum, skSuma, suSumySkryte, SKRYTA_SUMA, vetaORezerve,
   NAZVY_STAVOV_TURNUSU, STITOK_TURNUSU,
   type Faktura, type KategoriaVydavkov, type MesacneFinancie, type Nastavenia, type PoSplatnosti,
   type PrehladFinancii, type Suhrn, type SuhrnZmluv, type Turnus, type Vydavok,
 } from '../api'
+import { NajblizsieTerminy } from '../components/Terminy'
 import { Ikona, type KlucIkony } from '../components/Ikony'
 import { TlacidloSum, useSkryteSumy } from '../components/SkryteSumy'
 import { StitokStavu } from '../components/StitokStavu'
@@ -193,10 +194,10 @@ export function Prehlad() {
 
   // ── Vyžaduje pozornosť ──────────────────────────────────────
   async function oznacZaplatenu(f: PoSplatnosti) {
-    const r = await api.post<{ platba_id: number | null }>(`/faktury/${f.id}/stav`, { stav: 'zaplatena' })
+    const r = await api.post<{ platba_id: number | null; odlozit?: number }>(`/faktury/${f.id}/stav`, { stav: 'zaplatena' })
     nacitajFaktury()
     oznam(
-      `Faktúra ${f.cislo}: zapísaná platba ${skSuma(f.otvoreny_zostatok)}.`,
+      `Faktúra ${f.cislo}: zapísaná platba ${skSuma(f.otvoreny_zostatok)}.${vetaORezerve(r.odlozit)}`,
       r.platba_id
         ? {
             text: 'Vrátiť späť',
@@ -217,7 +218,8 @@ export function Prehlad() {
       ikona: 'nastavenia',
       titul: 'Chýbajú tvoje fakturačné údaje',
       meta: 'Bez mena a IBAN-u budú faktúry neúplné.',
-      cipy: <Link className="cip hlavny" to="/nastavenia">Doplniť údaje</Link>,
+      // Sprievodca začína s uloženými údajmi a pýta sa len na podstatné – aj pri neskoršom doplnení.
+      cipy: <Link className="cip hlavny" to="/sprievodca">Doplniť údaje</Link>,
     })
   }
   for (const f of poSplatnosti.slice(0, 3)) {
@@ -232,7 +234,7 @@ export function Prehlad() {
       cipy: (
         <>
           <Link className="cip hlavny" to="/upomienky">Poslať upomienku</Link>
-          <button className="cip" onClick={() => oznacZaplatenu(f)}>Zaplatená</button>
+          <button className="cip" onClick={() => oznacZaplatenu(f)}>Uhradená</button>
         </>
       ),
     })
@@ -492,7 +494,7 @@ export function Prehlad() {
                             <StitokStavu stav={f.stav_zobraz} kratko />
                             {f.typ === 'zaloha' ? (
                               <span className="pod-stitkom">
-                                {f.kryje_cislo ? `kryje ${f.kryje_cislo}` : 'zálohová faktúra'}
+                                {f.kryje_cislo ? `splátka ${f.kryje_cislo}` : 'zálohová faktúra'}
                               </span>
                             ) : ciastocne ? (
                               <span className="pod-stitkom">
@@ -523,7 +525,7 @@ export function Prehlad() {
                 <Ikona nazov="sken" velkost={18} />
                 <span>
                   Pridať výdavok
-                  <small>aj s fotkou bločku</small>
+                  <small>aj s fotkou dokladu</small>
                 </span>
               </Link>
               <Link className="akcia" to="/turnusy/novy">
@@ -547,7 +549,7 @@ export function Prehlad() {
                 </span>
                 <div className="pozornost-telo">
                   <div className="pozornost-titul">Všetko je v poriadku</div>
-                  <div className="pozornost-meta">Nič nemešká a žiadna zmluva nekončí.</div>
+                  <div className="pozornost-meta">Žiadna faktúra nie je po splatnosti a žiadna zmluva nekončí.</div>
                 </div>
               </div>
             ) : (
@@ -565,6 +567,8 @@ export function Prehlad() {
               ))
             )}
           </div>
+
+          <NajblizsieTerminy />
 
           <div className="panel turnus-karta">
             {aktivny ? (
@@ -715,8 +719,8 @@ export function Prehlad() {
               <>
                 {konverzacie.length === 0 ? (
                   <div className="prazdne">
-                    Zatiaľ žiadna otázka. <Link to="/asistent">Napíš, čo potrebuješ</Link> — asistent vie zapísať
-                    výdavok z fotky dokladu, vystaviť faktúru aj odpovedať na dane a zmluvy.
+                    Zatiaľ žiadna otázka. <Link to="/asistent">Napíš, čo potrebuješ</Link> – asistent môže zapísať
+                    výdavok z fotky dokladu, vystaviť faktúru aj odpovedať na otázky o daniach a zmluvách.
                   </div>
                 ) : (
                   <table>
@@ -747,7 +751,7 @@ export function Prehlad() {
             }
           />
           <Sekcia
-            nadpis={`Na čo idú peniaze v roku ${ROK}`}
+            nadpis={`Výdavky podľa kategórií v roku ${ROK}`}
             kam="/financie"
             odkaz="Financie"
             deti={

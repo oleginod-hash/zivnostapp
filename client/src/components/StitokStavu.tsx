@@ -3,7 +3,7 @@ import { Ikona, type KlucIkony } from './Ikony'
 
 /**
  * Ikona len pri stavoch, ktoré treba riešiť. Pri „Vystavená" alebo
- * „Vyplatená" by len zdvojovala to, čo je napísané slovom.
+ * „Uhradená" by len zdvojovala to, čo je napísané slovom.
  */
 const IKONA_STAVU: Partial<Record<StavZobraz, KlucIkony>> = {
   po_splatnosti: 'pozor',
@@ -11,7 +11,7 @@ const IKONA_STAVU: Partial<Record<StavZobraz, KlucIkony>> = {
 }
 
 /**
- * Krátke názvy do úzkych tabuliek. „Po termíne" netreba písať – povie to
+ * Krátke názvy do úzkych tabuliek. „Po splatnosti" netreba písať – povie to
  * červená farba, výstražná ikona aj odpočet dní pri splatnosti. Celý názov
  * sa ukáže po prejdení myšou.
  */

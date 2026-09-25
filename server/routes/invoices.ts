@@ -5,6 +5,7 @@ import { dalsieCislo } from '../lib/cislovanie.js'
 import { dnesISO, hladajVStlpcoch, pridajDni, vzorHladania, zaokruhli } from '../lib/format.js'
 import { fakturaPdfPodlaId, vytvorFakturuPdf } from '../lib/invoicePdf.js'
 import { pridajPracovneDni } from '../lib/pracovneDni.js'
+import { naOdlozenie } from '../lib/rezerva.js'
 import {
   OTVORENY_ZOSTATOK_SQL, PLATBY_SQL, STAV_SQL, UHRADENE_SQL,
   kryciePlatby, nastavPlatby, otvorenyZostatok, platbyFaktury, pridajPlatbu,
@@ -468,8 +469,9 @@ invoicesRouter.post('/:id/stav', (req, res) => {
       platba_id = pridajPlatbu(Number(req.params.id), String(req.body?.datum_uhrady ?? '') || dnesISO(), chyba, 'doplatok')
     }
     db.prepare("UPDATE invoices SET stav = 'vystavena' WHERE id = ?").run(req.params.id)
-    // ID zapísanej platby vracia appke možnosť ponúknuť „Vrátiť späť".
-    return res.json({ ok: true, platba_id })
+    // ID zapísanej platby vracia appke možnosť ponúknuť „Vrátiť späť";
+    // `odlozit` je pripomienka, koľko si z nej odložiť na dane a odvody.
+    return res.json({ ok: true, platba_id, odlozit: platba_id ? naOdlozenie(chyba) : 0 })
   } else if (stav === 'vystavena') {
     // Zrušenie úhrady = zmazanie platieb; inak by faktúra ostala „zaplatená".
     db.prepare('DELETE FROM invoice_payments WHERE invoice_id = ?').run(req.params.id)

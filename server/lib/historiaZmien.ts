@@ -180,7 +180,7 @@ export function vratZmenu(zmena: Zmena): { ok: boolean; sprava: string } {
 
   const vykonaj = db.transaction(() => {
     if (zmena.operacia === 'vytvorenie') {
-      if (!existuje) return `${entita.nazov} už neexistuje – niet čo vracať.`
+      if (!existuje) return `${entita.nazov} už neexistuje, nie je čo vrátiť.`
       // Doklady, ktoré asistent k záznamu priložil, by inak ostali na disku bez majiteľa.
       suboryNaZmazanie = suboryPriloh(zmena.tabulka, nacitajStav(zmena.tabulka, zmena.zaznam_id)?._prilohy)
       db.prepare(`DELETE FROM ${zmena.tabulka} WHERE id = ?`).run(zmena.zaznam_id)
