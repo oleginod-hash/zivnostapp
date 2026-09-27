@@ -12,16 +12,21 @@ export const ASISTENTI: Asistent[] = ['pomocnik', 'uctovnik', 'pravnik']
  * v zahraničí, dostane texty presne na to; ostatní všeobecnú verziu, v ktorej
  * nie sú reči o zahraničných stavbách a diétach.
  */
-type Profil = { zahranicie: boolean; dph: 'neplatitel' | '7a' }
+type Profil = { zahranicie: boolean; dph: 'neplatitel' | '7a' | 'platitel' }
 
 function profilZNastaveni(): Profil {
   const n = db.prepare('SELECT praca_v_zahranici, dph_rezim FROM settings WHERE id = 1').get() as
     | { praca_v_zahranici: number; dph_rezim: string }
     | undefined
-  return { zahranicie: !!n?.praca_v_zahranici, dph: n?.dph_rezim === '7a' ? '7a' : 'neplatitel' }
+  const dph = n?.dph_rezim === '7a' || n?.dph_rezim === 'platitel' ? n.dph_rezim : 'neplatitel'
+  return { zahranicie: !!n?.praca_v_zahranici, dph }
 }
 
 function vetaDph(p: Profil): string {
+  if (p.dph === 'platitel') {
+    return 'Je platiteľom DPH: ceny položiek na faktúre sú bez DPH, appka k nim pripočíta DPH podľa sadzby ' +
+      '(23 %, 19 %, 5 % alebo 0 %). Pri prenesení daňovej povinnosti je faktúra bez DPH.'
+  }
   return p.dph === '7a'
     ? 'Nie je platiteľom DPH, ale je registrovaný pre DPH podľa § 7a (služby pre firmy z EÚ).'
     : 'Nie je platiteľom DPH.'

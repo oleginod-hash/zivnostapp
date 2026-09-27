@@ -5,7 +5,8 @@ import { dalsieCislo } from '../lib/cislovanie.js'
 import { dnesISO, hladajVStlpcoch, pridajDni, vzorHladania, zaokruhli } from '../lib/format.js'
 import { fakturaPdfPodlaId, vytvorFakturuPdf } from '../lib/invoicePdf.js'
 import { pridajPracovneDni } from '../lib/pracovneDni.js'
-import { naOdlozenie } from '../lib/rezerva.js'
+import { naOdlozenie, podielDph } from '../lib/rezerva.js'
+import { jeSadzbaDph, spocitajFakturu } from '../lib/dph.js'
 import {
   OTVORENY_ZOSTATOK_SQL, PLATBY_SQL, STAV_SQL, UHRADENE_SQL,
   kryciePlatby, nastavPlatby, otvorenyZostatok, platbyFaktury, pridajPlatbu,
@@ -54,9 +55,15 @@ function vazby(b: any): { tour_id: number | null; order_id: number | null; compa
   return { tour_id, order_id, company_id }
 }
 
-type PolozkaVstup = { popis?: string; mnozstvo?: unknown; jednotka?: string; cena?: unknown }
+type PolozkaVstup = { popis?: string; mnozstvo?: unknown; jednotka?: string; cena?: unknown; sadzba_dph?: unknown }
+type Polozka = { popis: string; mnozstvo: number; jednotka: string; cena: number; sadzba_dph: number | null }
 
-function spracujPolozky(vstup: unknown): { popis: string; mnozstvo: number; jednotka: string; cena: number }[] {
+/**
+ * Položky zo vstupu. Pri faktúre s DPH (platiteľ, bez prenesenia daňovej
+ * povinnosti) má každá položka sadzbu – keď chýba, dostane predvolenú
+ * z nastavení. Inak sa sadzby zahodia, aby na faktúre bez DPH nič nestrašilo.
+ */
+function spracujPolozky(vstup: unknown, sDph = false, predvolenaSadzba = 23): Polozka[] {
   if (!Array.isArray(vstup)) return []
   return vstup
     .map((p: PolozkaVstup) => ({
@@ -64,20 +71,17 @@ function spracujPolozky(vstup: unknown): { popis: string; mnozstvo: number; jedn
       mnozstvo: Number(p.mnozstvo) || 0,
       jednotka: String(p.jednotka ?? '').trim() || 'ks',
       cena: Number(p.cena) || 0,
+      sadzba_dph: !sDph ? null : jeSadzbaDph(p.sadzba_dph) ? Number(p.sadzba_dph) : predvolenaSadzba,
     }))
     .filter((p) => p.popis !== '' || p.cena !== 0)
 }
 
-function sucet(polozky: { mnozstvo: number; cena: number }[]): number {
-  return zaokruhli(polozky.reduce((s, p) => s + zaokruhli(p.mnozstvo * p.cena), 0))
-}
-
-function ulozPolozky(invoiceId: number | bigint, polozky: ReturnType<typeof spracujPolozky>) {
+function ulozPolozky(invoiceId: number | bigint, polozky: Polozka[]) {
   db.prepare('DELETE FROM invoice_items WHERE invoice_id = ?').run(invoiceId)
   const stmt = db.prepare(
-    'INSERT INTO invoice_items (invoice_id, poradie, popis, mnozstvo, jednotka, cena) VALUES (?, ?, ?, ?, ?, ?)',
+    'INSERT INTO invoice_items (invoice_id, poradie, popis, mnozstvo, jednotka, cena, sadzba_dph) VALUES (?, ?, ?, ?, ?, ?, ?)',
   )
-  polozky.forEach((p, i) => stmt.run(invoiceId, i, p.popis, p.mnozstvo, p.jednotka, p.cena))
+  polozky.forEach((p, i) => stmt.run(invoiceId, i, p.popis, p.mnozstvo, p.jednotka, p.cena, p.sadzba_dph))
 }
 
 /**
@@ -284,6 +288,7 @@ invoicesRouter.get('/nova', (req, res) => {
     // Formulár podľa toho nastaví prepínač pracovných dní pri splatnosti.
     splatnost_dni: n.splatnost_dni,
     splatnost_pracovne: !!n.splatnost_pracovne,
+    s_dph: n.dph_rezim === 'platitel' ? 1 : 0,
   })
 })
 
@@ -318,8 +323,12 @@ invoicesRouter.post('/', (req, res) => {
   const b = req.body ?? {}
   const n = nastavenia()
   const datum_vystav = String(b.datum_vystav ?? '') || dnesISO()
-  const polozky = spracujPolozky(b.polozky)
+  // Faktúra platiteľa má DPH, pokiaľ ju neodvádza odberateľ (prenesenie daňovej povinnosti).
+  const s_dph = n.dph_rezim === 'platitel' ? 1 : 0
+  const prenos_dph = b.prenos_dph === true || b.prenos_dph === 1 || b.prenos_dph === '1' ? 1 : 0
+  const polozky = spracujPolozky(b.polozky, !!s_dph && !prenos_dph, n.dph_sadzba)
   if (!polozky.length) return res.status(400).json({ chyba: 'Faktúra musí mať aspoň jednu položku.' })
+  const sucty = spocitajFakturu(polozky, !!s_dph && !prenos_dph)
 
   const stav: Stav = STAVY.includes(b.stav) ? b.stav : 'vystavena'
   const cislo = String(b.cislo ?? '').trim() || dalsieCislo(n.cislo_vzor, datum_vystav)
@@ -343,14 +352,20 @@ invoicesRouter.post('/', (req, res) => {
     datum_uhrady: stav === 'zaplatena' ? String(b.datum_uhrady ?? '') || dnesISO() : null,
     variabilny: String(b.variabilny ?? '').trim() || cislo.replace(/\D/g, ''),
     poznamka: String(b.poznamka ?? '').trim(),
-    suma: sucet(polozky),
+    cislo_objednavky: String(b.cislo_objednavky ?? '').trim(),
+    uvodny_text: String(b.uvodny_text ?? '').trim(),
+    suma: sucty.suma,
+    zaklad: sucty.zaklad,
+    dph: sucty.dph,
+    s_dph,
+    prenos_dph,
   }
 
   const vloz = db.transaction(() => {
     const info = db
       .prepare(
-        `INSERT INTO invoices (cislo, company_id, tour_id, order_id, typ, kryje_id, datum_vystav, datum_dodania, datum_splat, stav, datum_uhrady, variabilny, poznamka, suma)
-         VALUES (@cislo, @company_id, @tour_id, @order_id, @typ, @kryje_id, @datum_vystav, @datum_dodania, @datum_splat, @stav, @datum_uhrady, @variabilny, @poznamka, @suma)`,
+        `INSERT INTO invoices (cislo, company_id, tour_id, order_id, typ, kryje_id, datum_vystav, datum_dodania, datum_splat, stav, datum_uhrady, variabilny, poznamka, cislo_objednavky, uvodny_text, suma, zaklad, dph, s_dph, prenos_dph)
+         VALUES (@cislo, @company_id, @tour_id, @order_id, @typ, @kryje_id, @datum_vystav, @datum_dodania, @datum_splat, @stav, @datum_uhrady, @variabilny, @poznamka, @cislo_objednavky, @uvodny_text, @suma, @zaklad, @dph, @s_dph, @prenos_dph)`,
       )
       .run(data)
     const id = Number(info.lastInsertRowid)
@@ -374,7 +389,8 @@ invoicesRouter.post('/', (req, res) => {
 /** Polia faktúry, ktoré úprava pri chýbajúcej hodnote prevezme z uloženej faktúry. */
 const POLIA_FAKTURY = [
   'cislo', 'company_id', 'tour_id', 'order_id', 'typ', 'kryje_id',
-  'datum_vystav', 'datum_dodania', 'datum_splat', 'variabilny', 'poznamka',
+  'datum_vystav', 'datum_dodania', 'datum_splat', 'variabilny', 'poznamka', 'prenos_dph',
+  'cislo_objednavky', 'uvodny_text',
 ] as const
 
 /**
@@ -397,12 +413,18 @@ invoicesRouter.put('/:id', (req, res) => {
   const b: Record<string, any> = { ...(req.body ?? {}) }
   for (const pole of POLIA_FAKTURY) if (b[pole] === undefined) b[pole] = teraz[pole]
 
+  // Či je faktúra s DPH, sa určilo pri jej vzniku – zmena nastavení staré faktúry neprepočíta.
+  const prenos_dph = b.prenos_dph === true || b.prenos_dph === 1 || b.prenos_dph === '1' ? 1 : 0
+  const sDph = !!teraz.s_dph && !prenos_dph
   const polozky = spracujPolozky(
     b.polozky === undefined
-      ? db.prepare('SELECT popis, mnozstvo, jednotka, cena FROM invoice_items WHERE invoice_id = ? ORDER BY poradie, id').all(id)
+      ? db.prepare('SELECT popis, mnozstvo, jednotka, cena, sadzba_dph FROM invoice_items WHERE invoice_id = ? ORDER BY poradie, id').all(id)
       : b.polozky,
+    sDph,
+    nastavenia().dph_sadzba,
   )
   if (!polozky.length) return res.status(400).json({ chyba: 'Faktúra musí mať aspoň jednu položku.' })
+  const sucty = spocitajFakturu(polozky, sDph)
 
   const stav: Stav = STAVY.includes(b.stav) ? b.stav : teraz.stav === 'koncept' && b.stav === undefined ? 'koncept' : 'vystavena'
   const cislo = String(b.cislo ?? '').trim()
@@ -427,7 +449,12 @@ invoicesRouter.put('/:id', (req, res) => {
     datum_uhrady: stav === 'zaplatena' ? String(b.datum_uhrady ?? '') || dnesISO() : null,
     variabilny: String(b.variabilny ?? '').trim(),
     poznamka: String(b.poznamka ?? '').trim(),
-    suma: sucet(polozky),
+    cislo_objednavky: String(b.cislo_objednavky ?? '').trim(),
+    uvodny_text: String(b.uvodny_text ?? '').trim(),
+    suma: sucty.suma,
+    zaklad: sucty.zaklad,
+    dph: sucty.dph,
+    prenos_dph,
   }
 
   const uprav = db.transaction(() => {
@@ -435,7 +462,8 @@ invoicesRouter.put('/:id', (req, res) => {
       `UPDATE invoices SET cislo=@cislo, company_id=@company_id, tour_id=@tour_id, order_id=@order_id,
        typ=@typ, kryje_id=@kryje_id, datum_vystav=@datum_vystav, datum_dodania=@datum_dodania,
        datum_splat=@datum_splat, stav=@stav, datum_uhrady=@datum_uhrady, variabilny=@variabilny,
-       poznamka=@poznamka, suma=@suma WHERE id=@id`,
+       poznamka=@poznamka, cislo_objednavky=@cislo_objednavky, uvodny_text=@uvodny_text,
+       suma=@suma, zaklad=@zaklad, dph=@dph, prenos_dph=@prenos_dph WHERE id=@id`,
     ).run(data)
     ulozPolozky(id, polozky)
     if (Array.isArray(b.platby)) nastavPlatby(id, b.platby)
@@ -471,7 +499,7 @@ invoicesRouter.post('/:id/stav', (req, res) => {
     db.prepare("UPDATE invoices SET stav = 'vystavena' WHERE id = ?").run(req.params.id)
     // ID zapísanej platby vracia appke možnosť ponúknuť „Vrátiť späť";
     // `odlozit` je pripomienka, koľko si z nej odložiť na dane a odvody.
-    return res.json({ ok: true, platba_id, odlozit: platba_id ? naOdlozenie(chyba) : 0 })
+    return res.json({ ok: true, platba_id, odlozit: platba_id ? naOdlozenie(chyba, podielDph(f.id)) : 0 })
   } else if (stav === 'vystavena') {
     // Zrušenie úhrady = zmazanie platieb; inak by faktúra ostala „zaplatená".
     db.prepare('DELETE FROM invoice_payments WHERE invoice_id = ?').run(req.params.id)

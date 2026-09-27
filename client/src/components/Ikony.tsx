@@ -1,9 +1,9 @@
 import {
   ArrowDown, ArrowRight, ArrowUp, Bell, Building2, Calculator, Calendar, CalendarClock,
-  ChartNoAxesColumn, Check, CircleCheckBig, ClipboardList, Clock, Coins, Download, Eye, EyeOff, FileDown,
+  ChartNoAxesColumn, Check, CircleCheckBig, ClipboardList, Clock, Coins, Download, EllipsisVertical, Eye, EyeOff, FileDown,
   FilePen, FileSpreadsheet, FileText, FolderOpen, Globe, House, Info, Landmark, LayoutDashboard, Lock, Mail, Menu, MessageSquare,
-  Moon, Paperclip, Pencil, PiggyBank, Plus, Printer, ReceiptText, RotateCcw, Scale, ScanLine,
-  Search, Send, SlidersHorizontal, Sparkles, Sun, Trash2, TriangleAlert, Wallet, X,
+  Moon, Paperclip, Pencil, Percent, PiggyBank, Plus, Printer, ReceiptText, RotateCcw, Scale, ScanLine,
+  Search, Send, SlidersHorizontal, Smartphone, Sparkles, Sun, Trash2, TriangleAlert, Wallet, X,
   type LucideIcon,
 } from 'lucide-react'
 
@@ -65,6 +65,10 @@ const IKONY = {
   pdf: FileDown,
   penazenka: Wallet,
   banka: Landmark,
+  telefon: Smartphone,
+  percento: Percent,
+  viac: EllipsisVertical,
+  filter: SlidersHorizontal,
 
   // Mobilné menu
   menu: Menu,

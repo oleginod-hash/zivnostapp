@@ -19,11 +19,11 @@ type Prilohy = { tabulka: string; kluc: string; priecinok: string }
  * používateľovi. Pri každej je aj to, čo k záznamu patrí v iných tabuľkách –
  * databáza to pri zmazaní záznamu odstráni, preto si to odkladáme spolu s ním.
  */
-export const ENTITY: Record<string, { nazov: string; polozky?: string; platby?: boolean; prilohy?: Prilohy }> = {
+export const ENTITY: Record<string, { nazov: string; polozky?: string; platby?: boolean; prilohy?: Prilohy; hodiny?: boolean }> = {
   invoices: { nazov: 'faktúra', polozky: 'invoice_items', platby: true },
   companies: { nazov: 'firma' },
   contracts: { nazov: 'zmluva', prilohy: { tabulka: 'contract_files', kluc: 'contract_id', priecinok: 'zmluvy' } },
-  tours: { nazov: 'turnus' },
+  tours: { nazov: 'turnus', hodiny: true },
   orders: { nazov: 'objednávka' },
   expenses: { nazov: 'výdavok', prilohy: { tabulka: 'expense_files', kluc: 'expense_id', priecinok: 'doklady' } },
   settings: { nazov: 'nastavenia' },
@@ -52,6 +52,9 @@ export function nacitajStav(tabulka: string, id: number): any | null {
       (r) => r.id,
     )
   }
+  if (entita.hodiny) {
+    stav._hodiny = db.prepare('SELECT datum, hodiny, poznamka FROM tour_hours WHERE tour_id = ? ORDER BY datum').all(id)
+  }
   if (entita.prilohy) {
     const p = entita.prilohy
     stav._prilohy = db
@@ -72,9 +75,9 @@ export function obnovPolozky(tabulka: string, id: number, stav: any) {
   if (!entita?.polozky || !Array.isArray(stav._polozky)) return
   db.prepare(`DELETE FROM ${entita.polozky} WHERE invoice_id = ?`).run(id)
   const vloz = db.prepare(
-    `INSERT INTO ${entita.polozky} (invoice_id, poradie, popis, mnozstvo, jednotka, cena) VALUES (?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO ${entita.polozky} (invoice_id, poradie, popis, mnozstvo, jednotka, cena, sadzba_dph) VALUES (?, ?, ?, ?, ?, ?, ?)`,
   )
-  for (const p of stav._polozky) vloz.run(id, p.poradie, p.popis, p.mnozstvo, p.jednotka, p.cena)
+  for (const p of stav._polozky) vloz.run(id, p.poradie, p.popis, p.mnozstvo, p.jednotka, p.cena, p.sadzba_dph ?? null)
 }
 
 /**
@@ -89,6 +92,13 @@ export function obnovPlatby(tabulka: string, id: number, stav: any) {
      VALUES (?, ?, ?, ?, COALESCE(?, datetime('now')))`,
   )
   for (const p of stav._platby) vloz.run(id, p.datum, p.suma, p.poznamka ?? '', p.created_at ?? null)
+}
+
+/** Vráti výkaz hodín turnusu zo zálohovaného stavu (kôš). */
+export function obnovHodiny(tabulka: string, id: number, stav: any) {
+  if (!ENTITY[tabulka]?.hodiny || !Array.isArray(stav._hodiny)) return
+  const vloz = db.prepare('INSERT OR REPLACE INTO tour_hours (tour_id, datum, hodiny, poznamka) VALUES (?, ?, ?, ?)')
+  for (const d of stav._hodiny) vloz.run(id, d.datum, d.hodiny, d.poznamka ?? '')
 }
 
 /** Súbory príloh na disku, ktoré k záznamu patria. */

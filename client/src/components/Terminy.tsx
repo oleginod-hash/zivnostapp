@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { api, dniDo, pocet } from '../api'
 import { Ikona, type KlucIkony } from './Ikony'
 
-export type DruhTerminu = 'splatnost' | 'zmluva' | 'vypoved' | 'turnus' | 'odvody' | 'dan' | 'suhrnny_vykaz'
+export type DruhTerminu = 'splatnost' | 'zmluva' | 'vypoved' | 'turnus' | 'odvody' | 'dan' | 'dph' | 'suhrnny_vykaz'
 export type Termin = { datum: string; druh: DruhTerminu; nazov: string; popis: string; cesta: string }
 
 const IKONY: Record<DruhTerminu, KlucIkony> = {
@@ -13,6 +13,7 @@ const IKONY: Record<DruhTerminu, KlucIkony> = {
   turnus: 'turnusy',
   odvody: 'penazenka',
   dan: 'podklad',
+  dph: 'percento',
   suhrnny_vykaz: 'subor',
 }
 

@@ -11,10 +11,11 @@ Beží lokálne na jeho počítači, dáta zostávajú u neho. Celé rozhranie j
 ## Ako je to postavené
 
 - **Server:** Node 22, Express 4, TypeScript (ESM). Spúšťa sa `npm start` z `dist-server`.
-- **Databáza:** SQLite cez better-sqlite3 (WAL), migrácie v poli v `server/db.ts` (aktuálne 14).
+- **Databáza:** SQLite cez better-sqlite3 (WAL), migrácie v poli v `server/db.ts` (aktuálne 26).
 - **Klient:** React 18 + Vite 6, react-router, recharts. Build ide do `dist`, server ho servíruje.
 - **AI:** Anthropic API cez backend (kľúč je v `.env`, nikdy v kóde ani v repozitári).
 - **Prístup:** bez prihlásenia, server počúva len na `localhost` a odmieta cudzí `Host`/`Origin`.
+  Z telefónu cez Tailscale (`tailscale serve`, len súkromná sieť) – `server/lib/pristup.ts`.
 - **Dáta mimo projektu:** databáza a prílohy v priečinku z `DATA_DIR` (predvolene `C:\ZivnostAppData`).
 
 ## Pravidlá, na ktorých appka stojí
@@ -46,6 +47,12 @@ server/
     aiNastroje.ts       nástroje pre AI pomocníka (volá vlastné API, nie databázu)
     aiPrompty.ts        systémové prompty asistentov (podľa Nastavení)
     pracovneDni.ts      slovenské sviatky a splatnosť v pracovných dňoch
+    dph.ts              výpočet DPH na faktúre (zdieľa ho aj klient)
+    pristup.ts          prístup z telefónu cez Tailscale (povolené adresy, zapnutie)
+    kurzy.ts            kurzy ECB pre výdavky v cudzej mene
+    efaktura.ts, xml.ts čítanie prijatej e-faktúry (UBL, CII)
+    vykazHodin.ts       výkaz hodín pri turnuse a jeho PDF
+    odhadKategorie.ts   kategória výdavku podľa príjemcu platby (výpis z banky)
 client/src/
   pages/                obrazovky (Prehľad, Faktúry, Výdavky, Turnusy, …)
   components/           spoločné prvky (ikony, farby, štítky, prázdne stavy)
@@ -59,14 +66,24 @@ client/src/
 - **Turnusy:** obdobie práce u firmy, naviazané objednávky, faktúry a výdavky, stravné, dni v krajine.
 - **Výdavky:** kategórie, daňová uznateľnosť, doklady (fotky/PDF), súkromné príjmy oddelene.
 - **Financie a daňový podklad:** príjmy podľa platieb, výdavky, zisk, Excel a CSV pre účtovníčku.
-- **Výpis z banky:** CSV z internet bankingu, platby sa párujú k faktúram podľa VS a sumy.
+- **Výpis z banky:** CSV z internet bankingu, platby sa párujú k faktúram podľa VS a sumy,
+  odchádzajúce platby sa navrhnú ako výdavky alebo spárujú s už zapísanými.
+- **Výdavky navyše:** cudzia mena s kurzom ECB, výdavok z e-faktúry (UBL/CII) aj s vloženým PDF.
+- **Výkaz hodín pri turnuse:** hodiny po dňoch, faktúra za turnus, výkaz v PDF na podpis.
+- **Platiteľ DPH:** sadzby pri položkách, rekapitulácia v PDF, prenesenie daňovej povinnosti,
+  prehľad DPH po obdobiach, odpočet z výdavkov, termíny priznania.
+- **Faktúra v PDF:** logo, tri vzhľady (klasický, úsporný, výrazný), časová os faktúry v appke,
+  číslo objednávky odberateľa a úvodný text.
+- **Rozloženie faktúr** podľa bežných fakturačných appiek (vzor KROS – len rozloženie, vzhľad vlastný):
+  zoznam v troch riadkoch s ponukou ⋮, „Viac údajov", odberateľ a dodávateľ upraviteľní z faktúry.
 - **Rezerva na dane a odvody:** percento z každej platby, odrátanie zaplatených daní a odvodov.
 - **Termíny:** splatnosti, zmluvy, turnusy, odvody, daňové priznanie, súhrnný výkaz pri § 7a.
 - **AI asistent:** jeden – číta a zapisuje dáta, číta fotky dokladov a odpovedá aj na dane,
   odvody a zmluvy. Mazať nevie; všetko, čo zapíše, sa dá vrátiť.
 - **Prvé spustenie:** sprievodca s piatimi otázkami (údaje z registra podľa IČO), Nastavenia
   rozdelené na údaje na faktúru a zloženú časť pre účtovníčku.
-- **Telefón:** pod 820 px spodná lišta, vysúvacie menu a tabuľky ako karty.
+- **Telefón:** pod 820 px spodná lišta, vysúvacie menu a tabuľky ako karty; prístup cez
+  Tailscale s QR kódom, „Pridať na plochu" (manifest a ikony), odfotenie dokladu cez QR.
 - **Drobnosti:** globálne hľadanie bez diakritiky, skrytie súm, denná záloha, kôš,
   „Vrátiť späť" po ručných akciách, tmavý režim.
 
@@ -75,34 +92,41 @@ client/src/
 Cieľom je ponúkať appku ďalším živnostníkom. Cieľovka: remeselníci a živnostníci 35–55 rokov,
 papiere riešia večer unavení, telefón je ich hlavný počítač, boja sa, že niečo pokazia.
 
-### Schválené a rozrobené
+### Hotové na skúšku (2026-09-26, dá sa vrátiť)
 
-- **Prístup z telefónu** – rozloženie pre telefón je hotové, appka je však dostupná len
-  z localhostu. Treba vyriešiť bezpečný prístup (súvisí so skutočnou appkou do telefónu).
+Prístup z telefónu (Tailscale), QR na odfotenie dokladu, cudzie meny, výdavok z e-faktúry,
+výpis z banky pre výdavky, výkaz hodín, platiteľ DPH (jedno rozhranie pre všetkých – SZČO aj
+prípadné s.r.o. sa líšia len voľbami v Nastaveniach), logo, vzhľady PDF a časová os faktúry.
+
+### Rozrobené
+
+- **Dizajn** – kritika obrazoviek, vlastný DESIGN.md (pravidlá vzhľadu) a podľa neho úprava ďalších
+  obrazoviek. Vzor rozloženia: KROS, vzhľad vlastný.
 - **Prehľad** – väčšie preusporiadanie až podľa testu s ľuďmi.
 
-### Neskôr (smer)
+### Budúce kroky (ešte prebrať s používateľom)
 
 - **Skutočná appka do telefónu** – inštalovateľná, bez `npm` a súboru `.env`; AI kľúč zadaný
-  v appke alebo žiadny.
+  v appke alebo žiadny. Prístup cez Tailscale je zatiaľ medzikrok.
 - **Viac používateľov** – vlastné dáta pre každého, prihlásenie, zálohy mimo počítača.
+  E-maily s faktúrami: predvolene cez e-mailovú službu appky (napr. Postmark, Brevo) s odpoveďou
+  na e-mail živnostníka, voliteľne z vlastnej schránky (SMTP zadané v Nastaveniach, heslo zašifrované).
 
-### Nápady na funkcie (zatiaľ neschválené)
+### Nápady
 
-1. Cudzie meny vo výdavkoch (CZK, NOK, CHF) s kurzom k dátumu dokladu.
-2. Výkaz hodín pri turnuse → faktúra na jeden klik, výkaz ako príloha PDF.
-3. Balík pre účtovníčku – ZIP s Excelom a všetkými dokladmi po mesiacoch.
-4. Šifrovaná záloha mimo počítača (OneDrive, Google Drive).
-5. Fotka dokladu z telefónu cez QR kód, kým nie je appka do telefónu.
-6. Časová os na faktúre (vystavená → odoslaná → upomienka → uhradená), kostry pri načítaní,
-   Ctrl+K aj na akcie („nová faktúra Dogma"), logo a šablóny PDF faktúry.
-7. Povinná elektronická fakturácia – overiť, či a odkedy sa týka neplatiteľov DPH.
-8. Výpis z banky aj pre výdavky (odchádzajúce platby) a priamo z banky cez API.
+1. **Vystavovanie e-faktúr (XML UBL) cez digitálneho poštára** – povinné od 1. 1. 2027 pre
+   platiteľov DPH (tuzemské faktúry). Neplatiteľ e-faktúry len prijíma (to už appka vie načítať).
+2. Pripomienka „vyber si digitálneho poštára do 31. 12. 2026" a krátky návod v appke.
+3. Kostry pri načítaní, Ctrl+K aj na akcie („nová faktúra Dogma").
+4. Výpis z banky priamo z banky cez API.
+5. Balík pre účtovníčku (ZIP s dokladmi) – *zatiaľ nie*.
+6. Šifrovaná záloha mimo počítača – *zatiaľ nie*.
 
 ### Známe nedostatky na opravu
 
-1. PDF faktúra nepozná platiteľa DPH – appka je zatiaľ len pre neplatiteľov a registrovaných
-   podľa § 7a.
+1. Platiteľ DPH: zálohová faktúra nie je daňový doklad – daňový doklad k prijatej platbe
+   (do 15 dní) appka zatiaľ nevystavuje; prehľad DPH zálohy nepočíta.
+2. Platiteľ DPH: e-faktúru (XML) zatiaľ nevie vystaviť – pozri Nápady 1.
 
 ### Overenie s ľuďmi
 

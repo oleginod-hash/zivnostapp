@@ -14,7 +14,8 @@ import { StitokStavu } from '../components/StitokStavu'
 import { oznam } from '../components/Oznamenia'
 
 type Konverzacia = { id: number; asistent: string; nazov: string; updated_at: string; pocet_sprav: number }
-type Obdobie = 'rok' | 'kvartal' | 'mesiac'
+/** Obdobie vo Finančnom prehľade – bez účtovníckeho „kvartálu", minulý rok sa hodí pri daňovom priznaní. */
+type Obdobie = 'mesiac' | 'rok' | 'minuly'
 
 const iso = (d: Date) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
@@ -23,10 +24,7 @@ const iso = (d: Date) =>
 function rozsah(o: Obdobie, dnes: Date): { od: string; do: string } {
   const rok = dnes.getFullYear()
   if (o === 'rok') return { od: `${rok}-01-01`, do: `${rok}-12-31` }
-  if (o === 'kvartal') {
-    const q = Math.floor(dnes.getMonth() / 3)
-    return { od: iso(new Date(rok, q * 3, 1)), do: iso(new Date(rok, q * 3 + 3, 0)) }
-  }
+  if (o === 'minuly') return { od: `${rok - 1}-01-01`, do: `${rok - 1}-12-31` }
   return { od: iso(new Date(rok, dnes.getMonth(), 1)), do: iso(new Date(rok, dnes.getMonth() + 1, 0)) }
 }
 
@@ -314,9 +312,9 @@ export function Prehlad() {
               <div className="segment" role="tablist">
                 {(
                   [
+                    ['mesiac', 'Tento mesiac'],
                     ['rok', `Rok ${ROK}`],
-                    ['kvartal', 'Kvartál'],
-                    ['mesiac', 'Mesiac'],
+                    ['minuly', `Rok ${ROK - 1}`],
                   ] as [Obdobie, string][]
                 ).map(([k, text]) => (
                   <button key={k} className={obdobie === k ? 'aktivny' : ''} aria-pressed={obdobie === k} onClick={() => setObdobie(k)}>
@@ -657,16 +655,16 @@ export function Prehlad() {
               vydavky.length === 0 ? (
                 <div className="prazdne">Zatiaľ žiadne výdavky.</div>
               ) : (
-                <table>
+                <table className="dlazdica-tabulka">
                   <tbody>
                     {vydavky.map((v) => (
                       <tr key={v.id} style={{ cursor: 'pointer' }} onClick={() => navigate('/vydavky')}>
-                        <td className="tlmene" style={{ width: 92 }}>{skDatum(v.datum)}</td>
-                        <td>
+                        <td className="tlmene dl-pod" style={{ width: 92 }}>{skDatum(v.datum)}</td>
+                        <td className="dl-hlavne">
                           <strong>{v.popis}</strong>
                           {v.kategoria && <div className="tlmene" style={{ fontSize: 12.5 }}>{v.kategoria}</div>}
                         </td>
-                        <td className="cislo">
+                        <td className="cislo dl-pravo">
                           {skSuma(v.suma)}
                           {v.odpocitat === 0 && <div className="tlmene" style={{ fontSize: 12.5, fontWeight: 500 }}>neuznateľný</div>}
                         </td>
@@ -686,20 +684,20 @@ export function Prehlad() {
                   Zatiaľ žiadne turnusy. <Link to="/turnusy/novy">Založ prvý</Link>.
                 </div>
               ) : (
-                <table>
+                <table className="dlazdica-tabulka">
                   <tbody>
                     {turnusy.slice(0, 5).map((t) => (
                       <tr key={t.id} style={{ cursor: 'pointer' }} onClick={() => navigate('/turnusy/' + t.id)}>
-                        <td>
+                        <td className="dl-hlavne">
                           <strong>{t.nazov}</strong>
                           <div className="tlmene" style={{ fontSize: 12.5 }}>
                             {[t.miesto, t.krajina].filter(Boolean).join(', ') || t.firma_nazov || '—'}
                           </div>
                         </td>
-                        <td className="tlmene" style={{ whiteSpace: 'nowrap' }}>
+                        <td className="tlmene dl-pod" style={{ whiteSpace: 'nowrap' }}>
                           {skDatum(t.datum_od)} – {skDatum(t.datum_do)}
                         </td>
-                        <td>
+                        <td className="dl-pravo">
                           <span className={'stitok ' + STITOK_TURNUSU[t.stav]}>{NAZVY_STAVOV_TURNUSU[t.stav]}</span>
                         </td>
                       </tr>
@@ -723,17 +721,17 @@ export function Prehlad() {
                     výdavok z fotky dokladu, vystaviť faktúru aj odpovedať na otázky o daniach a zmluvách.
                   </div>
                 ) : (
-                  <table>
+                  <table className="dlazdica-tabulka">
                     <tbody>
                       {konverzacie.map((k) => (
                         <tr key={k.id} style={{ cursor: 'pointer' }} onClick={() => navigate('/asistent')}>
-                          <td>
+                          <td className="dl-hlavne">
                             <strong>{k.nazov}</strong>
                           </td>
-                          <td className="tlmene" style={{ width: 100, whiteSpace: 'nowrap' }}>
+                          <td className="tlmene dl-pod" style={{ width: 100, whiteSpace: 'nowrap' }}>
                             {pocet(k.pocet_sprav, ['správa', 'správy', 'správ'])}
                           </td>
-                          <td className="tlmene" style={{ width: 90 }}>{skDatum(k.updated_at)}</td>
+                          <td className="tlmene dl-pravo" style={{ width: 90 }}>{skDatum(k.updated_at)}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -758,12 +756,12 @@ export function Prehlad() {
               kategorieRok.length === 0 ? (
                 <div className="prazdne">Zatiaľ žiadne výdavky.</div>
               ) : (
-                <table>
+                <table className="dlazdica-tabulka">
                   <tbody>
                     {kategorieRok.map((k) => (
                       <tr key={k.kategoria}>
-                        <td style={{ width: 150 }}>{k.kategoria}</td>
-                        <td>
+                        <td className="dl-hlavne" style={{ width: 150 }}>{k.kategoria}</td>
+                        <td className="dl-cela">
                           {/* Pruh je len orientačný – najväčšia kategória je plná šírka. */}
                           <div className="pruh">
                             <div
@@ -772,8 +770,8 @@ export function Prehlad() {
                             />
                           </div>
                         </td>
-                        <td className="cislo" style={{ width: 110 }}>{skSuma(k.suma)}</td>
-                        <td className="cislo tlmene" style={{ width: 46, fontWeight: 500 }}>{k.pocet}×</td>
+                        <td className="cislo dl-pravo" style={{ width: 110 }}>{skSuma(k.suma)}</td>
+                        <td className="cislo tlmene dl-skryt" style={{ width: 46, fontWeight: 500 }}>{k.pocet}×</td>
                       </tr>
                     ))}
                   </tbody>

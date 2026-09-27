@@ -29,9 +29,15 @@ export function PrepinacSum() {
 export function TlacidloSum() {
   const [skryte, prepni] = useSkryteSumy()
   return (
-    <button className="tlacidlo-s-ikonou" aria-pressed={skryte} onClick={prepni}>
+    <button
+      className="tlacidlo-s-ikonou tlacidlo-sum"
+      aria-pressed={skryte}
+      aria-label={skryte ? 'Zobraziť sumy' : 'Skryť sumy'}
+      title={skryte ? 'Zobraziť sumy' : 'Skryť sumy'}
+      onClick={prepni}
+    >
       <Ikona nazov={skryte ? 'okoSkryte' : 'oko'} />
-      {skryte ? 'Zobraziť sumy' : 'Skryť sumy'}
+      <span className="text-tlacidla-sum">{skryte ? 'Zobraziť sumy' : 'Skryť sumy'}</span>
     </button>
   )
 }

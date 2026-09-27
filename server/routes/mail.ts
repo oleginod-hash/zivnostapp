@@ -1,5 +1,6 @@
 import { Router } from 'express'
 import { db } from '../db.js'
+import { dnesISO, skDatum } from '../lib/format.js'
 import { fakturaPdfPodlaId } from '../lib/invoicePdf.js'
 import { mailNastaveny, mailOdosielatel, overSpojenie, posliMail, textFaktury, textUpomienky } from '../lib/mail.js'
 import { OTVORENY_ZOSTATOK_SQL, UHRADENE_SQL } from '../lib/platby.js'
@@ -42,6 +43,7 @@ mailRouter.post('/odoslat/:id', async (req, res) => {
   const komu = String(req.body?.komu ?? '').trim()
   const predmet = String(req.body?.predmet ?? '').trim()
   const text = String(req.body?.text ?? '').trim()
+  const upomienka = req.body?.typ === 'upomienka'
 
   if (!komu) return res.status(400).json({ chyba: 'Chýba e-mail príjemcu.' })
   if (!predmet || !text) return res.status(400).json({ chyba: 'Chýba predmet alebo text správy.' })
@@ -60,7 +62,8 @@ mailRouter.post('/odoslat/:id', async (req, res) => {
     // zlyhal len tento zápis, nesmie to vyzerať ako neodoslaný mail (hrozilo
     // by, že ho človek pošle znova).
     try {
-      const znacka = `[${new Date().toLocaleDateString('sk-SK')} odoslané na ${komu}]`
+      // Z tejto značky skladá časovú os faktúry aj formulár (FakturaEdit).
+      const znacka = `[${skDatum(dnesISO())} ${upomienka ? 'upomienka odoslaná' : 'odoslané'} na ${komu}]`
       db.prepare("UPDATE invoices SET poznamka = TRIM(COALESCE(poznamka, '') || ' ' || ?) WHERE id = ?")
         .run(znacka, id)
     } catch (e) {

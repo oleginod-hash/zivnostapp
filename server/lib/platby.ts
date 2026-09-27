@@ -24,6 +24,14 @@ const KRYTE = `(SELECT COALESCE(SUM(p2.suma), 0)
                 JOIN invoices z ON z.id = p2.invoice_id
                 WHERE z.kryje_id = i.id)`
 
+/**
+ * Platba bez DPH. Platiteľ DPH dostane od odberateľa aj daň, ktorá patrí štátu –
+ * do príjmu na daň z príjmov ide len pomerná časť bez DPH. Pri faktúre bez DPH
+ * (neplatiteľ, prenesenie daňovej povinnosti) je to celá platba.
+ */
+export const PLATBA_BEZ_DPH_SQL = (p: string) =>
+  `(${p}.suma * COALESCE((SELECT f.zaklad / f.suma FROM invoices f WHERE f.id = ${p}.invoice_id AND f.dph <> 0 AND f.suma <> 0), 1))`
+
 /** Koľko z faktúry je uhradené dokopy – priamo aj cez krycie zálohy. */
 export const UHRADENE_SQL = `(${PRIJATE} + ${KRYTE})`
 

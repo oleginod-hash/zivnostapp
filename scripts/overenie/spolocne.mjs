@@ -43,6 +43,9 @@ export async function spustiServer(dataDir, port, { aiKluc = '' } = {}) {
   process.env.ANTHROPIC_API_KEY = aiKluc
   process.env.SMTP_HOST = ''
   process.env.CASOVE_PASMO = 'Europe/Bratislava'
+  // Skutočný Tailscale v počítači test nikdy nepýta ani nezapína – kde ho treba, podstrčí vymyslený.
+  process.env.TAILSCALE = 'vypnute'
+  process.env.DALSIE_ADRESY = ''
   if (!fs.existsSync(path.join(KOREN, 'dist-server', 'index.js'))) {
     throw new Error('Chýba zostavený server – najprv spusti npm run build.')
   }
@@ -86,6 +89,30 @@ export function ziadostSHostom(port, cesta, host) {
         r(res.statusCode)
       })
       .on('error', () => r(0))
+  })
+}
+
+/** Požiadavka s ľubovoľnou hlavičkou Host aj metódou – vráti stav aj telo odpovede. */
+export function ziadost(port, cesta, { host, metoda = 'GET', hlavicky = {} } = {}) {
+  return new Promise((r) => {
+    const req = http.request(
+      { host: '127.0.0.1', port, path: cesta, method: metoda, headers: { Host: host ?? `localhost:${port}`, ...hlavicky } },
+      (res) => {
+        let telo = ''
+        res.on('data', (d) => (telo += d))
+        res.on('end', () => {
+          let d = telo
+          try {
+            d = JSON.parse(telo)
+          } catch {
+            // nie je JSON – necháme text
+          }
+          r({ stav: res.statusCode, d })
+        })
+      },
+    )
+    req.on('error', () => r({ stav: 0, d: null }))
+    req.end()
   })
 }
 

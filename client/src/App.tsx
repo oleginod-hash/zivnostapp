@@ -18,6 +18,7 @@ import { TurnusEdit } from './pages/TurnusEdit'
 import { Objednavky } from './pages/Objednavky'
 import { ObjednavkaEdit } from './pages/ObjednavkaEdit'
 import { Financie } from './pages/Financie'
+import { Dph } from './pages/Dph'
 import { Vydavky } from './pages/Vydavky'
 import { AsistentStranka } from './pages/Asistent'
 import { Kos } from './pages/Kos'
@@ -28,7 +29,8 @@ import { Sprievodca } from './pages/Sprievodca'
 import { Banka } from './pages/Banka'
 import { Terminy } from './pages/Terminy'
 
-type PolozkaMenu = { cesta: string; ikona: KlucIkony; text: string }
+/** `lenPlatitel` – položka len pre platiteľa DPH, ostatným by bola na nič. */
+type PolozkaMenu = { cesta: string; ikona: KlucIkony; text: string; lenPlatitel?: boolean }
 
 /**
  * Poradie je od toho, čo otváram najčastejšie, po to, do čoho zablúdim raz
@@ -47,6 +49,7 @@ const MENU: { skupina: string; polozky: PolozkaMenu[] }[] = [
     polozky: [
       { cesta: '/faktury', ikona: 'faktury', text: 'Faktúry' },
       { cesta: '/financie', ikona: 'financie', text: 'Financie' },
+      { cesta: '/dph', ikona: 'percento', text: 'DPH', lenPlatitel: true },
       { cesta: '/vydavky', ikona: 'vydavky', text: 'Výdavky' },
       { cesta: '/banka', ikona: 'banka', text: 'Výpis z banky' },
     ],
@@ -144,11 +147,13 @@ export function App() {
   // v spodnej lište na telefóne Turnusy alebo Asistent.
   const presmeruj = useNavigate()
   const [pracaVZahranici, setPracaVZahranici] = useState(false)
+  const [platitelDph, setPlatitelDph] = useState(false)
   useEffect(() => {
     api
       .get<TNastavenia>('/nastavenia')
       .then((n) => {
         setPracaVZahranici(!!n.praca_v_zahranici)
+        setPlatitelDph(n.dph_rezim === 'platitel')
         if (!n.sprievodca_hotovy && miesto.pathname === '/') presmeruj('/sprievodca', { replace: true })
       })
       .catch(() => {})
@@ -232,7 +237,7 @@ export function App() {
           {MENU.map((skupina) => (
             <Fragment key={skupina.skupina}>
               <div className="skupina-menu">{skupina.skupina}</div>
-              {skupina.polozky.map((p) => (
+              {skupina.polozky.filter((p) => !p.lenPlatitel || platitelDph).map((p) => (
                 <NavLink key={p.cesta} to={p.cesta} end={p.cesta === '/'} className={trieda}>
                   <Ikona nazov={p.ikona} />
                   {p.text}
@@ -284,6 +289,7 @@ export function App() {
           <Route path="/objednavky/nova" element={<ObjednavkaEdit />} />
           <Route path="/objednavky/:id" element={<ObjednavkaEdit />} />
           <Route path="/financie" element={<Financie />} />
+          <Route path="/dph" element={<Dph />} />
           <Route path="/vydavky" element={<Vydavky />} />
           <Route path="/banka" element={<Banka />} />
           <Route path="/zmluvy" element={<Zmluvy />} />

@@ -453,6 +453,114 @@ const migrations: string[] = [
   `
   DROP TABLE IF EXISTS zmazane_cisla;
   `,
+
+  // 20 – výdavky v cudzej mene
+  `
+  -- Suma ostáva v eurách – z nej sa počíta všetko ostatné. Vedľa je suma
+  -- v pôvodnej mene a kurz (koľko jednotiek meny za 1 €, ako ho vyhlasuje ECB).
+  ALTER TABLE expenses ADD COLUMN mena TEXT NOT NULL DEFAULT 'EUR';
+  ALTER TABLE expenses ADD COLUMN suma_mena REAL;
+  ALTER TABLE expenses ADD COLUMN kurz REAL;
+
+  -- Kurzy ECB, ktoré appka už stiahla. „den" je deň, pre ktorý sa kurz hľadal,
+  -- datum_kurzu deň, ktorého kurz to naozaj je (cez víkend piatkový).
+  CREATE TABLE kurzy (
+    den         TEXT NOT NULL,
+    mena        TEXT NOT NULL,
+    kurz        REAL NOT NULL,
+    datum_kurzu TEXT NOT NULL,
+    PRIMARY KEY (den, mena)
+  );
+  `,
+
+  // 21 – výdavok z e-faktúry dodávateľa
+  `
+  -- Podľa čísla faktúry a IČO dodávateľa appka tú istú e-faktúru druhýkrát
+  -- nezapíše a pri ďalšej od toho istého dodávateľa navrhne rovnakú kategóriu.
+  -- Variabilný symbol spáruje výdavok s platbou na výpise z banky.
+  ALTER TABLE expenses ADD COLUMN doklad_cislo TEXT NOT NULL DEFAULT '';
+  ALTER TABLE expenses ADD COLUMN dodavatel_ico TEXT NOT NULL DEFAULT '';
+  ALTER TABLE expenses ADD COLUMN variabilny TEXT NOT NULL DEFAULT '';
+  CREATE INDEX idx_expenses_doklad ON expenses(dodavatel_ico, doklad_cislo);
+  `,
+
+  // 22 – výpis z banky aj pre výdavky
+  `
+  -- Odchádzajúce platby: 'vydavok' = appka z platby zapísala nový výdavok,
+  -- 'sparovane' = platba patrí k výdavku, ktorý už bol zapísaný (ten sa pri
+  -- vrátení importu nemaže). SQLite podmienku stĺpca meniť nevie – tabuľka sa prestaví.
+  CREATE TABLE bankove_pohyby_nove (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    odtlacok    TEXT NOT NULL UNIQUE,
+    import_id   INTEGER NOT NULL REFERENCES bankove_importy(id) ON DELETE CASCADE,
+    datum       TEXT NOT NULL,
+    suma        REAL NOT NULL,
+    vs          TEXT NOT NULL DEFAULT '',
+    protistrana TEXT NOT NULL DEFAULT '',
+    sprava      TEXT NOT NULL DEFAULT '',
+    akcia       TEXT NOT NULL CHECK (akcia IN ('platba', 'prijem', 'vydavok', 'sparovane')),
+    platba_id   INTEGER REFERENCES invoice_payments(id) ON DELETE CASCADE,
+    vydavok_id  INTEGER REFERENCES expenses(id) ON DELETE CASCADE,
+    created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+  INSERT INTO bankove_pohyby_nove SELECT * FROM bankove_pohyby;
+  DROP TABLE bankove_pohyby;
+  ALTER TABLE bankove_pohyby_nove RENAME TO bankove_pohyby;
+  CREATE INDEX idx_bankove_pohyby_import ON bankove_pohyby(import_id);
+  CREATE INDEX idx_bankove_pohyby_vydavok ON bankove_pohyby(vydavok_id);
+  `,
+
+  // 23 – výkaz hodín pri turnuse
+  `
+  -- Odpracované hodiny po dňoch. Z nich sa vystaví faktúra za turnus
+  -- a výkaz sa k nej dá vytlačiť na podpis.
+  CREATE TABLE tour_hours (
+    id       INTEGER PRIMARY KEY AUTOINCREMENT,
+    tour_id  INTEGER NOT NULL REFERENCES tours(id) ON DELETE CASCADE,
+    datum    TEXT NOT NULL,
+    hodiny   REAL NOT NULL DEFAULT 0,
+    poznamka TEXT NOT NULL DEFAULT '',
+    UNIQUE (tour_id, datum)
+  );
+  -- Hodinová sadzba za turnus (€ za hodinu), z ktorej sa ráta suma výkazu.
+  ALTER TABLE tours ADD COLUMN hodinova_sadzba REAL NOT NULL DEFAULT 0;
+  `,
+
+  // 24 – platiteľ DPH
+  `
+  -- Sadzba DPH pri položke (NULL = bez DPH: neplatiteľ alebo prenesenie daňovej povinnosti).
+  ALTER TABLE invoice_items ADD COLUMN sadzba_dph REAL;
+  -- Súčty faktúry: suma = zaklad + dph, to platí odberateľ (a s tým rátajú platby).
+  ALTER TABLE invoices ADD COLUMN zaklad REAL NOT NULL DEFAULT 0;
+  ALTER TABLE invoices ADD COLUMN dph REAL NOT NULL DEFAULT 0;
+  UPDATE invoices SET zaklad = suma;
+  -- 1 = faktúra vystavená ako platiteľ DPH (položky majú sadzby). Pri zmene
+  -- nastavenia sa staré faktúry neprepočítajú.
+  ALTER TABLE invoices ADD COLUMN s_dph INTEGER NOT NULL DEFAULT 0;
+  -- 1 = DPH odvedie odberateľ (prenesenie daňovej povinnosti) – na faktúre bez DPH, s touto vetou.
+  ALTER TABLE invoices ADD COLUMN prenos_dph INTEGER NOT NULL DEFAULT 0;
+  -- Platiteľ: zdaňovacie obdobie ('mesacne' / 'stvrtrocne') a predvolená sadzba na nové položky.
+  ALTER TABLE settings ADD COLUMN dph_obdobie TEXT NOT NULL DEFAULT 'mesacne';
+  ALTER TABLE settings ADD COLUMN dph_sadzba REAL NOT NULL DEFAULT 23;
+  -- DPH z dokladu o výdavku – platiteľ si ju môže odpočítať.
+  ALTER TABLE expenses ADD COLUMN dph REAL NOT NULL DEFAULT 0;
+  `,
+
+  // 25 – logo a vzhľad faktúry v PDF
+  `
+  -- Súbor loga v DATA_DIR/files/logo (prázdne = bez loga). Nové logo = nový súbor.
+  ALTER TABLE settings ADD COLUMN logo TEXT NOT NULL DEFAULT '';
+  -- 'klasicky', 'usporny' (bez plôch farby, na čiernobielu tlač) alebo 'vyrazny' (farebná hlavička).
+  ALTER TABLE settings ADD COLUMN pdf_vzhlad TEXT NOT NULL DEFAULT 'klasicky';
+  `,
+
+  // 26 – ďalšie údaje na faktúre („Viac údajov")
+  `
+  -- Číslo objednávky odberateľa (ako ho uvádza on – nie väzba na objednávku v appke)
+  -- a úvodný text nad položkami. Záverečný text je poznámka faktúry.
+  ALTER TABLE invoices ADD COLUMN cislo_objednavky TEXT NOT NULL DEFAULT '';
+  ALTER TABLE invoices ADD COLUMN uvodny_text TEXT NOT NULL DEFAULT '';
+  `,
 ]
 
 /** Verzia schémy, na ktorú databázu dostanú migrácie – kontrolujú ju aj testy. */

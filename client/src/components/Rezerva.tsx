@@ -6,6 +6,8 @@ import { oznam, oznamChybu } from './Oznamenia'
 
 type Rezerva = {
   rok: string; percento: number; prijate: number; odlozit: number
+  /** Platiteľ: DPH z prijatých platieb patrí štátu celá, percento sa ráta zo zvyšku. */
+  dph_z_platieb: number; prijate_bez_dph: number
   zaplatene_dane: number; zaplatene_odvody: number; zostava: number
 }
 
@@ -53,7 +55,11 @@ export function RezervaNaDane({ rok }: { rok: string }) {
             ton="akcent"
             popis={`Odložiť z príjmov ${r.rok}`}
             hodnota={skSuma(r.odlozit)}
-            pod={`${String(r.percento).replace('.', ',')} % z ${skSuma(r.prijate)}`}
+            pod={
+              r.dph_z_platieb > 0
+                ? `DPH ${skSuma(r.dph_z_platieb)} + ${String(r.percento).replace('.', ',')} % z ${skSuma(r.prijate_bez_dph)}`
+                : `${String(r.percento).replace('.', ',')} % z ${skSuma(r.prijate)}`
+            }
           />
           <Karticka
             ikona="zaplatena"

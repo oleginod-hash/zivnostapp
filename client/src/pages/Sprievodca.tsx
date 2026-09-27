@@ -299,7 +299,7 @@ export function Sprievodca() {
               ikona="penazenka"
               nazov="Nie som platiteľ DPH"
               popis={'Najčastejší prípad živnostníka. Na faktúre bude veta „Nie je platiteľ DPH".'}
-              vybrana={udaje.dph_rezim !== '7a'}
+              vybrana={udaje.dph_rezim !== '7a' && udaje.dph_rezim !== 'platitel'}
               onClick={() => uprav({ dph_rezim: 'neplatitel' })}
             />
             <Volba
@@ -309,13 +309,19 @@ export function Sprievodca() {
               vybrana={udaje.dph_rezim === '7a'}
               onClick={() => uprav({ dph_rezim: '7a' })}
             />
+            <Volba
+              ikona="banka"
+              nazov="Som platiteľ DPH"
+              popis="Ceny zadáš bez DPH, appka pripočíta daň podľa sadzby a pripomenie priznanie k DPH."
+              vybrana={udaje.dph_rezim === 'platitel'}
+              onClick={() => uprav({ dph_rezim: 'platitel' })}
+            />
           </div>
-          {udaje.dph_rezim === '7a' && (
+          {(udaje.dph_rezim === '7a' || udaje.dph_rezim === 'platitel') && (
             <Pole id="s-icdph" popis="IČ DPH">
               <input id="s-icdph" value={udaje.ic_dph} placeholder="napr. SK1234567890" onChange={(e) => uprav({ ic_dph: e.target.value })} />
             </Pole>
           )}
-          <div className="napoveda">Ak si platiteľ DPH, appka ti zatiaľ nepostačí – faktúry s DPH nevie vystaviť.</div>
 
           <div className="sprievodca-pole" style={{ marginTop: 20 }}>
             <label htmlFor="s-splatnost">Za koľko dní ti majú zákazníci zaplatiť?</label>

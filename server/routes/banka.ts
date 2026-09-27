@@ -1,24 +1,30 @@
 import { Router } from 'express'
 import multer from 'multer'
 import { db } from '../db.js'
-import { zaokruhli } from '../lib/format.js'
+import { naHladanie, pridajDni, zaokruhli } from '../lib/format.js'
+import { odhadniKategoriu } from '../lib/odhadKategorie.js'
 import { OTVORENY_ZOSTATOK_SQL, pridajPlatbu } from '../lib/platby.js'
-import { naOdlozenie } from '../lib/rezerva.js'
-import { precitajVypis, type Mapovanie } from '../lib/vypis.js'
+import { naOdlozenie, podielDph } from '../lib/rezerva.js'
+import { precitajVypis, type Mapovanie, type Pohyb } from '../lib/vypis.js'
+import { najdiTurnusPreDatum } from './expenses.js'
 
 /**
  * Import výpisu z banky. Z výpisu (CSV) zoberieme prichádzajúce platby
  * a navrhneme, ku ktorej faktúre patria – podľa variabilného symbolu, a keď
- * chýba, podľa sumy. Používateľ návrhy potvrdí alebo zmení; zapíše sa až
- * potvrdené. Každý zapísaný pohyb si pamätáme, takže ten istý výpis nahratý
- * znova nič nezdvojí, a celý import sa dá vrátiť jedným krokom.
+ * chýba, podľa sumy. Odchádzajúce platby navrhneme ako výdavky – alebo ich
+ * spárujeme s výdavkom, ktorý už je zapísaný (napr. z dokladu či e-faktúry).
+ * Používateľ návrhy potvrdí alebo zmení; zapíše sa až potvrdené. Každý zapísaný
+ * pohyb si pamätáme, takže ten istý výpis nahratý znova nič nezdvojí, a celý
+ * import sa dá vrátiť jedným krokom.
  */
 export const bankaRouter = Router()
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024, files: 1 } })
 
-type Akcia = 'platba' | 'prijem' | 'preskocit'
-type Dovod = 'vs' | 'suma' | 'uz_zapisane' | 'uz_uhradena' | 'ina_mena' | 'nenajdene'
+type Akcia = 'platba' | 'prijem' | 'vydavok' | 'sparovane' | 'preskocit'
+type Dovod =
+  | 'vs' | 'suma' | 'uz_zapisane' | 'uz_uhradena' | 'ina_mena' | 'nenajdene'
+  | 'vydavok_vs' | 'vydavok_suma' | 'kategoria'
 
 type OtvorenaFaktura = { id: number; cislo: string; variabilny: string; firma_nazov: string | null; otvoreny_zostatok: number }
 
@@ -61,6 +67,7 @@ bankaRouter.post('/nahlad', upload.single('subor'), (req, res) => {
   )
 
   const prichadzajuce = vypis.pohyby.filter((p) => p.suma > 0)
+  const vydaje = navrhniVydavky(vypis.pohyby.filter((p) => p.suma < 0), zapisane)
   const pohyby = prichadzajuce.map((p) => {
     let akcia: Akcia = 'preskocit'
     let dovod: Dovod = 'nenajdene'
@@ -104,21 +111,89 @@ bankaRouter.post('/nahlad', upload.single('subor'), (req, res) => {
     mapovanie: vypis.mapovanie,
     stlpce_nenajdene: false,
     pohyby,
-    odchadzajuce: vypis.pohyby.length - prichadzajuce.length,
+    vydaje,
+    odchadzajuce: vydaje.length,
     necitatelne: vypis.necitatelne,
     // Na ručný výber: faktúry, ktoré ešte nie sú celé uhradené.
     otvorene_faktury: vsetky.filter((f) => f.otvoreny_zostatok > 0.005),
   })
 })
 
+type VydavokNaParovanie = { id: number; datum: string; popis: string; suma: number; variabilny: string }
+
+/**
+ * Návrhy pre odchádzajúce platby. Výdavok, ktorý už je zapísaný (s rovnakým
+ * VS, alebo s rovnakou sumou najviac týždeň pred platbou), sa len spáruje –
+ * nezapíše sa druhýkrát. Ostatné sa navrhnú ako nový výdavok, keď appka
+ * spozná kategóriu; inak nechá výber na používateľovi.
+ */
+function navrhniVydavky(pohyby: Pohyb[], zapisane: Set<string>) {
+  const volne = db
+    .prepare(
+      `SELECT id, datum, popis, suma, variabilny FROM expenses e
+       WHERE druh = 'vydavok'
+         AND NOT EXISTS (SELECT 1 FROM bankove_pohyby b WHERE b.vydavok_id = e.id)`,
+    )
+    .all() as VydavokNaParovanie[]
+  const pouzite = new Set<number>()
+  const poslednaKategoria = db.prepare(
+    `SELECT kategoria FROM expenses
+     WHERE druh = 'vydavok' AND kategoria <> '' AND bez_diakritiky(popis) = ?
+     ORDER BY datum DESC, id DESC LIMIT 1`,
+  )
+
+  return pohyby.map((p) => {
+    const suma = Math.abs(p.suma)
+    let akcia: Akcia = 'preskocit'
+    let dovod: Dovod = 'nenajdene'
+    let vydavok: VydavokNaParovanie | undefined
+    let kategoria = ''
+
+    if (zapisane.has(p.odtlacok)) {
+      dovod = 'uz_zapisane'
+    } else if (p.mena && p.mena !== 'EUR') {
+      dovod = 'ina_mena'
+    } else {
+      const kandidati = volne.filter((v) => !pouzite.has(v.id))
+      vydavok = p.vs ? kandidati.find((v) => bezNul(v.variabilny) === p.vs) : undefined
+      if (vydavok) dovod = 'vydavok_vs'
+      else {
+        // Platba kartou sa na výpis dostane o pár dní neskôr než je dátum na doklade.
+        vydavok = kandidati
+          .filter((v) => Math.abs(v.suma - suma) < 0.005 && v.datum <= p.datum && v.datum >= pridajDni(p.datum, -7))
+          .sort((a, b) => b.datum.localeCompare(a.datum))[0]
+        if (vydavok) dovod = 'vydavok_suma'
+      }
+      if (vydavok) {
+        akcia = 'sparovane'
+        pouzite.add(vydavok.id)
+      } else {
+        const komu = p.protistrana || p.sprava
+        kategoria =
+          (komu ? (poslednaKategoria.get(naHladanie(komu)) as { kategoria: string } | undefined)?.kategoria : '') ||
+          odhadniKategoriu(p.protistrana, p.sprava)
+        if (kategoria) {
+          akcia = 'vydavok'
+          dovod = 'kategoria'
+        }
+      }
+    }
+    return {
+      ...p,
+      uz_zapisane: dovod === 'uz_zapisane',
+      navrh: { akcia, dovod, kategoria, vydavok_id: vydavok?.id ?? null, vydavok_popis: vydavok?.popis ?? null },
+    }
+  })
+}
+
 type NaZapis = {
   odtlacok: string; datum: string; suma: number; vs?: string; protistrana?: string; sprava?: string
-  akcia: Akcia; faktura_id?: number | null
+  akcia: Akcia; faktura_id?: number | null; vydavok_id?: number | null; kategoria?: string
 }
 
 bankaRouter.post('/zapisat', (req, res) => {
   const vstup: NaZapis[] = Array.isArray(req.body?.pohyby) ? req.body.pohyby : []
-  const naZapis = vstup.filter((p) => p.akcia === 'platba' || p.akcia === 'prijem')
+  const naZapis = vstup.filter((p) => ['platba', 'prijem', 'vydavok', 'sparovane'].includes(p.akcia))
   if (!naZapis.length) return res.status(400).json({ chyba: 'Nie je vybraná žiadna platba na zapísanie.' })
 
   const zapis = db.transaction(() => {
@@ -130,12 +205,14 @@ bankaRouter.post('/zapisat', (req, res) => {
       `INSERT INTO bankove_pohyby (odtlacok, import_id, datum, suma, vs, protistrana, sprava, akcia, platba_id, vydavok_id)
        VALUES (@odtlacok, @import_id, @datum, @suma, @vs, @protistrana, @sprava, @akcia, @platba_id, @vydavok_id)`,
     )
-    const vysledok = { import_id: importId, platby: 0, prijmy: 0, preskocene: 0, suma_platieb: 0 }
+    const vysledok = { import_id: importId, platby: 0, prijmy: 0, vydavky: 0, sparovane: 0, preskocene: 0, suma_platieb: 0, odlozit: 0 }
 
     for (const p of naZapis) {
       const datum = String(p.datum ?? '').slice(0, 10)
       const suma = zaokruhli(Number(p.suma) || 0)
-      if (!p.odtlacok || !/^\d{4}-\d{2}-\d{2}$/.test(datum) || suma <= 0 || uzJe.get(p.odtlacok)) {
+      // Výdavok je odchádzajúca platba (záporná suma), platba a príjem prichádzajúca.
+      const odchadzajuca = p.akcia === 'vydavok' || p.akcia === 'sparovane'
+      if (!p.odtlacok || !/^\d{4}-\d{2}-\d{2}$/.test(datum) || (odchadzajuca ? suma >= 0 : suma <= 0) || uzJe.get(p.odtlacok)) {
         vysledok.preskocene++
         continue
       }
@@ -153,6 +230,33 @@ bankaRouter.post('/zapisat', (req, res) => {
         platba_id = pridajPlatbu(Number(p.faktura_id), datum, suma, protistrana ? `z výpisu: ${protistrana}` : 'z výpisu z banky')
         vysledok.platby++
         vysledok.suma_platieb = zaokruhli(vysledok.suma_platieb + suma)
+        vysledok.odlozit = zaokruhli(vysledok.odlozit + naOdlozenie(suma, podielDph(Number(p.faktura_id))))
+      } else if (p.akcia === 'sparovane') {
+        const v = db.prepare("SELECT id FROM expenses WHERE id = ? AND druh = 'vydavok'").get(Number(p.vydavok_id))
+        if (!v) {
+          vysledok.preskocene++
+          continue
+        }
+        vydavok_id = Number(p.vydavok_id)
+        vysledok.sparovane++
+      } else if (p.akcia === 'vydavok') {
+        vydavok_id = Number(
+          db
+            .prepare(
+              `INSERT INTO expenses (datum, popis, kategoria, platba, poznamka, druh, suma, odpocitat, tour_id, variabilny)
+               VALUES (?, ?, ?, 'prevod', ?, 'vydavok', ?, 1, ?, ?)`,
+            )
+            .run(
+              datum,
+              protistrana || sprava || 'Platba z výpisu',
+              String(p.kategoria ?? '').trim(),
+              ['z výpisu z banky', protistrana ? sprava : ''].filter(Boolean).join(' – '),
+              Math.abs(suma),
+              najdiTurnusPreDatum(datum),
+              String(p.vs ?? ''),
+            ).lastInsertRowid,
+        )
+        vysledok.vydavky++
       } else {
         vydavok_id = Number(
           db
@@ -171,7 +275,7 @@ bankaRouter.post('/zapisat', (req, res) => {
       })
     }
     // Keď sa nezapísalo nič (všetko už bolo zapísané), prázdny import nenecháme.
-    if (!vysledok.platby && !vysledok.prijmy) {
+    if (!vysledok.platby && !vysledok.prijmy && !vysledok.vydavky && !vysledok.sparovane) {
       db.prepare('DELETE FROM bankove_importy WHERE id = ?').run(importId)
       return { ...vysledok, import_id: null }
     }
@@ -179,22 +283,25 @@ bankaRouter.post('/zapisat', (req, res) => {
   })
 
   const vysledok = zapis()
-  res.json({ ...vysledok, odlozit: naOdlozenie(vysledok.suma_platieb) })
+  res.json(vysledok)
 })
 
-/** Vrátenie celého importu – zmažú sa platby aj súkromné príjmy, ktoré zapísal. */
+/**
+ * Vrátenie celého importu – zmažú sa platby, súkromné príjmy aj výdavky, ktoré
+ * zapísal. Výdavky, ku ktorým platbu len spároval, ostávajú.
+ */
 bankaRouter.delete('/importy/:id', (req, res) => {
   const id = Number(req.params.id)
   if (!db.prepare('SELECT 1 FROM bankove_importy WHERE id = ?').get(id)) {
     return res.status(404).json({ chyba: 'Import neexistuje.' })
   }
   const vrat = db.transaction(() => {
-    const pohyby = db.prepare('SELECT platba_id, vydavok_id FROM bankove_pohyby WHERE import_id = ?').all(id) as {
-      platba_id: number | null; vydavok_id: number | null
+    const pohyby = db.prepare('SELECT akcia, platba_id, vydavok_id FROM bankove_pohyby WHERE import_id = ?').all(id) as {
+      akcia: string; platba_id: number | null; vydavok_id: number | null
     }[]
     for (const p of pohyby) {
       if (p.platba_id) db.prepare('DELETE FROM invoice_payments WHERE id = ?').run(p.platba_id)
-      if (p.vydavok_id) db.prepare('DELETE FROM expenses WHERE id = ?').run(p.vydavok_id)
+      if (p.vydavok_id && p.akcia !== 'sparovane') db.prepare('DELETE FROM expenses WHERE id = ?').run(p.vydavok_id)
     }
     db.prepare('DELETE FROM bankove_pohyby WHERE import_id = ?').run(id)
     db.prepare('DELETE FROM bankove_importy WHERE id = ?').run(id)
@@ -211,7 +318,9 @@ bankaRouter.get('/importy', (_req, res) => {
         `SELECT m.id, m.nazov_suboru, m.created_at,
                 COUNT(CASE WHEN p.akcia = 'platba' THEN 1 END) AS platby,
                 COUNT(CASE WHEN p.akcia = 'prijem' THEN 1 END) AS prijmy,
-                COALESCE(SUM(p.suma), 0) AS suma
+                COUNT(CASE WHEN p.akcia IN ('vydavok', 'sparovane') THEN 1 END) AS vydavky,
+                COALESCE(SUM(CASE WHEN p.suma > 0 THEN p.suma END), 0) AS suma,
+                COALESCE(SUM(CASE WHEN p.suma < 0 THEN -p.suma END), 0) AS suma_vydavkov
          FROM bankove_importy m LEFT JOIN bankove_pohyby p ON p.import_id = m.id
          GROUP BY m.id ORDER BY m.id DESC LIMIT 10`,
       )

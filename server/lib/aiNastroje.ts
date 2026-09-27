@@ -52,6 +52,13 @@ async function zapis(metoda: 'POST' | 'PUT', cesta: string, telo: unknown) {
   return r.data
 }
 
+/** Výdavok v cudzej mene – suma v eurách sa dopočíta kurzom ECB, keď ju asistent nepošle. */
+const MENA_VYDAVKU = {
+  suma: { type: 'number', description: 'Suma v eurách. Pri cudzej mene ju môžeš vynechať – appka ju prepočíta kurzom ECB.' },
+  mena: { type: 'string', description: 'Mena dokladu, napr. EUR, CZK, NOK, CHF (predvolene EUR).' },
+  suma_mena: { type: 'number', description: 'Suma v cudzej mene (len keď mena nie je EUR).' },
+}
+
 export const NASTROJE: Record<string, Nastroj> = {
   // ── Čítanie ───────────────────────────────────────────────
   hladaj: {
@@ -459,7 +466,12 @@ export const NASTROJE: Record<string, Nastroj> = {
                 popis: { type: 'string' },
                 mnozstvo: { type: 'number' },
                 jednotka: { type: 'string', description: 'napr. hod, deň, ks' },
-                cena: { type: 'number', description: 'Cena za jednotku v €' },
+                cena: { type: 'number', description: 'Cena za jednotku v € (u platiteľa DPH bez DPH)' },
+                sadzba_dph: {
+                  type: 'number',
+                  enum: [23, 19, 5, 0],
+                  description: 'Len u platiteľa DPH; keď chýba, použije sa predvolená sadzba z nastavení.',
+                },
               },
               required: ['popis', 'mnozstvo', 'cena'],
             },
@@ -551,7 +563,7 @@ export const NASTROJE: Record<string, Nastroj> = {
     historia: {
       tabulka: 'expenses',
       operacia: 'vytvorenie',
-      popis: (v) => `výdavok ${v.popis} (${v.suma} €)`,
+      popis: (v) => `výdavok ${v.popis} (${v.suma != null ? `${v.suma} €` : `${v.suma_mena} ${v.mena}`})`,
     },
     definicia: {
       name: 'vytvor_vydavok',
@@ -564,7 +576,6 @@ export const NASTROJE: Record<string, Nastroj> = {
         properties: {
           datum: DATUM,
           popis: { type: 'string' },
-          suma: { type: 'number' },
           druh: {
             type: 'string',
             enum: ['vydavok', 'prijem'],
@@ -580,8 +591,9 @@ export const NASTROJE: Record<string, Nastroj> = {
           platba: { type: 'string', enum: ['karta', 'hotovost', 'prevod', 'ine'] },
           odpocitat: { type: 'boolean', description: 'Daňovo uznateľný výdavok (predvolene áno)' },
           poznamka: { type: 'string' },
+          ...MENA_VYDAVKU,
         },
-        required: ['datum', 'popis', 'suma'],
+        required: ['datum', 'popis'],
       },
     },
     vykonaj: (v) => zapis('POST', '/vydavky', v),
@@ -604,7 +616,6 @@ export const NASTROJE: Record<string, Nastroj> = {
           id: { type: 'number' },
           datum: DATUM,
           popis: { type: 'string' },
-          suma: { type: 'number' },
           druh: {
             type: 'string',
             enum: ['vydavok', 'prijem'],
@@ -617,8 +628,9 @@ export const NASTROJE: Record<string, Nastroj> = {
           platba: { type: 'string', enum: ['karta', 'hotovost', 'prevod', 'ine'] },
           odpocitat: { type: 'boolean' },
           poznamka: { type: 'string' },
+          ...MENA_VYDAVKU,
         },
-        required: ['id', 'datum', 'popis', 'suma'],
+        required: ['id', 'datum', 'popis'],
       },
     },
     vykonaj: (v) => zapis('PUT', `/vydavky/${Number(v.id)}`, v),
@@ -752,7 +764,7 @@ export const NASTROJE: Record<string, Nastroj> = {
           datum_vzniku: { type: 'string', description: 'Dátum vzniku živnostenského oprávnenia RRRR-MM-DD' },
           urad_zr: { type: 'string', description: 'Okresný úrad, v ktorého živnostenskom registri je zapísaný' },
           cislo_zr: { type: 'string', description: 'Číslo živnostenského registra' },
-          dph_rezim: { type: 'string', enum: ['neplatitel', '7a'] },
+          dph_rezim: { type: 'string', enum: ['neplatitel', '7a', 'platitel'] },
           ic_dph: { type: 'string' },
           vydavky_typ: { type: 'string', enum: ['pausalne', 'skutocne'] },
           zdravotna_poistovna: { type: 'string' },

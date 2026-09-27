@@ -1,7 +1,10 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api, ibanJePlatny, pocet, type Nastavenia as TNastavenia, type Sadzba } from '../api'
 import { Ikona } from '../components/Ikony'
+import { oznam, oznamChybu } from '../components/Oznamenia'
+import { PristupZTelefonu } from '../components/PristupZTelefonu'
+import { SADZBY_DPH } from '../../../server/lib/dph'
 import { useNeulozeneZmeny } from '../neulozene'
 
 /** Pár overených odtieňov – dosť výrazných na obrazovke, dosť tlmených na tlač. */
@@ -26,9 +29,18 @@ export function Nastavenia() {
   const [sadzby, setSadzby] = useState<Sadzba[]>([])
   const [sadzbyNacitane, setSadzbyNacitane] = useState(false)
   const [stavZaloh, setStavZaloh] = useState<{ posledna: string | null; pocet: number; priecinok: string } | null>(null)
+  // Logo sa ukladá hneď po výbere súboru, nie tlačidlom Uložiť – preto je mimo formulára.
+  const [logo, setLogo] = useState('')
+  const vstupLoga = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
-    api.get<TNastavenia>('/nastavenia').then(setN).catch((e) => setChyba(e.message))
+    api
+      .get<TNastavenia>('/nastavenia')
+      .then((x) => {
+        setN(x)
+        setLogo(x.logo ?? '')
+      })
+      .catch((e) => setChyba(e.message))
     api
       .get<Sadzba[]>('/stravne/sadzby')
       .then((s) => {
@@ -74,6 +86,30 @@ export function Nastavenia() {
     } catch (e: any) {
       setChyba(e.message)
     }
+  }
+
+  async function nahrajLogo(subor: File | undefined) {
+    if (!subor) return
+    try {
+      const data = new FormData()
+      data.append('logo', subor)
+      setLogo((await api.upload<TNastavenia>('/nastavenia/logo', data)).logo)
+      oznam('Logo je na faktúre.')
+    } catch (e: any) {
+      oznamChybu(e.message)
+    } finally {
+      if (vstupLoga.current) vstupLoga.current.value = ''
+    }
+  }
+
+  async function odoberLogo() {
+    const predtym = logo
+    setLogo((await api.post<TNastavenia>('/nastavenia/logo/odobrat')).logo)
+    oznam('Faktúra bude bez loga.', {
+      text: 'Vrátiť späť',
+      // Súbor loga po odobratí ostáva, stačí ho znova priradiť.
+      sprav: async () => setLogo((await api.post<TNastavenia>('/nastavenia/logo/vratit', { logo: predtym })).logo),
+    })
   }
 
   /** Značka zálohy má tvar RRRRMMDD. */
@@ -188,10 +224,11 @@ export function Nastavenia() {
               onChange={(e) => uprav({ dph_rezim: e.target.value as TNastavenia['dph_rezim'] })}
             >
               <option value="neplatitel">Nie som platiteľ DPH</option>
-              <option value="7a">Registrovaný podľa § 7a (mám IČ DPH, nie som platiteľ)</option>
+              <option value="7a">Registrácia podľa § 7a (IČ DPH, ale nie platiteľ)</option>
+              <option value="platitel">Som platiteľ DPH</option>
             </select>
           </div>
-          {(n.dph_rezim === '7a' || !!n.ic_dph) && (
+          {(n.dph_rezim !== 'neplatitel' || !!n.ic_dph) && (
             <div>
               <label>IČ DPH</label>
               <input
@@ -201,10 +238,36 @@ export function Nastavenia() {
               />
             </div>
           )}
+          {n.dph_rezim === 'platitel' && (
+            <>
+              <div>
+                <label>Predvolená sadzba DPH</label>
+                <select value={n.dph_sadzba ?? 23} onChange={(e) => uprav({ dph_sadzba: Number(e.target.value) })}>
+                  {SADZBY_DPH.map((s) => (
+                    <option key={s} value={s}>
+                      {s} %{s === 23 ? ' (základná)' : s === 0 ? ' (oslobodené)' : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label>Zdaňovacie obdobie</label>
+                <select
+                  value={n.dph_obdobie ?? 'mesacne'}
+                  onChange={(e) => uprav({ dph_obdobie: e.target.value as TNastavenia['dph_obdobie'] })}
+                >
+                  <option value="mesacne">Mesačne</option>
+                  <option value="stvrtrocne">Štvrťročne</option>
+                </select>
+              </div>
+            </>
+          )}
           <div className="pole-siroke">
             <div className="napoveda" style={{ marginTop: 0 }}>
-              Registráciu podľa § 7a potrebuje napríklad ten, kto fakturuje služby firmám v inom štáte EÚ.
-              Či sa ťa to týka a čo presne má byť potom na faktúre, si over s účtovníčkou.
+              {n.dph_rezim === 'platitel'
+                ? 'Nové faktúry budú s DPH: ceny položiek sa zadávajú bez DPH, appka pripočíta daň podľa sadzby. Už vystavené faktúry sa neprepočítajú. Termíny priznania k DPH pribudnú v Termínoch.'
+                : 'Registráciu podľa § 7a potrebuje napríklad ten, kto fakturuje služby firmám v inom štáte EÚ. Platiteľom DPH sa stáva živnostník s obratom nad 50 000 € za rok.'}{' '}
+              Čo presne sa ťa týka, si over s účtovníčkou.
             </div>
           </div>
         </div>
@@ -326,6 +389,42 @@ export function Nastavenia() {
               ))}
             </div>
             <div className="napoveda">Jemný akcent na nadpisoch, rámčeku platby a súčte.</div>
+          </div>
+          <div>
+            <label>Logo na faktúre</label>
+            <div className="logo-nastavenie">
+              {logo ? (
+                <img src={`/api/nastavenia/logo?v=${logo}`} alt="Logo na faktúre" />
+              ) : (
+                <span className="tlmene">bez loga</span>
+              )}
+              <input
+                ref={vstupLoga}
+                type="file"
+                accept="image/png,image/jpeg"
+                style={{ display: 'none' }}
+                onChange={(e) => nahrajLogo(e.target.files?.[0])}
+              />
+              <button onClick={() => vstupLoga.current?.click()}>{logo ? 'Zmeniť' : 'Nahrať logo'}</button>
+              {logo && (
+                <button className="holy" onClick={odoberLogo}>
+                  Odobrať
+                </button>
+              )}
+            </div>
+            <div className="napoveda">PNG alebo JPG do 2 MB, na faktúre bude vľavo hore.</div>
+          </div>
+          <div>
+            <label>Vzhľad faktúry</label>
+            <select
+              value={n.pdf_vzhlad ?? 'klasicky'}
+              onChange={(e) => uprav({ pdf_vzhlad: e.target.value as TNastavenia['pdf_vzhlad'] })}
+            >
+              <option value="klasicky">Klasický</option>
+              <option value="usporny">Úsporný – na čiernobielu tlač</option>
+              <option value="vyrazny">Výrazný – farebná hlavička</option>
+            </select>
+            <div className="napoveda">Ako faktúra vyzerá, uvidíš v ukážke nižšie (po uložení).</div>
           </div>
           <div className="pole-siroke">
             <label>Poznámka na každej faktúre</label>
@@ -452,6 +551,8 @@ export function Nastavenia() {
           a začiatok turnusov sa pripomínajú vždy.
         </div>
       </div>
+
+      <PristupZTelefonu />
 
       <details className="panel skladaci">
         <summary>

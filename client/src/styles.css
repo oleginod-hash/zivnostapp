@@ -1691,6 +1691,220 @@ tr.tlmeny-riadok td, tr.tlmeny-riadok td strong { color: var(--ink3); }
   font-size: 13.5px;
 }
 .zoznam-importov li:last-child { border-bottom: 0; }
+.panel h2.nadpis-tabulky { margin: 18px 20px 10px; }
+.kategoria-vydaja { margin-top: 6px; }
+
+/* Prístup z telefónu – QR kód má vždy biele pozadie, inak by ho fotoaparát v tmavej téme neprečítal. */
+.riadok-akcii.zlava { justify-content: flex-start; }
+.pristup-qr { display: flex; gap: 20px; align-items: flex-start; flex-wrap: wrap; }
+.pristup-qr-text { flex: 1 1 240px; min-width: 0; font-size: 14px; }
+.pristup-qr-text .kroky-postupu { margin-top: 10px; }
+.qr-kod { background: #fff; border-radius: 10px; padding: 6px; border: 1px solid var(--line); flex: 0 0 auto; }
+.pristup-adresa {
+  margin-top: 6px;
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 13.5px;
+  color: var(--accentInk);
+  overflow-wrap: anywhere;
+}
+/* Výdavok v cudzej mene a z e-faktúry */
+.suma-s-menou { display: flex; gap: 8px; }
+.suma-s-menou input { flex: 1 1 auto; min-width: 0; }
+.suma-s-menou select { flex: 0 0 92px; width: 92px; }
+.suma-v-mene { font-size: 12.5px; color: var(--ink3); font-weight: 500; }
+.riadok-nastroju { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: -4px 0 14px; font-size: 13.5px; }
+.riadok-nastroju button { display: inline-flex; align-items: center; gap: 7px; }
+/* Výkaz hodín pri turnuse */
+.vykaz-nastroje { display: flex; gap: 20px; flex-wrap: wrap; align-items: flex-start; margin-bottom: 14px; }
+.vykaz-nastroje > div:first-child { flex: 0 1 200px; }
+.vykaz-hromadne { flex: 1 1 320px; }
+.vykaz-hromadne-riadok { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.vykaz-hromadne-riadok input { width: 76px; }
+.vykaz-hromadne-riadok select { width: auto; flex: 1 1 160px; max-width: 220px; }
+.tabulka-hodin td { padding-top: 5px; padding-bottom: 5px; }
+.tabulka-hodin tr.vikend td { background: var(--soft); }
+.tabulka-hodin .vykaz-datum { white-space: nowrap; width: 1%; }
+.tabulka-hodin .pole-hodin { width: 84px; }
+.vykaz-sucet { margin-top: 12px; font-size: 15px; text-align: right; }
+/* Faktúra platiteľa DPH */
+.prenos-dph { margin-bottom: 14px; }
+.sucty-dph { text-align: right; font-size: 14px; display: grid; gap: 3px; }
+/* Časová os faktúry – farba bodu podľa tónu (.ton-*) */
+.casova-os { list-style: none; margin: 0; padding: 0; }
+.casova-os li { display: grid; grid-template-columns: 16px 92px 1fr; align-items: center; gap: 10px; padding: 7px 0; position: relative; font-size: 14px; }
+.casova-os li::before { content: ''; position: absolute; left: 5px; top: 0; bottom: 0; width: 2px; background: var(--line); }
+.casova-os li:first-child::before { top: 50%; }
+.casova-os li:last-child::before { bottom: 50%; }
+.casova-os-bod { width: 12px; height: 12px; border-radius: 50%; background: var(--ton, var(--ink3)); position: relative; z-index: 1; box-shadow: 0 0 0 3px var(--panel); }
+.casova-os-datum { color: var(--ink3); font-variant-numeric: tabular-nums; }
+.casova-os li.buduca .casova-os-bod { background: var(--panel); border: 2px solid var(--ton, var(--ink3)); }
+.casova-os li.buduca .casova-os-text { color: var(--ink3); }
+
+/* Logo na faktúre v Nastaveniach */
+.logo-nastavenie { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; min-height: 40px; }
+.logo-nastavenie img { max-height: 40px; max-width: 150px; background: #fff; border: 1px solid var(--line); border-radius: 6px; padding: 3px; }
+
+/* Ponuka ⋮ s menej častými akciami */
+.menu-akcii { position: relative; display: inline-flex; }
+.menu-akcii-zoznam {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 4px);
+  z-index: 25;
+  min-width: 230px;
+  display: grid;
+  gap: 2px;
+  padding: 6px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  box-shadow: var(--shadow-dialog);
+}
+.menu-akcii-zoznam > button,
+.menu-akcii-zoznam > a {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  box-shadow: none;
+  font-size: 14.5px;
+  font-weight: 600;
+  color: var(--ink);
+  text-align: left;
+  text-decoration: none;
+}
+.menu-akcii-zoznam > button:hover,
+.menu-akcii-zoznam > a:hover { background: var(--hover); }
+.menu-akcii-zoznam .nebezpecne-text { color: var(--neg); }
+
+/* Zoznam faktúr – hľadanie s tlačidlom Filter, súhrn nad zoznamom */
+.hladanie-s-filtrom { display: flex; gap: 8px; }
+.hladanie-s-filtrom input { flex: 1 1 auto; min-width: 0; }
+.tlacidlo-filtra { white-space: nowrap; }
+.tlacidlo-filtra.aktivny { border-color: var(--accent); color: var(--accentInk); }
+.suhrn-zoznamu { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: -4px 0 12px; font-size: 13.5px; color: var(--ink3); }
+.suhrn-zoznamu strong { color: var(--ink); }
+.suhrn-zoznamu .suma-caka { color: var(--neg); }
+
+/* Faktúra ako riadok zoznamu v troch riadkoch: číslo a dátum, odberateľ, stav a suma */
+.zoznam-faktur { display: flex; flex-direction: column; gap: 10px; margin-bottom: 16px; }
+.faktura-riadok {
+  display: grid;
+  gap: 6px;
+  padding: 10px 12px 12px 14px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  box-shadow: var(--shadow);
+  cursor: pointer;
+}
+.faktura-riadok:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.faktura-riadok-hore { display: flex; align-items: center; gap: 10px; min-height: 36px; }
+.faktura-riadok-hore .menu-akcii { margin-left: auto; }
+.faktura-riadok-datum { padding-left: 10px; border-left: 1px solid var(--line); font-size: 13.5px; color: var(--ink3); }
+.faktura-riadok-firma { font-size: 15.5px; font-weight: 700; overflow-wrap: anywhere; }
+.faktura-riadok-firma .pod-textom { font-weight: 500; }
+.faktura-riadok-dole { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.faktura-riadok-stav { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.faktura-riadok-suma { text-align: right; font-size: 16px; white-space: nowrap; }
+
+/* Formulár faktúry */
+.nadpis-faktury { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.nadpis-faktury-druh { font-size: 13px; font-weight: 600; color: var(--ink3); }
+.nadpis-faktury h1 { font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.suhrn-firmy { margin-top: 6px; font-size: 13.5px; line-height: 1.5; color: var(--ink2); }
+.napoveda.chybna { color: var(--neg); }
+/* Počet dní aj dátum vedľa seba potrebujú širšie pole než jeden stĺpec mriežky. */
+.mriezka-faktury .pole-splatnosti { grid-column: span 2; }
+.splatnost-riadok { display: flex; align-items: center; gap: 8px; }
+.splatnost-riadok .dni-splatnosti { flex: 0 0 76px; width: 76px; text-align: right; }
+.splatnost-riadok input[type='date'] { flex: 1 1 auto; min-width: 0; }
+.splatnost-dni-popis { font-size: 13px; color: var(--ink3); white-space: nowrap; }
+.viac-udajov { margin-top: 14px; padding-top: 8px; border-top: 1px solid var(--line); }
+.viac-udajov > summary {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  padding: 8px 0;
+  list-style: none;
+  cursor: pointer;
+  font-weight: 700;
+  color: var(--accentInk);
+}
+.viac-udajov > summary::-webkit-details-marker { display: none; }
+.viac-udajov > summary::before { content: '▸'; display: inline-block; width: 10px; transition: transform 0.15s; }
+.viac-udajov[open] > summary::before { transform: rotate(90deg); }
+.viac-udajov > summary .tlmene { font-weight: 500; font-size: 13px; }
+.viac-udajov[open] > summary { margin-bottom: 8px; }
+
+/* Položky – pätička s tlačidlom a súčtom; na telefóne riadky a úprava po jednej */
+.polozky-pata { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 14px; }
+.polozky-pata > div { margin-left: auto; }
+.polozky-zoznam { display: grid; gap: 8px; }
+.polozka-riadok {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 3px 12px;
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--soft);
+  box-shadow: none;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--ink);
+  text-align: left;
+}
+.polozka-nazov { font-size: 15px; font-weight: 700; overflow-wrap: anywhere; }
+.polozka-suma { font-size: 15px; font-weight: 700; text-align: right; white-space: nowrap; }
+.polozka-detail { grid-column: 1 / -1; font-size: 13px; color: var(--ink3); }
+.polozka-editor {
+  display: grid;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 1px solid var(--accentLine);
+  border-radius: 12px;
+  background: var(--panel);
+  box-shadow: 0 0 0 3px var(--accentBg);
+}
+.polozka-editor-riadok { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; }
+.polozka-editor-akcie { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.polozka-editor-spolu { margin-left: auto; font-size: 14px; color: var(--ink2); }
+
+/* Odberateľ a dodávateľ na faktúre – „Viac údajov" otvorí okno s ich údajmi */
+.popis-pola { font-size: 12px; font-weight: 700; color: var(--ink3); margin-bottom: 5px; }
+.meno-strany { font-size: 15px; font-weight: 700; }
+button.odkaz-tlacidlo {
+  margin-top: 6px;
+  padding: 2px 0;
+  min-height: 0;
+  border: 0;
+  background: none;
+  box-shadow: none;
+  color: var(--accentInk);
+  font-size: 13.5px;
+  font-weight: 700;
+}
+button.odkaz-tlacidlo:hover { background: none; text-decoration: underline; color: var(--accentInk); }
+.dialog.okno-udajov { width: 620px; }
+.mriezka.mriezka-udajov { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.podnadpis-okna { margin: 8px 0 -4px; font-size: 14px; font-weight: 800; color: var(--ink2); }
+.pole-s-tlacidlom { display: flex; gap: 8px; }
+.pole-s-tlacidlom input { flex: 1 1 auto; min-width: 0; }
+.pole-s-tlacidlom button { white-space: nowrap; }
+.polozka-riadok { white-space: normal; cursor: pointer; }
+.polozka-riadok:hover { border-color: var(--accentLine); }
+.polozka-riadok:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.foto-dokladu { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; padding: 16px; font-size: 16px; margin-bottom: 14px; }
 
 /* Podnadpis vnútri karty (napr. sadzby stravného pod zákazkami v zahraničí). */
 .panel h3.podnadpis { font-size: 15.5px; margin: 20px 0 6px; }
@@ -1990,9 +2204,125 @@ details.skladaci > summary:focus-visible { outline: 2px solid var(--accent); out
     padding: 0 !important;
   }
 
-  /* Záložky sa zalomia do riadkov – posúvaním do strany by sa posledná ľahko prehliadla. */
-  .taby { display: flex; flex-wrap: wrap; overflow: visible; }
+  /* Záložky v rovnakej mriežke (po dve v riadku) – posúvaním do strany by sa posledná ľahko
+     prehliadla a pri voľnom zalamovaní boli rozhádzané. */
+  .taby { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); width: 100%; overflow: visible; }
+  .taby button { display: flex; align-items: center; justify-content: space-between; min-height: 42px; padding: 6px 12px; text-align: left; }
   .mini-prepinac { min-height: 32px; }
+
+  /* Vysúvacie menu: celá výška obrazovky a zoznam stránok bez vlastného posúvania – na nízkom
+     okne (iPhone s lištami prehliadača) sa inak stiahol na nulu a zostal len spodok menu. */
+  .sidebar { height: 100vh; height: 100dvh; bottom: auto; }
+  .sidebar-menu { flex: none; min-height: auto; overflow: visible; }
+
+  /* Pozdrav na Prehľade – menší, nech hneď vidno čísla (rozloženie s okom je nižšie). */
+  .pill-turnus { font-size: 12px; padding: 2px 8px 2px 7px; }
+  .pozdrav-podtitul { font-size: 12.5px; margin-top: 4px; }
+  .tlacidlo-sum .text-tlacidla-sum { display: none; }
+  .segment button { padding-left: 8px; padding-right: 8px; }
+
+  /* Zoznamy (faktúry, výdavky…) – každý záznam je samostatná karta s medzerou, nie jedna
+     vysoká tabuľka. Panel okolo zoznamu sa stratí, ostane len jeho nadpis. */
+  .panel.tesny:has(table[data-karty]) { background: none; border: 0; box-shadow: none; overflow: visible; }
+  .panel.tesny table[data-karty] { padding: 0 !important; }
+  .panel.tesny table[data-karty] > tbody > tr,
+  .panel.tesny table[data-karty] > tbody > tr:last-child {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    box-shadow: var(--shadow);
+    padding: 6px 14px 8px;
+    margin-bottom: 12px;
+  }
+  .panel.tesny:has(table[data-karty]) .hlavicka-karty,
+  .panel.tesny:has(table[data-karty]) > div:first-child:not(.tabulka-obal) { padding-left: 2px; padding-right: 2px; }
+
+  /* Dlaždice na Prehľade: hlavný text s podtitulom vľavo, suma či stav vpravo. */
+  .dlazdica-tabulka, .dlazdica-tabulka > tbody { display: block; width: 100%; }
+  .dlazdica-tabulka tr {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    column-gap: 12px;
+    row-gap: 2px;
+    align-items: center;
+    padding: 10px 18px;
+    border-bottom: 1px solid var(--line);
+  }
+  .dlazdica-tabulka tr:last-child { border-bottom: 0; }
+  .dlazdica-tabulka td { display: block; width: auto !important; padding: 0 !important; border: 0 !important; white-space: normal !important; }
+  .dlazdica-tabulka td.dl-hlavne { grid-column: 1; grid-row: 1; }
+  .dlazdica-tabulka td.dl-pod { grid-column: 1; grid-row: 2; font-size: 13px; }
+  .dlazdica-tabulka td.dl-pravo { grid-column: 2; grid-row: 1 / span 2; text-align: right; }
+  .dlazdica-tabulka td.dl-cela { grid-column: 1 / -1; grid-row: 2; }
+  .dlazdica-tabulka tr:has(> .dl-cela) > td.dl-pravo { grid-row: 1; }
+  .dlazdica-tabulka td.dl-skryt { display: none; }
+
+  /* Formulár faktúry: dátumy po dvoch vedľa seba, splatnosť na celú šírku. */
+  .mriezka.mriezka-faktury { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  .mriezka-faktury .pole-splatnosti { grid-column: 1 / -1; }
+  .pridat-polozku { width: 100%; justify-content: center; min-height: 48px; }
+  .polozky-pata > div { margin-left: 0; width: 100%; text-align: right; }
+  /* Uložiť ostáva po ruke nad spodnou lištou. */
+  .lepkave-akcie {
+    position: sticky;
+    bottom: calc(72px + env(safe-area-inset-bottom));
+    z-index: 20;
+    margin: 16px -14px 0;
+    padding: 10px 14px;
+    background: var(--bg);
+    border-top: 1px solid var(--line);
+  }
+  .lepkave-akcie .primar { flex: 1 1 auto; justify-content: center; min-height: 48px; font-size: 15px; }
+  .lepkave-akcie .tlacidlo { min-height: 48px; }
+
+  /* Okná s údajmi strán: Uložiť ostáva viditeľné aj pri dlhom formulári. */
+  .okno-udajov .riadok-akcii {
+    position: sticky;
+    bottom: -16px;
+    margin: 12px -16px -16px;
+    padding: 12px 16px;
+    background: var(--panel);
+    border-top: 1px solid var(--line);
+  }
+  .okno-udajov .riadok-akcii .primar { flex: 1 1 auto; justify-content: center; }
+
+  /* Pozdrav: meno a vpravo guľaté oko na skrytie súm, pod nimi turnus a dátum. */
+  .hlavicka:has(.pozdrav) { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; column-gap: 10px; }
+  .pozdrav { flex-direction: column; align-items: flex-start; gap: 6px; }
+  .pozdrav h1 { font-size: 20px; line-height: 40px; }
+  .tlacidlo-sum { width: 40px; height: 40px; padding: 0; justify-content: center; border: 0; border-radius: 50%; background: var(--soft); box-shadow: none; }
+
+  /* Súhrnné kartičky (Financie, Termíny, DPH, rezerva…) – na telefóne jeden prehľadný
+     zoznam: ikona, popis s drobným textom pod ním a suma zarovnaná vpravo. */
+  .karty.kompaktne {
+    grid-template-columns: 1fr;
+    gap: 0;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    box-shadow: var(--shadow);
+    overflow: hidden;
+  }
+  .karty.kompaktne > .karta.karticka {
+    display: grid;
+    grid-template-columns: 34px minmax(0, 1fr) auto;
+    grid-template-areas: 'ikona popis hodnota' 'ikona pod hodnota';
+    align-items: center;
+    column-gap: 12px;
+    row-gap: 1px;
+    padding: 12px 14px;
+    border: 0;
+    border-bottom: 1px solid var(--line);
+    border-radius: 0;
+    box-shadow: none;
+  }
+  .karty.kompaktne > .karta.karticka:last-child { border-bottom: 0; }
+  .karty.kompaktne .karticka-text { display: contents; }
+  .karty.kompaktne .karta-ikona { grid-area: ikona; width: 34px; height: 34px; }
+  .karty.kompaktne .karta.karticka .popis { grid-area: popis; align-self: end; font-size: 14px; color: var(--ink2); }
+  .karty.kompaktne .karta.karticka .tlmene { grid-area: pod; align-self: start; }
+  .karty.kompaktne .karta.karticka .hodnota { grid-area: hodnota; margin: 0; font-size: 17px; text-align: right; }
+  .karty.kompaktne .karticka-text:not(:has(.tlmene)) .popis { grid-row: 1 / span 2; align-self: center; }
 }
 
 @media print {

@@ -1,6 +1,6 @@
 import { db } from '../db.js'
 import {
-  ENTITY, nacitajStav, obnovPlatby, obnovPolozky, stlpceStavu, suboryPriloh, zmazSubory,
+  ENTITY, nacitajStav, obnovHodiny, obnovPlatby, obnovPolozky, stlpceStavu, suboryPriloh, zmazSubory,
 } from './historiaZmien.js'
 
 /**
@@ -63,12 +63,12 @@ export function obnovZKosa(kosId: number): { ok: boolean; sprava: string } {
   const stlpce = stlpceStavu(stav)
   const id = polozka.zaznam_id
 
-  // Faktúru, ktorú zálohová faktúra kryla, mohol medzitým niekto zmazať.
-  // Zálohu vrátime aj tak, len bez tej väzby.
   // Číslo zmazanej faktúry mohla medzitým dostať nová faktúra.
   if (polozka.tabulka === 'invoices' && db.prepare('SELECT 1 FROM invoices WHERE cislo = ?').get(stlpce.cislo)) {
     return { ok: false, sprava: `Faktúru ${stlpce.cislo} nemožno vrátiť – medzitým vznikla iná faktúra s rovnakým číslom.` }
   }
+  // Faktúru, ktorú zálohová faktúra kryla, mohol medzitým niekto zmazať.
+  // Zálohu vrátime aj tak, len bez tej väzby.
   if (polozka.tabulka === 'invoices' && stlpce.kryje_id) {
     if (!db.prepare('SELECT 1 FROM invoices WHERE id = ?').get(stlpce.kryje_id)) stlpce.kryje_id = null
   }
@@ -82,6 +82,7 @@ export function obnovZKosa(kosId: number): { ok: boolean; sprava: string } {
 
       obnovPolozky(polozka.tabulka, id, stav)
       obnovPlatby(polozka.tabulka, id, stav)
+      obnovHodiny(polozka.tabulka, id, stav)
 
       // Zálohové faktúry, ktoré túto faktúru kryli, pri jej zmazaní väzbu stratili.
       if (entita.platby && Array.isArray(stav._kryte_zalohami)) {

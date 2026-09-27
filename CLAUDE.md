@@ -40,7 +40,10 @@ na používanie v [README.md](README.md).
 5. **AI asistent nesmie mazať.** Nemá mazací nástroj a `server/lib/internyKlient.ts` odmieta DELETE.
 6. **Commit a push len na výslovnú žiadosť** používateľa.
 7. **Appka je bez PIN-u** – používateľ ho nechce. Chráni ju len to, že server počúva na
-   localhost a odmieta cudzí `Host` aj `Origin`. Nikdy ju nesprístupni do siete bez inej ochrany.
+   localhost a odmieta cudzí `Host` aj `Origin`. Jedinou povolenou výnimkou je prístup z telefónu
+   cez Tailscale (`tailscale serve`, súkromná sieť jeho zariadení, `server/lib/pristup.ts`) – nikdy
+   `tailscale funnel` ani počúvanie na inej adrese než localhost. Skutočný `tailscale` testy nevolajú
+   (`TAILSCALE=vypnute`, v teste `nahradSpustac`).
 
 ## Doménové pravidlá – nerozbiť
 
@@ -69,7 +72,15 @@ na používanie v [README.md](README.md).
 - Zákonné termíny (odvody do 8., daňové priznanie 31. 3., súhrnný výkaz do 25. pri § 7a) sú
   pripomienky s posunom na pracovný deň v `server/routes/terminy.ts` – pri zmene zákona uprav tam.
 - Uložená príloha sa už nikdy nemení na mieste – automatická záloha na ňu robí pevný odkaz, takže
-  prepísanie súboru by zmenilo aj všetky zálohy. Upravená príloha = nový súbor.
+  prepísanie súboru by zmenilo aj všetky zálohy. Upravená príloha = nový súbor. Platí aj pre logo.
+- Výdavok v cudzej mene: `suma` je vždy v eurách (z nej sa počíta všetko), vedľa `mena`,
+  `suma_mena`, `kurz` (ECB z dňa pred dokladom, `server/lib/kurzy.ts`). Úprava bez meny menu nezmaže.
+- Faktúra platiteľa DPH: `s_dph` sa určí pri vzniku a zmenou nastavení sa neprepočíta;
+  `suma = zaklad + dph` (s tým rátajú platby). Výpočet je v `server/lib/dph.ts` – ten istý
+  používa klient, PDF aj server. Príjem na daň z príjmov je u platiteľa bez DPH (`PLATBA_BEZ_DPH_SQL`),
+  výdavok bez odpočítateľnej DPH (`suma - dph`).
+- Výpis z banky: odchádzajúca platba je nový výdavok (`akcia = 'vydavok'`, vrátenie importu ho zmaže)
+  alebo spárovaná s existujúcim (`'sparovane'`, vrátenie ho nemaže).
 
 ## Štýl
 

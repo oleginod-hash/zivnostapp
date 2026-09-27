@@ -24,6 +24,8 @@ import { registryRouter } from './routes/registry.js'
 import { templatesRouter } from './routes/templates.js'
 import { bankaRouter } from './routes/banka.js'
 import { terminyRouter } from './routes/terminy.js'
+import { pristupRouter } from './routes/pristup.js'
+import { dalsieAdresy, zistiStav } from './lib/pristup.js'
 import { spustiAutoZalohy, stavZaloh } from './lib/autoZaloha.js'
 import { upracKos } from './lib/kos.js'
 
@@ -31,26 +33,31 @@ const PORT = Number(process.env.PORT) || 3000
 const app = express()
 
 /**
- * Appka nemá prihlásenie, preto smie byť dostupná len z tohto počítača.
- * Server počúva iba na lokálnej adrese (nižšie) a navyše odmietne požiadavku,
- * ktorá sa tvári, že ide na inú adresu – tak by sa k dátam mohla dostať cudzia
- * webstránka otvorená v prehliadači (DNS rebinding). Zápisy z cudzej stránky
- * zastaví kontrola hlavičky Origin.
+ * Appka nemá prihlásenie, preto smie byť dostupná len z tohto počítača – a z telefónu
+ * cez súkromnú sieť Tailscale (lib/pristup.ts). Server počúva iba na lokálnej adrese
+ * (nižšie) a navyše odmietne požiadavku, ktorá sa tvári, že ide na inú adresu – tak by
+ * sa k dátam mohla dostať cudzia webstránka otvorená v prehliadači (DNS rebinding).
+ * Zápisy z cudzej stránky zastaví kontrola hlavičky Origin.
  */
 const MIESTNE_ADRESY = new Set(['localhost', '127.0.0.1', '[::1]'])
-app.use((req, res, next) => {
+const povolena = (adresa: string) => MIESTNE_ADRESY.has(adresa) || dalsieAdresy().includes(adresa)
+app.use(async (req, res, next) => {
   const host = String(req.headers.host ?? '').replace(/:\d+$/, '').toLowerCase()
-  if (!MIESTNE_ADRESY.has(host)) return res.status(403).send('Živnosťapp je dostupná len z tohto počítača.')
+  if (!povolena(host)) {
+    // Prvá požiadavka z telefónu po zapnutí Tailscale – appka o adrese ešte nemusí vedieť.
+    if (host.endsWith('.ts.net')) await zistiStav(PORT)
+    if (!povolena(host)) return res.status(403).send('Živnosťapp je dostupná len z tohto počítača.')
+  }
 
   const origin = req.headers.origin
   if (origin && req.method !== 'GET' && req.method !== 'HEAD') {
-    let zPocitaca = false
+    let zAppky = false
     try {
-      zPocitaca = MIESTNE_ADRESY.has(new URL(origin).hostname.toLowerCase())
+      zAppky = povolena(new URL(origin).hostname.toLowerCase())
     } catch {
       // neplatná hlavička – berieme ako cudziu
     }
-    if (!zPocitaca) return res.status(403).json({ chyba: 'Požiadavka z inej stránky bola odmietnutá.' })
+    if (!zAppky) return res.status(403).json({ chyba: 'Požiadavka z inej stránky bola odmietnutá.' })
   }
   next()
 })
@@ -76,6 +83,7 @@ app.use('/api/register', registryRouter)
 app.use('/api/sablony', templatesRouter)
 app.use('/api/banka', bankaRouter)
 app.use('/api/terminy', terminyRouter)
+app.use('/api/pristup', pristupRouter)
 
 // Keď appka beží dlho a medzitým sa zostaví nová verzia, stránky sa načítajú
 // už nové, no server v pamäti ostane starý – a nové polia potichu zahodí.
@@ -130,8 +138,13 @@ app.use((err: any, _req: express.Request, res: express.Response, _next: express.
 // Denná záloha (pri štarte a potom každú hodinu) a upratanie koša – ticho na pozadí.
 spustiAutoZalohy()
 upracKos()
+// Stav Tailscale priebežne – keby niekto zapol Funnel (appka na internete), prístup cez
+// Tailscale sa do minúty zablokuje.
+zistiStav(PORT)
+setInterval(() => zistiStav(PORT), 60_000).unref()
 
 // Len lokálna adresa – z Wi-Fi ani z iného počítača v sieti sa k appke dostať nedá.
+// Telefón sa k nej dostane len cez Tailscale, ktorý požiadavky podáva na túto adresu.
 app.listen(PORT, '127.0.0.1', () => {
   console.log(`\n  Živnosťapp API beží na http://localhost:${PORT}`)
   console.log(`  Dáta: ${DATA_DIR}\n`)

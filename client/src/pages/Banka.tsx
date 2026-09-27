@@ -1,30 +1,45 @@
 import { useEffect, useRef, useState } from 'react'
-import { api, pocet, skDatum, skSuma, vetaORezerve } from '../api'
+import { api, pocet, skDatum, skSuma, vetaORezerve, KATEGORIE_VYDAVKOV } from '../api'
 import { Ikona } from '../components/Ikony'
 import { oznam } from '../components/Oznamenia'
 
 /**
  * Import výpisu z banky. Nahrá sa CSV z internet bankingu, appka navrhne,
- * ku ktorej faktúre ktorá prichádzajúca platba patrí, a zapíše len to,
- * čo používateľ potvrdí. Celý import sa dá hneď vrátiť.
+ * ku ktorej faktúre ktorá prichádzajúca platba patrí a ktoré odchádzajúce
+ * platby sú výdavky, a zapíše len to, čo používateľ potvrdí. Celý import
+ * sa dá hneď vrátiť.
  */
 
 type Dovod = 'vs' | 'suma' | 'uz_zapisane' | 'uz_uhradena' | 'ina_mena' | 'nenajdene'
-type Pohyb = {
+type DovodVydaja = 'uz_zapisane' | 'ina_mena' | 'nenajdene' | 'vydavok_vs' | 'vydavok_suma' | 'kategoria'
+type ZakladPohybu = {
   riadok: number; datum: string; suma: number; mena: string; vs: string; protistrana: string; sprava: string
   odtlacok: string; uz_zapisane: boolean
+}
+type Pohyb = ZakladPohybu & {
   navrh: { akcia: 'platba' | 'prijem' | 'preskocit'; dovod: Dovod; faktura_id: number | null; faktura_cislo: string | null }
+}
+/** Odchádzajúca platba – nový výdavok, alebo platba k výdavku, ktorý už je zapísaný. */
+type Vydaj = ZakladPohybu & {
+  navrh: {
+    akcia: 'vydavok' | 'sparovane' | 'preskocit'; dovod: DovodVydaja; kategoria: string
+    vydavok_id: number | null; vydavok_popis: string | null
+  }
 }
 type OtvorenaFaktura = { id: number; cislo: string; firma_nazov: string | null; otvoreny_zostatok: number }
 type Nahlad = {
   hlavicka: string[]
   stlpce_nenajdene: boolean
   pohyby: Pohyb[]
+  vydaje?: Vydaj[]
   odchadzajuce: number
   necitatelne: number
   otvorene_faktury?: OtvorenaFaktura[]
 }
-type Import = { id: number; nazov_suboru: string; created_at: string; platby: number; prijmy: number; suma: number }
+type Import = {
+  id: number; nazov_suboru: string; created_at: string; platby: number; prijmy: number; vydavky: number
+  suma: number; suma_vydavkov: number
+}
 
 const DOVODY: Record<Dovod, string> = {
   vs: 'návrh podľa variabilného symbolu',
@@ -33,6 +48,15 @@ const DOVODY: Record<Dovod, string> = {
   uz_uhradena: 'faktúra s týmto VS je už uhradená',
   ina_mena: 'platba nie je v eurách',
   nenajdene: 'faktúra sa nenašla',
+}
+
+const DOVODY_VYDAJOV: Record<DovodVydaja, string> = {
+  uz_zapisane: 'už je zapísaná',
+  ina_mena: 'platba nie je v eurách',
+  nenajdene: 'vyber, či je to výdavok',
+  vydavok_vs: 'výdavok s týmto VS už je zapísaný',
+  vydavok_suma: 'výdavok s touto sumou už je zapísaný – skontroluj',
+  kategoria: 'kategória podľa príjemcu',
 }
 
 /** Ručné priradenie stĺpcov, keď ich appka vo výpise nenájde sama. */
@@ -49,6 +73,9 @@ export function Banka() {
   const [subor, setSubor] = useState<File | null>(null)
   const [nahlad, setNahlad] = useState<Nahlad | null>(null)
   const [volby, setVolby] = useState<Record<string, string>>({})
+  /** Pri odchádzajúcej platbe: 'preskocit', 'vydavok' alebo `v:<id výdavku>`. */
+  const [volbyVydajov, setVolbyVydajov] = useState<Record<string, string>>({})
+  const [kategorie, setKategorie] = useState<Record<string, string>>({})
   const [mapovanie, setMapovanie] = useState<Record<string, string>>({})
   const [pracujem, setPracujem] = useState(false)
   const [chyba, setChyba] = useState('')
@@ -77,6 +104,16 @@ export function Banka() {
           n.pohyby.map((p) => [p.odtlacok, p.navrh.akcia === 'platba' && p.navrh.faktura_id ? `f:${p.navrh.faktura_id}` : 'preskocit']),
         ),
       )
+      const vydaje = n.vydaje ?? []
+      setVolbyVydajov(
+        Object.fromEntries(
+          vydaje.map((p) => [
+            p.odtlacok,
+            p.navrh.akcia === 'sparovane' && p.navrh.vydavok_id ? `v:${p.navrh.vydavok_id}` : p.navrh.akcia,
+          ]),
+        ),
+      )
+      setKategorie(Object.fromEntries(vydaje.map((p) => [p.odtlacok, p.navrh.kategoria])))
     } catch (e: any) {
       setChyba(e.message)
     } finally {
@@ -87,26 +124,37 @@ export function Banka() {
 
   async function zapis() {
     if (!nahlad || !subor) return
-    const vybrane = nahlad.pohyby
-      .filter((p) => !p.uz_zapisane && volby[p.odtlacok] && volby[p.odtlacok] !== 'preskocit')
-      .map((p) => {
+    const vybrane = [
+      ...naZapis.map((p) => {
         const volba = volby[p.odtlacok]
         return {
           ...p,
           akcia: volba === 'prijem' ? 'prijem' : 'platba',
           faktura_id: volba.startsWith('f:') ? Number(volba.slice(2)) : null,
         }
-      })
+      }),
+      ...vydajeNaZapis.map((p) => {
+        const volba = volbyVydajov[p.odtlacok]
+        return {
+          ...p,
+          akcia: volba === 'vydavok' ? 'vydavok' : 'sparovane',
+          vydavok_id: volba.startsWith('v:') ? Number(volba.slice(2)) : null,
+          kategoria: kategorie[p.odtlacok] ?? '',
+        }
+      }),
+    ]
     setPracujem(true)
     setChyba('')
     try {
-      const r = await api.post<{ import_id: number | null; platby: number; prijmy: number; suma_platieb: number; odlozit: number }>(
-        '/banka/zapisat',
-        { nazov_suboru: subor.name, pohyby: vybrane },
-      )
+      const r = await api.post<{
+        import_id: number | null; platby: number; prijmy: number; vydavky: number; sparovane: number
+        suma_platieb: number; odlozit: number
+      }>('/banka/zapisat', { nazov_suboru: subor.name, pohyby: vybrane })
       const casti = [
         r.platby ? `${pocet(r.platby, ['platba', 'platby', 'platieb'])} k faktúram (${skSuma(r.suma_platieb)})` : '',
         r.prijmy ? pocet(r.prijmy, ['súkromný príjem', 'súkromné príjmy', 'súkromných príjmov']) : '',
+        r.vydavky ? pocet(r.vydavky, ['nový výdavok', 'nové výdavky', 'nových výdavkov']) : '',
+        r.sparovane ? `${pocet(r.sparovane, ['platba', 'platby', 'platieb'])} k zapísaným výdavkom` : '',
       ].filter(Boolean)
       const importId = r.import_id
       oznam(
@@ -134,6 +182,9 @@ export function Banka() {
   }
 
   const naZapis = nahlad?.pohyby.filter((p) => !p.uz_zapisane && volby[p.odtlacok] && volby[p.odtlacok] !== 'preskocit') ?? []
+  const vydajeNaZapis =
+    nahlad?.vydaje?.filter((p) => !p.uz_zapisane && volbyVydajov[p.odtlacok] && volbyVydajov[p.odtlacok] !== 'preskocit') ?? []
+  const spoluNaZapis = naZapis.length + vydajeNaZapis.length
   const uzZapisane = nahlad?.pohyby.filter((p) => p.uz_zapisane).length ?? 0
 
   /** Faktúry na výber: otvorené a k tomu tá, ktorú appka navrhla (aj keď je už uhradená). */
@@ -173,8 +224,8 @@ export function Banka() {
             <li>V internet bankingu si stiahni výpis z podnikateľského účtu vo formáte <strong>CSV</strong>.</li>
             <li>Nahraj ho sem tlačidlom <strong>Nahrať výpis</strong>.</li>
             <li>
-              Appka nájde platby k tvojim faktúram podľa variabilného symbolu alebo sumy. Návrhy skontroluj a klikni{' '}
-              <strong>Zapísať</strong>.
+              Appka nájde platby k tvojim faktúram podľa variabilného symbolu alebo sumy a odchádzajúce platby navrhne ako
+              výdavky. Návrhy skontroluj a klikni <strong>Zapísať</strong>.
             </li>
           </ol>
           <p className="tlmene" style={{ margin: 0, fontSize: 13.5 }}>
@@ -229,9 +280,10 @@ export function Banka() {
             Vo výpise {subor ? <strong>{subor.name}</strong> : null}{' '}
             {nahlad.pohyby.length >= 2 && nahlad.pohyby.length <= 4 ? 'sú' : 'je'}{' '}
             {pocet(nahlad.pohyby.length, ['prichádzajúca platba', 'prichádzajúce platby', 'prichádzajúcich platieb'])}
-            {uzZapisane ? `, z toho ${uzZapisane} už zapísaných` : ''}.
+            {uzZapisane ? `, z toho ${uzZapisane} už zapísaných` : ''}
             {nahlad.odchadzajuce > 0 &&
-              ` Odchádzajúce platby (${nahlad.odchadzajuce}) sa nezapisujú – výdavky pridávaj s dokladom.`}
+              ` a ${pocet(nahlad.odchadzajuce, ['odchádzajúca platba', 'odchádzajúce platby', 'odchádzajúcich platieb'])}`}
+            .
           </div>
 
           {nahlad.pohyby.length === 0 ? (
@@ -298,9 +350,84 @@ export function Banka() {
             </div>
           )}
 
+          {!!nahlad.vydaje?.length && (
+            <div className="panel tesny">
+              <h2 className="nadpis-tabulky">Odchádzajúce platby</h2>
+              <div className="tabulka-obal">
+                <table className="tabulka-vydajov">
+                  <thead>
+                    <tr>
+                      <th>Dátum</th>
+                      <th>Komu</th>
+                      <th>Správa</th>
+                      <th className="cislo">Suma</th>
+                      <th style={{ minWidth: 260 }}>Zapísať ako</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {nahlad.vydaje.map((p) => {
+                      const volba = volbyVydajov[p.odtlacok] ?? 'preskocit'
+                      return (
+                        <tr key={p.odtlacok} className={p.uz_zapisane ? 'tlmeny-riadok' : undefined}>
+                          <td style={{ whiteSpace: 'nowrap' }}>{skDatum(p.datum)}</td>
+                          <td className="hlavna-bunka">
+                            <strong>{p.protistrana || '—'}</strong>
+                          </td>
+                          <td>
+                            {p.sprava || <span className="tlmene">—</span>}
+                            {p.vs && <span className="pod-textom">VS {p.vs}</span>}
+                          </td>
+                          <td className="cislo" style={{ whiteSpace: 'nowrap' }}>
+                            <strong>{skSuma(Math.abs(p.suma))}</strong>
+                            {p.mena && p.mena !== 'EUR' && <span className="pod-textom">{p.mena}</span>}
+                          </td>
+                          <td>
+                            {p.uz_zapisane ? (
+                              <span className="stitok zaplatena">už zapísaná</span>
+                            ) : (
+                              <>
+                                <select
+                                  aria-label={`Zapísať platbu ${skSuma(Math.abs(p.suma))} ako`}
+                                  value={volba}
+                                  onChange={(e) => setVolbyVydajov({ ...volbyVydajov, [p.odtlacok]: e.target.value })}
+                                >
+                                  <option value="preskocit">Nezapisovať (súkromná platba)</option>
+                                  <option value="vydavok">Nový výdavok</option>
+                                  {p.navrh.vydavok_id && (
+                                    <option value={`v:${p.navrh.vydavok_id}`}>Už zapísaný: {p.navrh.vydavok_popis}</option>
+                                  )}
+                                </select>
+                                {volba === 'vydavok' && (
+                                  <input
+                                    className="kategoria-vydaja"
+                                    list="kategorie-z-vypisu"
+                                    aria-label="Kategória výdavku"
+                                    placeholder="kategória"
+                                    value={kategorie[p.odtlacok] ?? ''}
+                                    onChange={(e) => setKategorie({ ...kategorie, [p.odtlacok]: e.target.value })}
+                                  />
+                                )}
+                                <span className="pod-textom">{DOVODY_VYDAJOV[p.navrh.dovod]}</span>
+                              </>
+                            )}
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+                <datalist id="kategorie-z-vypisu">
+                  {KATEGORIE_VYDAVKOV.map((k) => (
+                    <option key={k} value={k} />
+                  ))}
+                </datalist>
+              </div>
+            </div>
+          )}
+
           <div className="riadok-akcii">
-            <button className="primar" onClick={zapis} disabled={pracujem || naZapis.length === 0}>
-              {naZapis.length ? `Zapísať vybrané (${naZapis.length})` : 'Nie je čo zapísať'}
+            <button className="primar" onClick={zapis} disabled={pracujem || spoluNaZapis === 0}>
+              {spoluNaZapis ? `Zapísať vybrané (${spoluNaZapis})` : 'Nie je čo zapísať'}
             </button>
           </div>
         </>
@@ -318,10 +445,12 @@ export function Banka() {
                   {[
                     i.platby ? pocet(i.platby, ['platba', 'platby', 'platieb']) : '',
                     i.prijmy ? pocet(i.prijmy, ['súkromný príjem', 'súkromné príjmy', 'súkromných príjmov']) : '',
+                    i.vydavky ? pocet(i.vydavky, ['výdavok', 'výdavky', 'výdavkov']) : '',
                   ]
                     .filter(Boolean)
-                    .join(', ')}{' '}
-                  · {skSuma(i.suma)}
+                    .join(', ')}
+                  {i.suma > 0 && ` · prijaté ${skSuma(i.suma)}`}
+                  {i.suma_vydavkov > 0 && ` · zaplatené ${skSuma(i.suma_vydavkov)}`}
                 </span>
               </li>
             ))}

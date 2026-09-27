@@ -4,6 +4,7 @@ import { doKosa } from '../lib/kos.js'
 import { OBJEDNAVKA_SUMY_SQL } from './orders.js'
 import { STAV_SQL as STAV_FAKTURY_SQL, UHRADENE_SQL, VYFAKTUROVANE_SQL } from '../lib/platby.js'
 import { hladajVStlpcoch, vzorHladania } from '../lib/format.js'
+import { nacitajVykaz, ulozVykaz, vykazPdf } from '../lib/vykazHodin.js'
 
 export const toursRouter = Router()
 
@@ -140,6 +141,30 @@ toursRouter.get('/:id', (req, res) => {
     .all(req.params.id)
 
   res.json({ ...(t as object), objednavky, faktury })
+})
+
+// ── Výkaz hodín ───────────────────────────────────────────────
+toursRouter.get('/:id/hodiny', (req, res) => {
+  const v = nacitajVykaz(Number(req.params.id))
+  if (!v) return res.status(404).json({ chyba: 'Turnus neexistuje.' })
+  res.json(v)
+})
+
+toursRouter.put('/:id/hodiny', (req, res) => {
+  const id = Number(req.params.id)
+  if (!db.prepare('SELECT 1 FROM tours WHERE id = ?').get(id)) return res.status(404).json({ chyba: 'Turnus neexistuje.' })
+  const chyba = ulozVykaz(id, req.body?.dni, req.body?.sadzba)
+  if (chyba) return res.status(400).json({ chyba })
+  res.json(nacitajVykaz(id))
+})
+
+toursRouter.get('/:id/hodiny/pdf', async (req, res) => {
+  const v = nacitajVykaz(Number(req.params.id))
+  if (!v) return res.status(404).json({ chyba: 'Turnus neexistuje.' })
+  const { pdf, nazov } = await vykazPdf(v)
+  res.setHeader('Content-Type', 'application/pdf')
+  res.setHeader('Content-Disposition', `${req.query.stiahnut === '1' ? 'attachment' : 'inline'}; filename="${nazov}"`)
+  res.send(pdf)
 })
 
 // ── Zápis ─────────────────────────────────────────────────────

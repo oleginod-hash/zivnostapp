@@ -1,6 +1,6 @@
 import { Router } from 'express'
 import { db } from '../db.js'
-import { OTVORENY_ZOSTATOK_SQL, STAV_SQL } from '../lib/platby.js'
+import { OTVORENY_ZOSTATOK_SQL, PLATBA_BEZ_DPH_SQL, STAV_SQL } from '../lib/platby.js'
 import { podkladXlsx } from '../lib/podkladXlsx.js'
 import { dnesISO } from '../lib/format.js'
 
@@ -19,9 +19,9 @@ export function zozbierajPodklad(rok: string) {
 
   const prijmy = db
     .prepare(
-      `SELECT COALESCE(SUM(suma), 0) AS suma, COUNT(*) AS pocet_platieb,
-              COUNT(DISTINCT invoice_id) AS pocet
-       FROM invoice_payments WHERE datum BETWEEN @od AND @do`,
+      `SELECT COALESCE(SUM(${PLATBA_BEZ_DPH_SQL('p')}), 0) AS suma, COUNT(*) AS pocet_platieb,
+              COUNT(DISTINCT p.invoice_id) AS pocet
+       FROM invoice_payments p WHERE p.datum BETWEEN @od AND @do`,
     )
     .get(p) as any
 
@@ -39,8 +39,8 @@ export function zozbierajPodklad(rok: string) {
   // držíme ich oddelene, aby si ich účtovníčka nezmýlila s tržbou.
   const vydavky = db
     .prepare(
-      `SELECT COALESCE(SUM(CASE WHEN druh = 'vydavok' AND odpocitat = 1 THEN suma END), 0) AS uznatelne,
-              COALESCE(SUM(CASE WHEN druh = 'vydavok' AND odpocitat = 0 THEN suma END), 0) AS neuznatelne,
+      `SELECT COALESCE(SUM(CASE WHEN druh = 'vydavok' AND odpocitat = 1 THEN suma - dph END), 0) AS uznatelne,
+              COALESCE(SUM(CASE WHEN druh = 'vydavok' AND odpocitat = 0 THEN suma - dph END), 0) AS neuznatelne,
               COALESCE(SUM(CASE WHEN druh = 'vydavok' THEN 1 END), 0) AS pocet,
               COALESCE(SUM(CASE WHEN druh = 'prijem' THEN suma END), 0) AS sukromne_prijmy,
               COALESCE(SUM(CASE WHEN druh = 'prijem' THEN 1 END), 0) AS sukromne_pocet
@@ -51,8 +51,8 @@ export function zozbierajPodklad(rok: string) {
   const vydavkyPodlaKategorii = db
     .prepare(
       `SELECT CASE WHEN kategoria = '' THEN 'Nezaradené' ELSE kategoria END AS kategoria,
-              COALESCE(SUM(suma), 0) AS suma,
-              COALESCE(SUM(CASE WHEN odpocitat = 1 THEN suma END), 0) AS uznatelne,
+              COALESCE(SUM(suma - dph), 0) AS suma,
+              COALESCE(SUM(CASE WHEN odpocitat = 1 THEN suma - dph END), 0) AS uznatelne,
               COUNT(*) AS pocet
        FROM expenses WHERE druh = 'vydavok' AND datum BETWEEN @od AND @do
        GROUP BY kategoria ORDER BY suma DESC`,
@@ -168,8 +168,8 @@ export function zozbierajPodklad(rok: string) {
     // Súčet prijatých platieb podľa mesiaca – kontrolný rozpis pre účtovníčku.
     platby_po_mesiacoch: db
       .prepare(
-        `SELECT strftime('%m', datum) AS mesiac, COALESCE(SUM(suma), 0) AS suma, COUNT(*) AS pocet
-         FROM invoice_payments WHERE datum BETWEEN @od AND @do GROUP BY mesiac ORDER BY mesiac`,
+        `SELECT strftime('%m', p.datum) AS mesiac, COALESCE(SUM(${PLATBA_BEZ_DPH_SQL('p')}), 0) AS suma, COUNT(*) AS pocet
+         FROM invoice_payments p WHERE p.datum BETWEEN @od AND @do GROUP BY mesiac ORDER BY mesiac`,
       )
       .all(p) as { mesiac: string; suma: number; pocet: number }[],
     turnusy,

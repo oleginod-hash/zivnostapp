@@ -33,7 +33,7 @@ export const api = {
 }
 
 // ── Typy ──────────────────────────────────────────────────
-export type DphRezim = 'neplatitel' | '7a'
+export type DphRezim = 'neplatitel' | '7a' | 'platitel'
 export type TypVydavkov = 'pausalne' | 'skutocne'
 
 export type Nastavenia = {
@@ -54,9 +54,13 @@ export type Nastavenia = {
   /** Údaje o živnosti. */
   predmety: string; datum_vzniku: string; urad_zr: string; cislo_zr: string
   dph_rezim: DphRezim; ic_dph: string; vydavky_typ: TypVydavkov
+  /** Platiteľ DPH: zdaňovacie obdobie a predvolená sadzba nových položiek. */
+  dph_obdobie: 'mesacne' | 'stvrtrocne'; dph_sadzba: number
   zdravotna_poistovna: string; web: string
   /** Vzhľad a údaje na faktúre. */
   sposob_uhrady: string; farba_faktury: string
+  /** Súbor loga (prázdne = bez loga) a vzhľad PDF faktúry. */
+  logo: string; pdf_vzhlad: 'klasicky' | 'usporny' | 'vyrazny'
 }
 
 export type Firma = {
@@ -71,7 +75,8 @@ export type TypDokladu = 'faktura' | 'zaloha'
 
 export type PlatbaFaktury = { id: number; invoice_id: number; datum: string; suma: number; poznamka: string }
 
-export type Polozka = { popis: string; mnozstvo: number; jednotka: string; cena: number }
+/** Pri faktúre platiteľa DPH má položka sadzbu (cena je bez DPH). */
+export type Polozka = { popis: string; mnozstvo: number; jednotka: string; cena: number; sadzba_dph?: number | null }
 
 export type Faktura = {
   id: number; cislo: string; company_id: number | null; firma_nazov: string | null
@@ -80,6 +85,10 @@ export type Faktura = {
   datum_vystav: string; datum_dodania: string; datum_splat: string
   stav: Stav; stav_zobraz: StavZobraz; datum_uhrady: string | null
   variabilny: string; poznamka: string; suma: number
+  /** suma = zaklad + dph. s_dph = vystavená ako platiteľ, prenos_dph = DPH odvedie odberateľ. */
+  zaklad: number; dph: number; s_dph: number; prenos_dph: number
+  /** Číslo objednávky odberateľa a úvodný text nad položkami (záverečný je poznámka). */
+  cislo_objednavky: string; uvodny_text: string
   /** Typ dokladu a prípadná väzba na starú faktúru, ktorú táto záloha kryje. */
   typ: TypDokladu; kryje_id: number | null; kryje_cislo?: string | null; kryje_suma?: number | null
   /** Dopočítané z platieb. */
@@ -127,7 +136,40 @@ export type Vydavok = {
   company_id: number | null; firma_nazov: string | null
   tour_id: number | null; turnus_nazov: string | null
   platba: Platba; odpocitat: number; poznamka: string
+  /** Suma je vždy v eurách; pri cudzej mene je vedľa pôvodná suma a kurz ECB. */
+  mena: string; suma_mena: number | null; kurz: number | null
+  /** DPH z dokladu – platiteľ si ju odpočíta. */
+  dph: number
+  /** Z e-faktúry dodávateľa. */
+  doklad_cislo: string; dodavatel_ico: string; variabilny: string
   pocet_priloh?: number; prilohy?: Priloha[]
+}
+
+/** Meny v ponuke pri výdavku – najčastejšie pri práci v zahraničí. */
+export const MENY = ['EUR', 'CZK', 'PLN', 'HUF', 'CHF', 'GBP', 'NOK', 'SEK', 'DKK', 'RON', 'USD']
+
+/** Suma v cudzej mene, napr. 1 250,00 CZK. */
+export function sumaVMene(n: number | null | undefined, mena: string): string {
+  if (skryteSumy) return '*** ' + mena
+  return new Intl.NumberFormat('sk-SK', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n ?? 0) + ' ' + mena
+}
+
+type StranaEfaktury = { nazov: string; ico: string; dic: string; ic_dph: string; adresa: string }
+
+/** Náhľad e-faktúry od dodávateľa – z neho sa vyplní nový výdavok. */
+export type NahladEfaktury = {
+  efaktura: {
+    dobropis: boolean; cislo: string; datum: string; splatnost: string; mena: string
+    suma: number; k_uhrade: number; dph: number; vs: string; iban: string
+    dodavatel: StranaEfaktury; odberatel: StranaEfaktury; polozky: string[]
+    pdf: boolean; ine_ico: string
+  }
+  navrh: {
+    datum: string; popis: string; kategoria: string; suma: number; mena: string; suma_mena: number | null
+    platba: Platba; poznamka: string; doklad_cislo: string; dodavatel_ico: string; variabilny: string
+    dph: number
+  }
+  zapisana: { id: number; datum: string; popis: string } | null
 }
 
 export type PrehladFinancii = {
@@ -522,4 +564,18 @@ export function ibanJePlatny(iban: string): boolean {
     for (const c of cislice) zvysok = (zvysok * 10 + Number(c)) % 97
   }
   return zvysok === 1
+}
+
+/** Prístup z telefónu cez Tailscale – server/lib/pristup.ts. */
+export type StavPristupu = {
+  tailscale: 'nenainstalovany' | 'neprihlaseny' | 'bezi'
+  meno: string | null
+  adresa: string | null
+  zapnute: boolean
+  obsadene: boolean
+  verejne: boolean
+  /** Odkaz na prihlásenie počítača do Tailscale, keď prihlásený nie je. */
+  prihlasenie: string | null
+  /** Stránka je otvorená na počítači (nie v telefóne cez Tailscale). */
+  z_pocitaca: boolean
 }

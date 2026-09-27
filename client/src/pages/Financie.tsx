@@ -105,11 +105,6 @@ export function Financie() {
         </div>
       )}
 
-      <div className="info-pruh">
-        Príjem sa počíta ku dňu, keď ti faktúru <strong>zaplatili</strong> – nie ku dňu jej vystavenia. Nezaplatené
-        faktúry sa do príjmov nezapočítavajú, nájdeš ich v poslednej karte.
-      </div>
-
       <RezervaNaDane rok={rok} />
 
       {dni && dni.krajiny.length > 0 && (

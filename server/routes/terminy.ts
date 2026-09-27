@@ -17,14 +17,14 @@ export const terminyRouter = Router()
 
 export type Termin = {
   datum: string
-  druh: 'splatnost' | 'zmluva' | 'vypoved' | 'turnus' | 'odvody' | 'dan' | 'suhrnny_vykaz'
+  druh: 'splatnost' | 'zmluva' | 'vypoved' | 'turnus' | 'odvody' | 'dan' | 'dph' | 'suhrnny_vykaz'
   nazov: string
   popis: string
   cesta: string
 }
 
 const MESIACE = ['január', 'február', 'marec', 'apríl', 'máj', 'jún', 'júl', 'august', 'september', 'október', 'november', 'december']
-const PORADIE: Termin['druh'][] = ['dan', 'odvody', 'suhrnny_vykaz', 'vypoved', 'zmluva', 'splatnost', 'turnus']
+const PORADIE: Termin['druh'][] = ['dan', 'dph', 'odvody', 'suhrnny_vykaz', 'vypoved', 'zmluva', 'splatnost', 'turnus']
 
 /** Krajiny EÚ podľa predpony IČ DPH (Grécko má EL). Slovensko nie – to je tuzemsko. */
 const EU = ['AT', 'BE', 'BG', 'CY', 'CZ', 'DE', 'DK', 'EE', 'EL', 'ES', 'FI', 'FR', 'HR', 'HU', 'IE', 'IT', 'LT', 'LU', 'LV', 'MT', 'NL', 'PL', 'PT', 'RO', 'SE', 'SI']
@@ -129,8 +129,8 @@ export function terminy(od: string, doDna: string): Termin[] {
     })
   }
 
-  const n = db.prepare('SELECT terminy_zakonne, dph_rezim FROM settings WHERE id = 1').get() as {
-    terminy_zakonne: number; dph_rezim: string
+  const n = db.prepare('SELECT terminy_zakonne, dph_rezim, dph_obdobie FROM settings WHERE id = 1').get() as {
+    terminy_zakonne: number; dph_rezim: string; dph_obdobie: string
   }
   if (n?.terminy_zakonne !== 0) {
     for (const { rok, mesiac } of mesiace(od, doDna)) {
@@ -163,9 +163,26 @@ export function terminy(od: string, doDna: string): Termin[] {
         }
       }
 
-      // Súhrnný výkaz pri registrácii podľa § 7a – len keď boli v predchádzajúcom
-      // mesiaci vystavené faktúry firmám s IČ DPH z inej krajiny EÚ.
-      if (n.dph_rezim === '7a') {
+      // Platiteľ DPH: priznanie k DPH a kontrolný výkaz do 25. dňa po skončení
+      // zdaňovacieho obdobia – mesačne, alebo po štvrťrokoch (január, apríl, júl, október).
+      const stvrtrocne = n.dph_obdobie === 'stvrtrocne'
+      if (n.dph_rezim === 'platitel' && (!stvrtrocne || [1, 4, 7, 10].includes(mesiac))) {
+        const termin = pracovny(iso(rok, mesiac, 25))
+        const [r0, m0] = mesiac === 1 ? [rok - 1, 12] : [rok, mesiac - 1]
+        if (vOkne(termin)) {
+          vysledok.push({
+            datum: termin,
+            druh: 'dph',
+            nazov: stvrtrocne ? `DPH za ${Math.ceil(m0 / 3)}. štvrťrok ${r0}` : `DPH za ${MESIACE[m0 - 1]}`,
+            popis: 'Daňové priznanie k DPH, kontrolný výkaz a zaplatenie DPH.',
+            cesta: '/dph',
+          })
+        }
+      }
+
+      // Súhrnný výkaz (pri registrácii podľa § 7a aj u platiteľa) – len keď boli
+      // v predchádzajúcom mesiaci vystavené faktúry firmám s IČ DPH z inej krajiny EÚ.
+      if (n.dph_rezim === '7a' || n.dph_rezim === 'platitel') {
         const vykaz = pracovny(iso(rok, mesiac, 25))
         const [r0, m0] = mesiac === 1 ? [rok - 1, 12] : [rok, mesiac - 1]
         if (vOkne(vykaz)) {

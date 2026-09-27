@@ -7,6 +7,7 @@ import {
 import { StitokStavu, StitokZalohy } from '../components/StitokStavu'
 import { useNeulozeneZmeny } from '../neulozene'
 import { Karticka } from '../components/Farby'
+import { VykazHodin } from '../components/VykazHodin'
 
 type Formular = {
   nazov: string; company_id: string; krajina: string; miesto: string
@@ -244,6 +245,8 @@ export function TurnusEdit() {
           )}
         </div>
       )}
+
+      {!novyTurnus && turnus && <VykazHodin turnus={turnus} />}
 
       {novyTurnus ? (
         <div className="panel">

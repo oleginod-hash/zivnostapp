@@ -5,7 +5,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { db, FILES_DIR } from '../db.js'
 
-const POVOLENE = ['.pdf', '.jpg', '.jpeg', '.png', '.webp', '.heic', '.doc', '.docx', '.odt', '.txt']
+const POVOLENE = ['.pdf', '.jpg', '.jpeg', '.png', '.webp', '.heic', '.doc', '.docx', '.odt', '.txt', '.xml']
 
 export type NastaveniePriloh = {
   /** Tabuľka so súbormi, napr. contract_files. */
@@ -16,6 +16,11 @@ export type NastaveniePriloh = {
   rodic: string
   /** Podpriečinok v DATA_DIR/files, napr. "zmluvy". */
   priecinok: string
+  /**
+   * Ďalšie súbory, ktoré sa z nahratého súboru dajú vybrať – napr. PDF vložené
+   * v e-faktúre. Priložia sa hneď vedľa neho.
+   */
+  doplnPrilohy?: (cesta: string, nazov: string) => { nazov: string; data: Buffer; mime: string }[]
 }
 
 /**
@@ -76,6 +81,11 @@ export function prilohyModul(n: NastaveniePriloh) {
       // Pôvodný názov prichádza ako latin1, inak sa diakritika rozsype.
       const nazov = Buffer.from(f.originalname, 'latin1').toString('utf8')
       stmt.run(req.params.id, nazov, f.filename, f.size, f.mimetype)
+      for (const d of n.doplnPrilohy?.(path.join(adresar, f.filename), nazov) ?? []) {
+        const ulozeny = crypto.randomUUID() + path.extname(d.nazov).toLowerCase()
+        fs.writeFileSync(path.join(adresar, ulozeny), d.data)
+        stmt.run(req.params.id, d.nazov, ulozeny, d.data.length, d.mime)
+      }
     }
     res.json({ prilohy: zoznam(req.params.id) })
   })

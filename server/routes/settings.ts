@@ -1,5 +1,11 @@
 import { Router } from 'express'
+import crypto from 'node:crypto'
+import fs from 'node:fs'
+import path from 'node:path'
+import multer from 'multer'
 import { db } from '../db.js'
+import { cestaLoga, PRIECINOK_LOGA } from '../lib/logo.js'
+import { jeSadzbaDph } from '../lib/dph.js'
 
 export const settingsRouter = Router()
 
@@ -21,7 +27,9 @@ const PREPINACE = ['splatnost_pracovne', 'praca_v_zahranici', 'sprievodca_hotovy
 
 /** Polia s pevným zoznamom hodnôt – čokoľvek iné sa vráti na predvolenú. */
 const VOLBY: Record<string, { povolene: string[]; predvolena: string }> = {
-  dph_rezim: { povolene: ['neplatitel', '7a'], predvolena: 'neplatitel' },
+  dph_rezim: { povolene: ['neplatitel', '7a', 'platitel'], predvolena: 'neplatitel' },
+  dph_obdobie: { povolene: ['mesacne', 'stvrtrocne'], predvolena: 'mesacne' },
+  pdf_vzhlad: { povolene: ['klasicky', 'usporny', 'vyrazny'], predvolena: 'klasicky' },
   vydavky_typ: { povolene: ['pausalne', 'skutocne'], predvolena: 'pausalne' },
 }
 
@@ -30,6 +38,44 @@ function aktualne() {
 }
 
 settingsRouter.get('/', (_req, res) => {
+  res.json(aktualne())
+})
+
+// ── Logo na faktúre ───────────────────────────────────────────
+// PDF vie vložiť PNG a JPEG. Každé nahratie je nový súbor – zálohy na starý
+// súbor odkazujú pevným odkazom, prepísať ho na mieste by zmenilo aj ich.
+const nahratieLoga = multer({ storage: multer.memoryStorage(), limits: { fileSize: 2 * 1024 * 1024, files: 1 } })
+
+settingsRouter.post('/logo', nahratieLoga.single('logo'), (req, res) => {
+  const b = req.file?.buffer
+  if (!b) return res.status(400).json({ chyba: 'Vyber obrázok s logom.' })
+  const png = b.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))
+  const jpg = b[0] === 0xff && b[1] === 0xd8
+  if (!png && !jpg) return res.status(400).json({ chyba: 'Logo musí byť obrázok PNG alebo JPG.' })
+  fs.mkdirSync(PRIECINOK_LOGA, { recursive: true })
+  const nazov = `${crypto.randomUUID()}.${png ? 'png' : 'jpg'}`
+  fs.writeFileSync(path.join(PRIECINOK_LOGA, nazov), b)
+  db.prepare('UPDATE settings SET logo = ? WHERE id = 1').run(nazov)
+  res.json(aktualne())
+})
+
+settingsRouter.get('/logo', (_req, res) => {
+  const cesta = cestaLoga(aktualne().logo)
+  if (!cesta) return res.status(404).json({ chyba: 'Logo nie je nahraté.' })
+  res.sendFile(cesta)
+})
+
+/** Faktúra bude bez loga. Súbor ostáva – môže naň odkazovať záloha. */
+settingsRouter.post('/logo/odobrat', (_req, res) => {
+  db.prepare("UPDATE settings SET logo = '' WHERE id = 1").run()
+  res.json(aktualne())
+})
+
+/** „Vrátiť späť" po odobratí – súbor loga stále je, stačí ho znova priradiť. */
+settingsRouter.post('/logo/vratit', (req, res) => {
+  const logo = String(req.body?.logo ?? '')
+  if (!cestaLoga(logo)) return res.status(400).json({ chyba: 'Logo sa už nedá vrátiť – nahraj ho znova.' })
+  db.prepare('UPDATE settings SET logo = ? WHERE id = 1').run(logo)
   res.json(aktualne())
 })
 
@@ -64,6 +110,10 @@ settingsRouter.put('/', (req, res) => {
     hodnoty.rezerva_percento = Number.isFinite(p) && p >= 0 && p <= 60 ? Math.round(p * 10) / 10 : 0
   }
 
+  // Predvolená sadzba DPH na nové položky faktúry (len pre platiteľa).
+  const sadzba = b.dph_sadzba === undefined ? teraz.dph_sadzba : Number(b.dph_sadzba)
+  hodnoty.dph_sadzba = jeSadzbaDph(sadzba) ? Number(sadzba) : 23
+
   // Prepínače môžu prísť ako true/false z formulára aj ako 1/0 od asistenta.
   for (const prepinac of PREPINACE) {
     const v = b[prepinac] === undefined ? teraz[prepinac] : b[prepinac]
@@ -79,7 +129,7 @@ settingsRouter.put('/', (req, res) => {
   const farba = b.farba_faktury === undefined ? teraz.farba_faktury : b.farba_faktury
   hodnoty.farba_faktury = /^#[0-9a-fA-F]{6}$/.test(String(farba ?? '')) ? farba : '#2f6fd6'
 
-  const set = [...POLIA, 'splatnost_dni', 'rezerva_percento', ...PREPINACE, ...Object.keys(VOLBY), 'farba_faktury']
+  const set = [...POLIA, 'splatnost_dni', 'rezerva_percento', 'dph_sadzba', ...PREPINACE, ...Object.keys(VOLBY), 'farba_faktury']
     .map((p) => `${p} = @${p}`)
     .join(', ')
   db.prepare(`UPDATE settings SET ${set} WHERE id = 1`).run(hodnoty)

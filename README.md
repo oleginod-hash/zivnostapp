@@ -99,6 +99,23 @@ lokálnej adrese (`localhost`), takže sa k nej nedá dostať z Wi-Fi ani z iné
 Požiadavky, ktoré prídu pod inou adresou alebo zapisujú z cudzej webstránky, odmietne.
 Kto si sadne k tvojmu odomknutému počítaču, appku otvorí — chráni ju heslo do Windows.
 
+### Z telefónu (Tailscale)
+
+Appka sa dá používať aj v telefóne – kdekoľvek, aj na turnuse – cez bezplatný program
+[Tailscale](https://tailscale.com/download). Ten spojí počítač a telefón do súkromnej šifrovanej
+siete, do ktorej patria len zariadenia prihlásené do toho istého účtu. Postup je v *Nastaveniach →
+Prístup z telefónu*:
+
+1. Tailscale do počítača aj do telefónu, v oboch prihlásenie tým istým účtom.
+2. V Nastaveniach *Zapnúť prístup z telefónu* – appka spustí `tailscale serve`, ktorý ju sprístupní
+   na adrese `https://<počítač>.<sieť>.ts.net`, ale len v tejto súkromnej sieti.
+3. Naskenovať QR kód fotoaparátom telefónu a v prehliadači dať *Pridať na plochu*.
+
+Server ďalej počúva len na `localhost`; appka pustí okrem neho len adresu počítača v Tailscale.
+Ak by niekto zapol *Tailscale Funnel* (sprístupnenie na internet), appka prístup cez Tailscale
+zablokuje. Počítač musí byť zapnutý a appka spustená. Vo *Výdavkoch* je potom aj tlačidlo
+*Odfotiť telefónom* – QR kód otvorí v telefóne nový výdavok s fotoaparátom.
+
 ## Konfigurácia
 
 Skopíruj `.env.example` na `.env` a vyplň. Súbor `.env` nikdy nepatrí do gitu.
@@ -171,6 +188,16 @@ metódu DELETE odmieta bez ohľadu na to, čo by skúsil. Mazanie ostáva ručno
 - [x] Rezerva na dane a odvody s pripomienkou pri každej platbe
 - [x] Kalendár termínov – splatnosti, zmluvy, turnusy, odvody, daňové priznanie
 - [x] Fotky pre asistenta sa pred odoslaním zmenšia
+- [x] Prístup z telefónu cez Tailscale, QR kód, ikona na ploche telefónu
+- [x] Cudzie meny vo výdavkoch s kurzom ECB
+- [x] Výdavok z e-faktúry (XML) aj s vloženým PDF
+- [x] Výpis z banky aj pre výdavky, párovanie s už zapísanými
+- [x] Výkaz hodín pri turnuse, faktúra za turnus, výkaz v PDF
+- [x] Platiteľ DPH: sadzby na faktúre, prenesenie daňovej povinnosti, prehľad DPH
+- [x] Logo a tri vzhľady PDF faktúry, časová os faktúry
+- [x] Faktúry s rozložením ako v bežných fakturačných appkách: zoznam v troch riadkoch, „Viac údajov",
+      odberateľ a dodávateľ upraviteľní priamo z faktúry, číslo objednávky a úvodný text
+- [x] Telefón: menu „Viac" so všetkými stránkami, súčty ako prehľadný zoznam, pozdrav s okom na skrytie súm
 
 ### Stravné a dni v zahraničí
 
@@ -323,8 +350,62 @@ príjem alebo nezapísať. Zapíše sa až to, čo potvrdíš, a celý import sa
 Výpis sa dá nahrať aj viackrát – každý zapísaný pohyb si appka pamätá a druhýkrát ho nezapíše.
 Zvláda bežné exporty slovenských bánk (kódovanie windows-1250 aj UTF-8, bodkočiarka aj čiarka,
 desatinná čiarka aj bodka, variabilný symbol v stĺpci aj v správe „/VS…/SS/KS"). Keď stĺpce
-nenájde, ponúkne ich priradiť ručne. Odchádzajúce platby sa nezapisujú – výdavok patrí zapísať
-s dokladom.
+nenájde, ponúkne ich priradiť ručne.
+
+Odchádzajúce platby appka navrhne ako výdavky. Keď už je výdavok zapísaný (rovnaký variabilný
+symbol, alebo rovnaká suma najviac týždeň pred platbou – platba kartou prichádza na výpis
+neskôr), len ho spáruje a druhýkrát ho nezapíše. Známym príjemcom (poisťovne, daňový úrad,
+banka, operátori, čerpacie stanice) navrhne kategóriu, ostatným podľa predošlých výdavkov;
+neznáma platba sa nezapíše, kým to nevyberieš. „Vrátiť späť" zmaže len výdavky, ktoré import vytvoril.
+
+### Cudzie meny
+
+Pri výdavku sa dá vybrať mena (CZK, PLN, CHF, NOK…). Appka doplní referenčný kurz ECB z dňa pred
+dátumom dokladu (cez víkend posledný vyhlásený) a prepočíta sumu na eurá. Keď sa platilo kartou,
+sumu v eurách je dobré prepísať podľa výpisu z banky – to je skutočný výdavok. Stiahnuté kurzy si
+appka pamätá; bez internetu stačí zadať kurz alebo sumu v eurách ručne.
+
+### E-faktúra od dodávateľa
+
+Od roku 2027 chodia faktúry od firiem ako e-faktúry (XML) cez digitálneho poštára. V novom výdavku
+tlačidlo *Načítať z e-faktúry (XML)* vyplní dodávateľa, sumu, dátum, variabilný symbol, IBAN
+a splatnosť; XML sa priloží ako doklad a PDF, ktoré je v ňom vložené, sa priloží samo. Tú istú
+faktúru appka druhýkrát nezapíše a pri ďalšej od toho istého dodávateľa navrhne jeho kategóriu.
+Číta formát UBL (Peppol BIS 3.0) aj CII.
+
+### Výkaz hodín
+
+Na stránke turnusu je *Výkaz hodín*: hodiny po dňoch (tlačidlom *Vyplniť* napr. 10 h na po – so,
+potom sa opravia výnimky), hodinová sadzba (navrhne sa z objednávky alebo z predošlého turnusu
+u tej istej firmy), súčet a *Vystaviť faktúru za turnus* – koncept faktúry s hodinami a sadzbou.
+*Výkaz v PDF* je na podpis zákazníkovi.
+
+### Platiteľ DPH
+
+V Nastaveniach sa dá zvoliť *Som platiteľ DPH* (plus predvolená sadzba a zdaňovacie obdobie).
+Nové faktúry potom majú pri každej položke sadzbu DPH (23, 19, 5 alebo 0 %), ceny sú bez DPH
+a PDF obsahuje rekapituláciu podľa sadzieb. Pri službách pre firmu z inej krajiny EÚ a pri
+stavebných prácach pre platiteľa na Slovensku sa zaškrtne *Prenesenie daňovej povinnosti* –
+faktúra je bez DPH a s touto vetou (ponúka sa aj pri registrácii podľa § 7a). Stránka *DPH* ukazuje
+daň z faktúr, odpočet z výdavkov (pole *DPH z dokladu*) a výsledok po mesiacoch či štvrťrokoch
+s termínom priznania; ten je aj v *Termínoch*. Príjmy vo Financiách a v podklade pre účtovníčku
+sú u platiteľa bez DPH a rezerva odkladá DPH z každej platby celú. Už vystavené faktúry sa pri zmene
+nastavenia neprepočítajú.
+
+### Faktúra – rozloženie
+
+Faktúra má hore odberateľa (s adresou a IČO) a dodávateľa – pri oboch je *Viac údajov*, ktoré otvorí
+ich údaje na úpravu. Údaje odberateľa sa uložia k firme (platia pre všetky jej faktúry), tvoje údaje do
+Nastavení. Keď odberateľ ešte v zozname nie je, *+ Nová firma* ho pridá priamo z faktúry. Pod dátumami
+je *Viac údajov* faktúry: číslo, typ dokladu, objednávka, číslo objednávky odberateľa, úvodný text nad
+položkami a záverečný text (poznámka). Na telefóne sa položky upravujú po jednej (ťuknutím na riadok),
+zoznam faktúr má každú faktúru v troch riadkoch a menej časté akcie sú v ponuke ⋮.
+
+### Vzhľad faktúry a časová os
+
+V Nastaveniach pri faktúrach sa dá nahrať logo (PNG alebo JPG) a vybrať vzhľad PDF: klasický,
+úsporný (bez farebných plôch, na čiernobielu tlač) alebo výrazný (farebná hlavička). Pri uloženej
+faktúre je *Časová os*: vystavenie, odoslanie e-mailom, upomienky, platby a splatnosť.
 
 ### Rezerva na dane a odvody
 
@@ -339,8 +420,9 @@ má ešte zostať odložené. Daň appka nepočíta – percento treba prebrať 
 Stránka *Termíny* a panel *Najbližšie termíny* na Prehľade ukazujú, čo ťa čaká: splatnosti
 neuhradených faktúr, koniec zmlúv a posledný deň na výpoveď pri automatickej obnove, začiatok
 turnusov. K tomu všeobecné termíny živnostníka – odvody do 8. dňa v mesiaci, daňové priznanie
-do 31. marca a pri registrácii podľa § 7a súhrnný výkaz do 25. dňa (len keď boli v predchádzajúcom
-mesiaci vystavené faktúry firmám s IČ DPH z inej krajiny EÚ). Termín na víkend alebo sviatok sa posunie
+do 31. marca, pri platiteľovi DPH priznanie k DPH do 25. dňa po skončení obdobia a pri registrácii
+podľa § 7a či u platiteľa súhrnný výkaz do 25. dňa (len keď boli v predchádzajúcom mesiaci
+vystavené faktúry firmám s IČ DPH z inej krajiny EÚ). Termín na víkend alebo sviatok sa posunie
 na najbližší pracovný deň. Všeobecné termíny sa dajú vypnúť v Nastaveniach.
 
 ### Číslovanie faktúr

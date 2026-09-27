@@ -1,14 +1,15 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import {
-  api, dnesISO, pocet, skDatum, skSuma, turnusPreDatum, velkostSuboru, vratZKosa,
-  KATEGORIE_PRIJMOV, KATEGORIE_VYDAVKOV, NAZVY_PLATIEB,
-  type DruhVydavku, type Platba, type Priloha, type SuhrnVydavkov, type Turnus, type Vydavok,
+  api, dnesISO, pocet, skDatum, skSuma, sumaVMene, turnusPreDatum, velkostSuboru, vratZKosa,
+  KATEGORIE_PRIJMOV, KATEGORIE_VYDAVKOV, MENY, NAZVY_PLATIEB,
+  type DruhVydavku, type NahladEfaktury, type Platba, type Priloha, type SuhrnVydavkov, type Turnus, type Vydavok,
 } from '../api'
 import { Ikona } from '../components/Ikony'
 import { FarebnyCip, tonKategorie } from '../components/Farby'
 import { oznam } from '../components/Oznamenia'
 import { PrazdnyStav } from '../components/PrazdnyStav'
+import { QrOkno, usePristup } from '../components/PristupZTelefonu'
 import { useNeulozeneZmeny } from '../neulozene'
 
 type Formular = {
@@ -19,13 +20,30 @@ type Formular = {
   /** Prázdne = appka priradí turnus podľa dátumu. `bezTurnusu` to vypne. */
   tour_id: string; bezTurnusu: boolean
   platba: Platba; odpocitat: boolean; poznamka: string
+  /** Cudzia mena: `suma` je v eurách, `suma_mena` v mene dokladu. */
+  mena: string; suma_mena: number; kurz: number | null
+  /** Sumu v eurách zadal človek (napr. podľa výpisu z banky) – kurz ju už neprepíše. */
+  sumaRucne: boolean
+  doklad_cislo: string; dodavatel_ico: string; variabilny: string
+  /** DPH z dokladu – vidí a vypĺňa ju len platiteľ DPH (odpočet). */
+  dph: number
 }
 
 const PRAZDNY = (druh: DruhVydavku): Formular => ({
   datum: dnesISO(), popis: '', kategoria: '', suma: 0, druh,
   tour_id: '', bezTurnusu: druh === 'prijem', platba: druh === 'prijem' ? 'prevod' : 'karta',
   odpocitat: druh === 'vydavok', poznamka: '',
+  mena: 'EUR', suma_mena: 0, kurz: null, sumaRucne: false,
+  doklad_cislo: '', dodavatel_ico: '', variabilny: '', dph: 0,
 })
+
+const naCenty = (n: number) => Math.round(n * 100) / 100
+
+/** Suma v eurách podľa kurzu – pokiaľ ju človek neprepísal sám. */
+function prepocitaj(u: Formular): Formular {
+  if (u.mena === 'EUR' || u.sumaRucne || !u.kurz) return u
+  return { ...u, suma: naCenty(u.suma_mena / u.kurz) }
+}
 
 /**
  * Dve možnosti navyše v rozbaľovacom zozname kategórií. Nie sú to kategórie,
@@ -52,6 +70,17 @@ export function Vydavky() {
   const [cakajuceSubory, setCakajuceSubory] = useState<File[]>([])
   const [f, setF] = useState({ od: '', do: '', kategoria: '', turnus: '', hladat: '' })
   const vstupSuborov = useRef<HTMLInputElement>(null)
+  const vstupFotky = useRef<HTMLInputElement>(null)
+  const vstupXml = useRef<HTMLInputElement>(null)
+  const [efaktura, setEfaktura] = useState<NahladEfaktury | null>(null)
+  const [kurzInfo, setKurzInfo] = useState('')
+  /** Pre akú menu a dátum formulár naposledy pýtal kurz – aby ho zbytočne neprepisoval. */
+  const kurzPre = useRef('')
+  const [pristup] = usePristup()
+  const [platitelDph, setPlatitelDph] = useState(false)
+  const [qrOkno, setQrOkno] = useState(false)
+  /** Formulár otvorený z QR kódu v telefóne – fotoaparát ide na prvé miesto. */
+  const [fotoHned, setFotoHned] = useState(false)
   const oznacUlozene = useNeulozeneZmeny(uprava, uprava?.id ?? 'novy')
 
   const prijem = druh === 'prijem'
@@ -81,6 +110,7 @@ export function Vydavky() {
 
   useEffect(() => {
     api.get<Turnus[]>('/turnusy').then(setTurnusy).catch(() => {})
+    api.get<{ dph_rezim: string }>('/nastavenia').then((n) => setPlatitelDph(n.dph_rezim === 'platitel')).catch(() => {})
   }, [])
 
   // Z rýchlej akcie na Prehľade prichádzame s ?novy=1 – rovno otvoríme formulár.
@@ -88,6 +118,7 @@ export function Vydavky() {
   useEffect(() => {
     if (parametre.get('novy') !== '1') return
     otvorNovy(parametre.get('kategoria') ?? '')
+    setFotoHned(parametre.get('foto') === '1')
     setParametre({}, { replace: true })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [parametre])
@@ -98,6 +129,78 @@ export function Vydavky() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [f, druh])
 
+  // Kurz ECB pre cudziu menu – vypýta sa pri výbere meny a pri zmene dátumu dokladu.
+  useEffect(() => {
+    if (!uprava || uprava.mena === 'EUR' || !uprava.datum) return
+    const kluc = `${uprava.mena}|${uprava.datum}`
+    if (kurzPre.current === kluc) return
+    kurzPre.current = kluc
+    setKurzInfo('Zisťujem kurz ECB…')
+    api
+      .get<{ kurz: number; datum_kurzu: string }>(`/vydavky/kurz?mena=${uprava.mena}&datum=${uprava.datum}`)
+      .then((k) => {
+        if (kurzPre.current !== kluc) return
+        setUprava((u) => (u ? prepocitaj({ ...u, kurz: k.kurz }) : u))
+        setKurzInfo(`kurz ECB z ${skDatum(k.datum_kurzu)}`)
+      })
+      .catch((e) => setKurzInfo(e.message))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [uprava?.mena, uprava?.datum])
+
+  function zmenMenu(mena: string) {
+    if (!uprava) return
+    // Číslo v poli sumy ostáva – mení sa len to, v akej mene je.
+    const cislo = uprava.mena === 'EUR' ? uprava.suma : uprava.suma_mena
+    if (mena === 'EUR') setUprava({ ...uprava, mena, suma: cislo, suma_mena: 0, kurz: null, sumaRucne: false })
+    else setUprava({ ...uprava, mena, suma_mena: cislo, suma: 0, kurz: null, sumaRucne: false })
+  }
+
+  async function nacitajEfakturu(subor: File | undefined) {
+    if (!subor) return
+    setChyba('')
+    try {
+      const data = new FormData()
+      data.append('subor', subor)
+      const r = await api.upload<NahladEfaktury>('/vydavky/efaktura', data)
+      kurzPre.current = ''
+      setUprava({
+        ...PRAZDNY('vydavok'),
+        ...r.navrh,
+        suma_mena: r.navrh.suma_mena ?? 0,
+        tour_id: '',
+      })
+      setCakajuceSubory([subor])
+      setEfaktura(r)
+    } catch (e: any) {
+      setChyba(e.message)
+    } finally {
+      if (vstupXml.current) vstupXml.current.value = ''
+    }
+  }
+
+  // Kým je otvorený QR kód, sledujeme, či z telefónu neprišiel nový záznam.
+  useEffect(() => {
+    if (!qrOkno) return
+    let povodne: number | null = null
+    const zisti = () =>
+      api
+        .get<SuhrnVydavkov>('/vydavky/suhrn')
+        .then((s) => {
+          const teraz = s.pocet_vydavkov + s.pocet_prijmov
+          if (povodne === null) povodne = teraz
+          else if (teraz > povodne) {
+            setQrOkno(false)
+            nacitaj()
+            oznam('Výdavok z telefónu je uložený.')
+          }
+        })
+        .catch(() => {})
+    zisti()
+    const t = setInterval(zisti, 3000)
+    return () => clearInterval(t)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [qrOkno])
+
   function prepni(kluc: DruhVydavku) {
     setDruh(kluc)
     setUprava(null)
@@ -106,6 +209,9 @@ export function Vydavky() {
 
   function otvorNovy(kategoria = '') {
     setUprava({ ...PRAZDNY(druh), kategoria })
+    setFotoHned(false)
+    setEfaktura(null)
+    kurzPre.current = ''
     setPrilohy([])
     setCakajuceSubory([])
     setChyba('')
@@ -115,6 +221,12 @@ export function Vydavky() {
     setChyba('')
     const detail = await api.get<Vydavok>('/vydavky/' + v.id)
     setCakajuceSubory([])
+    setEfaktura(null)
+    const mena = detail.mena || 'EUR'
+    const kurz = detail.kurz ?? null
+    // Uložený kurz sa pri otvorení nemení – nový sa vypýta až po zmene meny alebo dátumu.
+    kurzPre.current = `${mena}|${detail.datum}`
+    setKurzInfo(kurz ? 'uložený kurz' : '')
     setUprava({
       id: detail.id,
       datum: detail.datum,
@@ -127,6 +239,14 @@ export function Vydavky() {
       platba: detail.platba,
       odpocitat: detail.odpocitat === 1,
       poznamka: detail.poznamka,
+      mena,
+      suma_mena: detail.suma_mena ?? 0,
+      kurz,
+      sumaRucne: mena !== 'EUR' && !!kurz && Math.abs(detail.suma - naCenty((detail.suma_mena ?? 0) / kurz)) > 0.005,
+      doklad_cislo: detail.doklad_cislo ?? '',
+      dodavatel_ico: detail.dodavatel_ico ?? '',
+      variabilny: detail.variabilny ?? '',
+      dph: detail.dph ?? 0,
     })
     setPrilohy(detail.prilohy ?? [])
   }
@@ -209,6 +329,7 @@ export function Vydavky() {
       : null
 
   const upravujemPrijem = uprava?.druh === 'prijem'
+  const ef = efaktura?.efaktura
 
   return (
     <>
@@ -218,6 +339,11 @@ export function Vydavky() {
           <Link className="tlacidlo" to="/financie">
             Prehľad financií
           </Link>
+          {pristup?.zapnute && pristup.z_pocitaca && !prijem && (
+            <button onClick={() => setQrOkno(true)}>
+              <Ikona nazov="telefon" velkost={16} /> Odfotiť telefónom
+            </button>
+          )}
           <button className="primar" onClick={() => otvorNovy()}>
             {prijem ? '+ Nový súkromný príjem' : '+ Nový výdavok'}
           </button>
@@ -236,6 +362,17 @@ export function Vydavky() {
       </div>
 
       {chyba && <div className="chyba">{chyba}</div>}
+
+      {qrOkno && (
+        <QrOkno nadpis="Odfotiť doklad telefónom" cesta="/vydavky?novy=1&foto=1" zavriet={() => setQrOkno(false)}>
+          <p style={{ marginTop: 0 }}>
+            Naskenuj kód fotoaparátom telefónu. Otvorí sa nový výdavok – odfoť doklad, doplň sumu a popis a ulož.
+          </p>
+          <p className="tlmene" style={{ fontSize: 13.5 }}>
+            Výdavok sa tu potom objaví sám. V telefóne musí byť zapnutý Tailscale.
+          </p>
+        </QrOkno>
+      )}
 
       {prijem && (
         <div className="napoveda" style={{ marginTop: -8, marginBottom: 12 }}>
@@ -256,6 +393,64 @@ export function Vydavky() {
                 ? 'Nový súkromný príjem'
                 : 'Nový výdavok'}
           </h2>
+          {!uprava.id && !upravujemPrijem && (
+            <div className="riadok-nastroju">
+              <input
+                ref={vstupXml}
+                type="file"
+                accept=".xml,application/xml,text/xml"
+                style={{ display: 'none' }}
+                onChange={(e) => nacitajEfakturu(e.target.files?.[0])}
+              />
+              <button className="maly" onClick={() => vstupXml.current?.click()}>
+                <Ikona nazov="subor" velkost={15} /> Načítať z e-faktúry (XML)
+              </button>
+              {!ef && <span className="tlmene">Údaje z e-faktúry od dodávateľa sa vyplnia samy.</span>}
+            </div>
+          )}
+          {ef && !uprava.id && (
+            <>
+              {efaktura.zapisana ? (
+                <div className="chyba">
+                  Túto faktúru už máš zapísanú – výdavok z {skDatum(efaktura.zapisana.datum)} „{efaktura.zapisana.popis}".{' '}
+                  <button className="maly" onClick={() => otvorUpravu({ id: efaktura.zapisana!.id } as Vydavok)}>
+                    Otvoriť ho
+                  </button>
+                </div>
+              ) : (
+                <div className="info-pruh">
+                  Z e-faktúry: <strong>{ef.dodavatel.nazov || 'dodávateľ'}</strong>
+                  {ef.dodavatel.ico && ` (IČO ${ef.dodavatel.ico})`} · {ef.dobropis ? 'dobropis' : 'faktúra'} {ef.cislo} z{' '}
+                  {skDatum(ef.datum)}
+                  {ef.splatnost && ` · splatná do ${skDatum(ef.splatnost)}`}
+                  {ef.k_uhrade > 0 && ` · k úhrade ${ef.mena === 'EUR' ? skSuma(ef.k_uhrade) : sumaVMene(ef.k_uhrade, ef.mena)}`}.
+                  {ef.pdf && ' PDF faktúry sa priloží samo.'} Dátum je dátum vystavenia – ak sa platí neskôr, zmeň ho na deň
+                  platby.
+                </div>
+              )}
+              {ef.ine_ico && (
+                <div className="chyba">Faktúra je vystavená na iné IČO ({ef.ine_ico}) – skontroluj, či patrí tebe.</div>
+              )}
+            </>
+          )}
+          {fotoHned && !uprava.id && cakajuceSubory.length === 0 && (
+            <>
+              <input
+                ref={vstupFotky}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                style={{ display: 'none' }}
+                onChange={(e) => {
+                  setCakajuceSubory([...cakajuceSubory, ...Array.from(e.target.files ?? [])])
+                  if (vstupFotky.current) vstupFotky.current.value = ''
+                }}
+              />
+              <button className="primar foto-dokladu" onClick={() => vstupFotky.current?.click()}>
+                <Ikona nazov="sken" velkost={20} /> Odfotiť doklad
+              </button>
+            </>
+          )}
           <div className="mriezka">
             <div>
               <label>Dátum *</label>
@@ -266,14 +461,56 @@ export function Vydavky() {
               />
             </div>
             <div>
-              <label>Suma (€) *</label>
-              <input
-                type="number"
-                step="0.01"
-                value={uprava.suma}
-                onChange={(e) => setUprava({ ...uprava, suma: Number(e.target.value) })}
-              />
+              <label htmlFor="suma-vydavku">{uprava.mena === 'EUR' ? 'Suma (€) *' : `Suma (${uprava.mena}) *`}</label>
+              <div className="suma-s-menou">
+                <input
+                  id="suma-vydavku"
+                  type="number"
+                  step="0.01"
+                  value={uprava.mena === 'EUR' ? uprava.suma : uprava.suma_mena}
+                  onChange={(e) =>
+                    setUprava(
+                      uprava.mena === 'EUR'
+                        ? { ...uprava, suma: Number(e.target.value) }
+                        : prepocitaj({ ...uprava, suma_mena: Number(e.target.value) }),
+                    )
+                  }
+                />
+                <select aria-label="Mena" value={uprava.mena} onChange={(e) => zmenMenu(e.target.value)}>
+                  {[...new Set([...MENY, uprava.mena])].map((m) => (
+                    <option key={m} value={m}>
+                      {m}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
+            {uprava.mena !== 'EUR' && (
+              <>
+                <div>
+                  <label htmlFor="kurz-vydavku">Kurz ({uprava.mena} za 1 €)</label>
+                  <input
+                    id="kurz-vydavku"
+                    type="number"
+                    step="0.0001"
+                    value={uprava.kurz ?? ''}
+                    onChange={(e) => setUprava(prepocitaj({ ...uprava, kurz: Number(e.target.value) || null }))}
+                  />
+                  <div className="napoveda">{kurzInfo}</div>
+                </div>
+                <div>
+                  <label htmlFor="suma-v-eurach">Suma v eurách *</label>
+                  <input
+                    id="suma-v-eurach"
+                    type="number"
+                    step="0.01"
+                    value={uprava.suma}
+                    onChange={(e) => setUprava({ ...uprava, suma: Number(e.target.value), sumaRucne: true })}
+                  />
+                  <div className="napoveda">Keď sa platilo kartou, prepíš ju podľa výpisu z banky – to je skutočný výdavok.</div>
+                </div>
+              </>
+            )}
             <div>
               <label>Druh záznamu</label>
               <select
@@ -311,7 +548,7 @@ export function Vydavky() {
             <div className="pole-siroke">
               <label>Popis *</label>
               <input
-                autoFocus
+                autoFocus={!fotoHned}
                 placeholder={upravujemPrijem ? 'napr. Prevod od brata' : 'napr. Nafta – cesta do Mníchova'}
                 value={uprava.popis}
                 onChange={(e) => setUprava({ ...uprava, popis: e.target.value })}
@@ -363,6 +600,20 @@ export function Vydavky() {
                   />
                   Daňovo uznateľný
                 </label>
+              </div>
+            )}
+            {platitelDph && !upravujemPrijem && (
+              <div>
+                <label htmlFor="dph-vydavku">DPH z dokladu (€)</label>
+                <input
+                  id="dph-vydavku"
+                  type="number"
+                  step="0.01"
+                  value={uprava.dph || ''}
+                  placeholder="0"
+                  onChange={(e) => setUprava({ ...uprava, dph: Number(e.target.value) || 0 })}
+                />
+                <div className="napoveda">Odpočítaš si ju v priznaní k DPH.</div>
               </div>
             )}
             <div className="pole-siroke">
@@ -456,7 +707,7 @@ export function Vydavky() {
 
           <div className="riadok-akcii">
             <button onClick={() => setUprava(null)}>Zavrieť</button>
-            <button className="primar" onClick={() => uloz(true)} disabled={!uprava.popis.trim()}>
+            <button className="primar" onClick={() => uloz(true)} disabled={!uprava.popis.trim() || !!efaktura?.zapisana}>
               {uprava.id ? 'Uložiť zmeny' : 'Uložiť'}
             </button>
           </div>
@@ -587,6 +838,7 @@ export function Vydavky() {
                     ) : (
                       <strong>{skSuma(v.suma)}</strong>
                     )}
+                    {v.mena && v.mena !== 'EUR' && <div className="suma-v-mene">{sumaVMene(v.suma_mena, v.mena)}</div>}
                   </td>
                   <td onClick={(e) => e.stopPropagation()}>
                     <div className="akcie-riadku">

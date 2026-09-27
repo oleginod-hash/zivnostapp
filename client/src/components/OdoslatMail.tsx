@@ -64,7 +64,7 @@ export function OdoslatMail({ invoiceId, typ, zavriet, poOdoslani }: Props) {
     setChyba('')
     setOdosiela(true)
     try {
-      const r = await api.post<{ sprava: string }>(`/mail/odoslat/${invoiceId}`, { komu, predmet, text })
+      const r = await api.post<{ sprava: string }>(`/mail/odoslat/${invoiceId}`, { komu, predmet, text, typ })
       setHotovo(r.sprava)
       poOdoslani?.()
       setTimeout(zavriet, 1800)

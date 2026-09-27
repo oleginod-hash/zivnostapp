@@ -5,6 +5,8 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { db } from '../db.js'
 import { zaokruhli } from './format.js'
+import { spocitajFakturu } from './dph.js'
+import { cestaLoga } from './logo.js'
 
 /**
  * Faktúra v PDF.
@@ -56,9 +58,9 @@ const FONTY: SadaFontov[] = [
 ]
 const SADA = FONTY.find((f) => Object.values(f).every((c) => fs.existsSync(c)))
 if (!SADA) console.warn('[pdf] nenašlo sa písmo s diakritikou – faktúry budú bez mäkčeňov (nastav PDF_FONT v .env)')
-const F = SADA ? 'R' : 'Helvetica'
-const FS = SADA ? 'S' : 'Helvetica-Bold'
-const FB = SADA ? 'B' : 'Helvetica-Bold'
+export const F = SADA ? 'R' : 'Helvetica'
+export const FS = SADA ? 'S' : 'Helvetica-Bold'
+export const FB = SADA ? 'B' : 'Helvetica-Bold'
 
 /**
  * Helvetica v pdfkit pozná len západoeurópske znaky – „č" alebo „ľ" by
@@ -78,6 +80,28 @@ function textBezDiakritikyAkTreba(doc: Doc) {
   }
 }
 
+/**
+ * Nový dokument A4 s písmom appky – používa ho aj výkaz hodín, aby dokumenty
+ * vyzerali rovnako. Vráti dokument a sľub s hotovým PDF (po `doc.end()`).
+ */
+export function novyDokument(nazov: string, autor: string): { doc: Doc; hotovo: Promise<Buffer> } {
+  const doc = new PDFDocument({ size: 'A4', margin: 0, bufferPages: true, info: { Title: nazov, Author: autor } })
+  if (SADA) {
+    doc.registerFont('R', SADA.regular)
+    doc.registerFont('S', SADA.semibold)
+    doc.registerFont('B', SADA.bold)
+  }
+  textBezDiakritikyAkTreba(doc)
+  const kusy: Buffer[] = []
+  doc.on('data', (c: Buffer) => kusy.push(c))
+  return { doc, hotovo: new Promise<Buffer>((resolve) => doc.on('end', () => resolve(Buffer.concat(kusy)))) }
+}
+
+/** Farba faktúry z nastavení (alebo predvolená modrá). */
+export function akcentZNastaveni(nastavenia: Record<string, any>): string {
+  return /^#[0-9a-f]{6}$/i.test(nastavenia.farba_faktury ?? '') ? nastavenia.farba_faktury : '#2f6fd6'
+}
+
 export type PdfFaktura = {
   cislo: string
   typ?: string
@@ -88,8 +112,15 @@ export type PdfFaktura = {
   variabilny: string
   poznamka: string
   suma: number
+  /** 1 = faktúra platiteľa DPH (položky majú sadzby). */
+  s_dph?: number
+  /** 1 = DPH odvedie odberateľ – faktúra je bez DPH a nesie vetu o prenesení. */
+  prenos_dph?: number
+  /** Číslo objednávky odberateľa a text nad položkami. */
+  cislo_objednavky?: string
+  uvodny_text?: string
 }
-export type PdfPolozka = { popis: string; mnozstvo: number; jednotka: string; cena: number }
+export type PdfPolozka = { popis: string; mnozstvo: number; jednotka: string; cena: number; sadzba_dph?: number | null }
 
 // A4 = 595,28 × 841,89 bodu
 const STRANA = { sirka: 595.28, vyska: 841.89 }
@@ -203,11 +234,14 @@ export async function vytvorFakturuPdf(
   nastavenia: Record<string, any>,
 ): Promise<Buffer> {
   const akcent = /^#[0-9a-f]{6}$/i.test(nastavenia.farba_faktury ?? '') ? nastavenia.farba_faktury : '#2f6fd6'
+  // Vzhľad: klasický, úsporný (bez farebných plôch – na čiernobielu tlačiareň) a výrazný (farebná hlavička).
+  const vzhlad = ['usporny', 'vyrazny'].includes(nastavenia.pdf_vzhlad) ? nastavenia.pdf_vzhlad : 'klasicky'
+  const usporny = vzhlad === 'usporny'
   const farby = {
     akcent,
     tmavy: stmav(akcent, 0.28),
-    podklad: zosvetli(akcent, 0.93),
-    ram: zosvetli(akcent, 0.72),
+    podklad: usporny ? '#ffffff' : zosvetli(akcent, 0.93),
+    ram: usporny ? '#d1d5db' : zosvetli(akcent, 0.72),
   }
   const zaloha = faktura.typ === 'zaloha'
 
@@ -228,18 +262,43 @@ export async function vytvorFakturuPdf(
   const hotovo = new Promise<Buffer>((resolve) => doc.on('end', () => resolve(Buffer.concat(kusy))))
 
   // ── Hlavička ──────────────────────────────────────────────────
-  doc.rect(0, 0, STRANA.sirka, 5).fill(farby.akcent)
+  const vyrazny = vzhlad === 'vyrazny'
+  if (vyrazny) doc.rect(0, 0, STRANA.sirka, 84).fill(farby.akcent)
+  else if (!usporny) doc.rect(0, 0, STRANA.sirka, 5).fill(farby.akcent)
+  const farbaNadpisu = vyrazny ? '#ffffff' : TEXT
+  const farbaCisla = vyrazny ? '#ffffff' : farby.akcent
 
   const nazovDokladu = zaloha ? 'ZÁLOHOVÁ FAKTÚRA' : 'FAKTÚRA'
-  doc.font(FB).fontSize(21).fillColor(TEXT).text(nazovDokladu, L, 34, { lineBreak: false })
-  doc.font(FB).fontSize(21).fillColor(farby.akcent)
-    .text(faktura.cislo, L, 34, { width: SIRKA, align: 'right', lineBreak: false })
+  const logo = cestaLoga(nastavenia.logo)
+  let maLogo = false
+  if (logo) {
+    try {
+      // Na farebnej hlavičke dostane logo biely podklad – tmavé logo by na nej zaniklo.
+      const obr = (doc as any).openImage(logo) as { width: number; height: number }
+      const mierka = Math.min(160 / obr.width, 46 / obr.height)
+      if (vyrazny) doc.roundedRect(L - 8, 16, obr.width * mierka + 16, obr.height * mierka + 12, 6).fill('#ffffff')
+      doc.image(obr as any, L, 22, { width: obr.width * mierka, height: obr.height * mierka })
+      maLogo = true
+    } catch {
+      // poškodený obrázok – faktúra vyjde bez loga
+    }
+  }
+  if (maLogo) {
+    // S logom vľavo ide názov dokladu malým písmom nad číslo vpravo.
+    doc.font(FS).fontSize(9).fillColor(vyrazny ? '#ffffff' : SEDA)
+      .text(nazovDokladu, L, 26, { width: SIRKA, align: 'right', characterSpacing: 1.2, lineBreak: false })
+    doc.font(FB).fontSize(21).fillColor(farbaCisla).text(faktura.cislo, L, 40, { width: SIRKA, align: 'right', lineBreak: false })
+  } else {
+    doc.font(FB).fontSize(21).fillColor(farbaNadpisu).text(nazovDokladu, L, 34, { lineBreak: false })
+    doc.font(FB).fontSize(21).fillColor(farbaCisla)
+      .text(faktura.cislo, L, 34, { width: SIRKA, align: 'right', lineBreak: false })
+  }
   if (zaloha && faktura.kryje_cislo) {
-    doc.font(F).fontSize(9).fillColor(SEDA)
-      .text(`Záloha k faktúre č. ${faktura.kryje_cislo}`, L, 62, { width: SIRKA, align: 'right' })
+    doc.font(F).fontSize(9).fillColor(vyrazny ? '#ffffff' : SEDA)
+      .text(`Záloha k faktúre č. ${faktura.kryje_cislo}`, L, 66, { width: SIRKA, align: 'right' })
   }
 
-  doc.moveTo(L, 80).lineTo(R, 80).lineWidth(0.8).strokeColor(farby.ram).stroke()
+  if (!vyrazny) doc.moveTo(L, 80).lineTo(R, 80).lineWidth(0.8).strokeColor(farby.ram).stroke()
 
   // ── Dodávateľ a odberateľ ─────────────────────────────────────
   const stlpec = (SIRKA - 26) / 2
@@ -260,11 +319,14 @@ export async function vytvorFakturuPdf(
     L, yA, stlpec,
   )
   if (nastavenia.ic_dph) yA = riadok(doc, `IČ DPH: ${nastavenia.ic_dph}`, L, yA, stlpec)
+  // Platiteľ má na faktúre IČ DPH a DPH v položkách – veta o neplatiteľovi tam nepatrí.
   yA = riadok(
     doc,
-    nastavenia.dph_rezim === '7a'
-      ? 'Nie je platiteľ DPH. Registrovaný pre DPH podľa § 7a zákona o DPH.'
-      : 'Nie je platiteľ DPH.',
+    faktura.s_dph
+      ? null
+      : nastavenia.dph_rezim === '7a'
+        ? 'Nie je platiteľ DPH. Registrovaný pre DPH podľa § 7a zákona o DPH.'
+        : 'Nie je platiteľ DPH.',
     L, yA, stlpec, { medzera: 3 },
   )
   // Zápis v registri vyžaduje § 3a Obchodného zákonníka na obchodných listinách.
@@ -315,7 +377,8 @@ export async function vytvorFakturuPdf(
   let yD = y + 14
   yD = dvojica(doc, 'Dátum vystavenia:', datum(faktura.datum_vystav), L, yD, 96, 90)
   yD = dvojica(doc, 'Dátum dodania:', datum(faktura.datum_dodania), L, yD, 96, 90)
-  dvojica(doc, 'Splatnosť:', datum(faktura.datum_splat), L, yD, 96, 90, { tucne: true })
+  yD = dvojica(doc, 'Splatnosť:', datum(faktura.datum_splat), L, yD, 96, 90, { tucne: true })
+  if (faktura.cislo_objednavky) dvojica(doc, 'Objednávka č.:', faktura.cislo_objednavky, L, yD, 96, 130)
 
   doc.roundedRect(xBox, y, sirkaBoxu, vyskaBoxu, 7).lineWidth(0.8).fillAndStroke(farby.podklad, farby.ram)
 
@@ -382,26 +445,38 @@ export async function vytvorFakturuPdf(
   // ── Položky ───────────────────────────────────────────────────
   // Jednotka je priamo pri množstve (napr. „37,50 hod") – samostatný stĺpec
   // by zbytočne zúžil názov, ktorý je na faktúre najdôležitejší.
+  // Faktúra s DPH má navyše stĺpec sadzby a ceny sú bez DPH.
+  const sDph = !!faktura.s_dph && !faktura.prenos_dph
+  const sucty = spocitajFakturu(polozky, sDph)
   const sirkaSpolu = 76
   const sirkaCeny = 70
   const sirkaMnozstva = 72
+  const sirkaSadzby = sDph ? 38 : 0
   const xC = L + 10
   const xNazov = L + 30
   const xSpolu = R - 10 - sirkaSpolu
-  const xCena = xSpolu - 10 - sirkaCeny
+  const xSadzba = xSpolu - 10 - sirkaSadzby
+  const xCena = (sDph ? xSadzba : xSpolu) - 10 - sirkaCeny
   const xMn = xCena - 10 - sirkaMnozstva
   const sirkaNazvu = xMn - 14 - xNazov
 
   function hlavickaTabulky(yH: number): number {
     doc.roundedRect(L, yH, SIRKA, 22, 4).fill(farby.podklad)
+    if (usporny) doc.moveTo(L, yH + 22).lineTo(R, yH + 22).lineWidth(0.8).strokeColor(farby.ram).stroke()
     doc.font(FS).fontSize(7.8).fillColor(farby.tmavy)
     const o = { characterSpacing: 0.6, lineBreak: false } as const
     doc.text('Č.', xC, yH + 7, o)
     doc.text('NÁZOV', xNazov, yH + 7, o)
     doc.text('MNOŽSTVO', xMn, yH + 7, { ...o, width: sirkaMnozstva, align: 'right' })
-    doc.text('JEDN. CENA', xCena, yH + 7, { ...o, width: sirkaCeny, align: 'right' })
-    doc.text('SPOLU', xSpolu, yH + 7, { ...o, width: sirkaSpolu, align: 'right' })
+    doc.text(sDph ? 'CENA BEZ DPH' : 'JEDN. CENA', xCena, yH + 7, { ...o, width: sirkaCeny, align: 'right' })
+    if (sDph) doc.text('DPH', xSadzba, yH + 7, { ...o, width: sirkaSadzby, align: 'right' })
+    doc.text(sDph ? 'SPOLU BEZ DPH' : 'SPOLU', xSpolu, yH + 7, { ...o, width: sirkaSpolu, align: 'right' })
     return yH + 30
+  }
+
+  // Úvodný text – napr. „Fakturujeme vám za práce podľa objednávky…"
+  if (faktura.uvodny_text?.trim()) {
+    y = riadok(doc, faktura.uvodny_text.trim(), L, y - 8, SIRKA, { velkost: 9.5, farba: '#374151' }) + 10
   }
 
   y = hlavickaTabulky(y)
@@ -422,6 +497,7 @@ export async function vytvorFakturuPdf(
     doc.font(F).fontSize(9.5).fillColor(TEXT)
     doc.text(mnozstvo, xMn, y, { width: sirkaMnozstva, align: 'right', lineBreak: false })
     doc.text(cislo2(p.cena), xCena, y, { width: sirkaCeny, align: 'right', lineBreak: false })
+    if (sDph) doc.text(`${p.sadzba_dph ?? 0} %`, xSadzba, y, { width: sirkaSadzby, align: 'right', lineBreak: false })
     doc.font(FS).text(cislo2(spolu), xSpolu, y, { width: sirkaSpolu, align: 'right', lineBreak: false })
     y += vyska + 7
     doc.moveTo(L + 6, y - 1).lineTo(R - 6, y - 1).lineWidth(0.6).strokeColor(CIARA).stroke()
@@ -429,14 +505,36 @@ export async function vytvorFakturuPdf(
   })
 
   // ── Súčet ─────────────────────────────────────────────────────
-  if (y + 150 > SPODOK_OBSAHU) {
+  if (y + 150 + (sDph ? 30 + sucty.rekapitulacia.length * 14 : 0) > SPODOK_OBSAHU) {
     doc.addPage()
     doc.rect(0, 0, STRANA.sirka, 5).fill(farby.akcent)
     y = 50
   }
   y += 6
   const sirkaSuctu = 262
+
+  // Rekapitulácia DPH podľa sadzieb – základ a daň za každú sadzbu zvlášť.
+  if (sDph) {
+    const x = R - sirkaSuctu
+    const stlpce = [x + 14, x + 70, x + 140, x + 200]
+    const sirky = [50, 64, 54, sirkaSuctu - 214]
+    const bunky = (texty: string[], font: string, farba: string) => {
+      doc.font(font).fontSize(8.5).fillColor(farba)
+      texty.forEach((t, i) => doc.text(t, stlpce[i], y, { width: sirky[i], align: i ? 'right' : 'left', lineBreak: false }))
+      y += 14
+    }
+    bunky(['Sadzba', 'Základ', 'DPH', 'Spolu'], FS, SEDA)
+    for (const r of sucty.rekapitulacia) {
+      bunky([`${r.sadzba} %`, cislo2(r.zaklad), cislo2(r.dph), cislo2(zaokruhli(r.zaklad + r.dph))], F, TEXT)
+    }
+    doc.moveTo(x + 10, y + 1).lineTo(R - 4, y + 1).lineWidth(0.6).strokeColor(CIARA).stroke()
+    y += 5
+    bunky(['Spolu', cislo2(sucty.zaklad), cislo2(sucty.dph), cislo2(sucty.suma)], FS, TEXT)
+    y += 6
+  }
+
   doc.roundedRect(R - sirkaSuctu, y, sirkaSuctu, 36, 6).fill(farby.podklad)
+  if (usporny) doc.moveTo(R - sirkaSuctu, y).lineTo(R, y).lineWidth(0.8).strokeColor(farby.ram).stroke()
   doc.font(FS).fontSize(11).fillColor(farby.tmavy)
     .text(zaloha ? 'Záloha na úhradu' : 'Spolu na úhradu', R - sirkaSuctu + 14, y + 12, { lineBreak: false })
   doc.font(FB).fontSize(14.5).fillColor(farby.tmavy)
@@ -445,10 +543,14 @@ export async function vytvorFakturuPdf(
 
   // ── Poznámky ──────────────────────────────────────────────────
   // Ručne pridané značky „[odoslané na …]" sú pre mňa, nie pre odberateľa.
-  const poznamka = String(faktura.poznamka ?? '').replace(/\[[^\]]*odoslané na[^\]]*\]/g, '').trim()
+  const poznamka = String(faktura.poznamka ?? '').replace(/\[[^\]]*odoslan[éá] na[^\]]*\]/g, '').trim()
   const pata = String(nastavenia.poznamka_pati ?? '').trim()
   const yPoznamok = y
   let yN = y
+  // Pri prenesení daňovej povinnosti musí byť táto veta na faktúre (§ 74 ods. 1 písm. m zákona o DPH).
+  if (faktura.prenos_dph) {
+    yN = riadok(doc, 'Prenesenie daňovej povinnosti', L, yN, 250, { font: FS, velkost: 10, medzera: 8 })
+  }
   if (poznamka) {
     yN = riadok(doc, 'Poznámka', L, yN, 250, { font: FS, velkost: 9, medzera: 2 })
     yN = riadok(doc, poznamka, L, yN, 250, { velkost: 9, farba: '#374151', medzera: 8 })
