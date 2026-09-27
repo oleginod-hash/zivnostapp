@@ -641,7 +641,7 @@ t.over('dole je lišta s hlavnými stránkami', await js(`getComputedStyle(docum
 t.over('bočné menu je schované', await bocneMenuVidno(), false)
 t.over(
   'faktúry v troch riadkoch: číslo a dátum, odberateľ, stav a suma',
-  await js(`(() => { const r = document.querySelector('.zoznam-faktur .faktura-riadok'); return [!!r.querySelector('.cislo-faktury'), !!r.querySelector('.faktura-riadok-firma'), !!r.querySelector('.faktura-riadok-suma .stitok, .faktura-riadok-suma strong'), r.getBoundingClientRect().height < 200, !document.querySelector('.tabulka-faktur')] })()`),
+  await js(`(() => { const r = document.querySelector('.zoznam-faktur .faktura-riadok'); return [!!r.querySelector('.cislo-faktury'), !!r.querySelector('.zaznam-hlavny'), !!r.querySelector('.zaznam-suma strong'), r.getBoundingClientRect().height < 200, !document.querySelector('.tabulka-faktur')] })()`),
   [true, true, true, true, true],
 )
 await klik('.faktura-riadok .menu-akcii button')
@@ -698,14 +698,41 @@ t.over('„Viac" vysunie celé menu', await bocneMenuVidno(), true)
 await klik('.sidebar a[href="/firmy"]')
 await cakaj(300)
 t.over('po výbere stránky sa menu samo zavrie', [await js('location.pathname'), await bocneMenuVidno()], ['/firmy', false])
+// Dlhší zoznam výdavkov, aby sa dalo overiť posunutie k formuláru.
+for (let i = 0; i < 6; i++) await api('POST', '/vydavky', { datum: posun(-70 - i), popis: `Starší doklad ${i + 1}`, kategoria: 'Materiál', suma: 10 + i })
+await otvor('/vydavky')
 t.over(
-  'výdavky sú samostatné karty s popisom pri každej hodnote',
-  await (async () => {
-    await otvor('/vydavky')
-    return js(`(() => { const t = document.querySelector('.panel.tesny table'); const r = t.querySelector('tbody tr'); const cs = getComputedStyle(r); return [t.hasAttribute('data-karty'), r.querySelector('td:nth-child(3)').dataset.popis, cs.marginBottom, cs.borderTopStyle] })()`)
-  })(),
-  [true, 'Kategória', '12px', 'solid'],
+  'výdavky v troch riadkoch: dátum, popis, kategória a suma – bez tabuľky, súhrn hore',
+  await js(`(() => { const r = document.querySelector('.zoznam-zaznamov .vydavok-riadok'); return [!!r?.querySelector('.zaznam-datum'), !!r?.querySelector('.zaznam-hlavny'), !!document.querySelector('.vydavok-riadok .zaznam-stav .farebny-cip'), !!r?.querySelector('.zaznam-suma strong'), r?.getBoundingClientRect().height < 170, !document.querySelector('.zoznam-zaznamov table'), !!document.querySelector('.suhrn-zoznamu')] })()`),
+  [true, true, true, true, true, true, true],
 )
+t.over('v hlavičke výdavkov je jedno hlavné tlačidlo a ⋮', await js(`[document.querySelectorAll('.hlavicka .akcie > button, .hlavicka .akcie > a').length, !!document.querySelector('.hlavicka .menu-akcii')]`), [1, true])
+t.over('dátumy, kategória a turnus výdavkov sú pod tlačidlom Filter', await js(`document.querySelectorAll('.filtre select, .filtre input[type=date]').length`), 0)
+await klik('.tlacidlo-filtra')
+t.over('…a ťuknutím sa ukážu', await js(`document.querySelectorAll('.filtre select, .filtre input[type=date]').length`), 4)
+await klik('.vydavok-riadok .menu-akcii button')
+t.over(
+  'ponuka ⋮ pri výdavku: upraviť, kôš',
+  await js(`[...document.querySelectorAll('.menu-akcii-zoznam [role=menuitem]')].map((e) => e.textContent.trim())`),
+  ['Upraviť', 'Presunúť do koša'],
+)
+await cdp('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 })
+const poslednyVydavok = await js(`document.querySelectorAll('.vydavok-riadok').length - 1`)
+await klik('.vydavok-riadok', poslednyVydavok)
+t.over(
+  'ťuknutím na výdavok dole v zozname sa formulár ukáže hore na obrazovke',
+  await pockaj(() => js(`(() => { const p = document.querySelector('.panel-formulara'); if (!p) return false; const r = p.getBoundingClientRect(); return r.top >= 0 && r.top < innerHeight / 2 && scrollY > 0 })()`), 3000),
+  true,
+)
+await zmeraj('Výdavky v telefóne – úprava z karty')
+await otvor('/turnusy')
+t.over(
+  'turnusy v troch riadkoch, súhrn jedným riadkom, filtre schované',
+  await js(`(() => { const r = document.querySelector('.zoznam-zaznamov .turnus-riadok'); return [!!r?.querySelector('.zaznam-datum'), !!r?.querySelector('.zaznam-hlavny'), !!r?.querySelector('.zaznam-stav .stitok'), !document.querySelector('.karty.kompaktne'), !!document.querySelector('.suhrn-zoznamu'), document.querySelectorAll('.filtre select').length, !document.querySelector('.zoznam-zaznamov table')] })()`),
+  [true, true, true, true, true, 0, true],
+)
+await klik('.turnus-riadok')
+t.over('ťuknutím na kartu sa turnus otvorí', await js(`location.pathname.split('/').slice(1).map((c, i) => i === 1 ? Number(c) > 0 : c)`), ['turnusy', true])
 await otvor('/faktury')
 t.over(
   'záložky faktúr sú v rovnakej mriežke po dve',

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import {
   api, dnesISO, pocet, skDatum, skSuma, sumaVMene, turnusPreDatum, velkostSuboru, vratZKosa,
   KATEGORIE_PRIJMOV, KATEGORIE_VYDAVKOV, MENY, NAZVY_PLATIEB,
@@ -7,9 +7,12 @@ import {
 } from '../api'
 import { Ikona } from '../components/Ikony'
 import { FarebnyCip, tonKategorie } from '../components/Farby'
+import { MenuAkcii } from '../components/MenuAkcii'
 import { oznam } from '../components/Oznamenia'
 import { PrazdnyStav } from '../components/PrazdnyStav'
 import { QrOkno, usePristup } from '../components/PristupZTelefonu'
+import { HladanieSFiltrom, ZaznamRiadok } from '../components/Zoznam'
+import { useMaleOkno } from '../maleOkno'
 import { useNeulozeneZmeny } from '../neulozene'
 
 type Formular = {
@@ -82,6 +85,14 @@ export function Vydavky() {
   /** Formulár otvorený z QR kódu v telefóne – fotoaparát ide na prvé miesto. */
   const [fotoHned, setFotoHned] = useState(false)
   const oznacUlozene = useNeulozeneZmeny(uprava, uprava?.id ?? 'novy')
+  const navigate = useNavigate()
+  const male = useMaleOkno()
+  /** Na telefóne sú dátumy, kategória a turnus schované pod tlačidlom Filter. */
+  const [filtreOtvorene, setFiltreOtvorene] = useState(false)
+  const aktivnychFiltrov = [f.od, f.do, f.kategoria, f.turnus].filter(Boolean).length
+  const formular = useRef<HTMLDivElement>(null)
+  /** Formulár je nad zoznamom – po otvorení z karty nižšie by ostal mimo obrazovky. */
+  const posunutNaFormular = useRef(false)
 
   const prijem = druh === 'prijem'
 
@@ -128,6 +139,12 @@ export function Vydavky() {
     return () => clearTimeout(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [f, druh])
+
+  useEffect(() => {
+    if (!uprava || !posunutNaFormular.current) return
+    posunutNaFormular.current = false
+    formular.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }, [uprava])
 
   // Kurz ECB pre cudziu menu – vypýta sa pri výbere meny a pri zmene dátumu dokladu.
   useEffect(() => {
@@ -208,6 +225,7 @@ export function Vydavky() {
   }
 
   function otvorNovy(kategoria = '') {
+    posunutNaFormular.current = true
     setUprava({ ...PRAZDNY(druh), kategoria })
     setFotoHned(false)
     setEfaktura(null)
@@ -227,6 +245,7 @@ export function Vydavky() {
     // Uložený kurz sa pri otvorení nemení – nový sa vypýta až po zmene meny alebo dátumu.
     kurzPre.current = `${mena}|${detail.datum}`
     setKurzInfo(kurz ? 'uložený kurz' : '')
+    posunutNaFormular.current = true
     setUprava({
       id: detail.id,
       datum: detail.datum,
@@ -336,9 +355,11 @@ export function Vydavky() {
       <div className="hlavicka">
         <h1>Výdavky</h1>
         <div className="akcie">
-          <Link className="tlacidlo" to="/financie">
-            Prehľad financií
-          </Link>
+          {!male && (
+            <Link className="tlacidlo" to="/financie">
+              Prehľad financií
+            </Link>
+          )}
           {pristup?.zapnute && pristup.z_pocitaca && !prijem && (
             <button onClick={() => setQrOkno(true)}>
               <Ikona nazov="telefon" velkost={16} /> Odfotiť telefónom
@@ -347,6 +368,12 @@ export function Vydavky() {
           <button className="primar" onClick={() => otvorNovy()}>
             {prijem ? '+ Nový súkromný príjem' : '+ Nový výdavok'}
           </button>
+          {male && (
+            <MenuAkcii
+              popis="Ďalšie možnosti"
+              akcie={[{ text: 'Prehľad financií', ikona: 'financie', sprav: () => navigate('/financie') }]}
+            />
+          )}
         </div>
       </div>
 
@@ -383,7 +410,7 @@ export function Vydavky() {
       )}
 
       {uprava && (
-        <div className="panel">
+        <div className="panel panel-formulara" ref={formular}>
           <h2>
             {uprava.id
               ? upravujemPrijem
@@ -715,14 +742,18 @@ export function Vydavky() {
       )}
 
       <div className="filtre">
-        <div className="hladanie">
-          <label>Hľadať</label>
-          <input
-            placeholder={prijem ? 'popis, kategória…' : 'popis, kategória, turnus…'}
-            value={f.hladat}
-            onChange={(e) => setF({ ...f, hladat: e.target.value })}
-          />
-        </div>
+        <HladanieSFiltrom
+          id="hladat-vydavky"
+          hodnota={f.hladat}
+          zmen={(hladat) => setF({ ...f, hladat })}
+          placeholder={prijem ? 'popis, kategória…' : 'popis, kategória, turnus…'}
+          male={male}
+          aktivnych={aktivnychFiltrov}
+          otvorene={filtreOtvorene}
+          prepni={() => setFiltreOtvorene(!filtreOtvorene)}
+        />
+        {(!male || filtreOtvorene) && (
+        <>
         <div>
           <label>Od</label>
           <input type="date" value={f.od} onChange={(e) => setF({ ...f, od: e.target.value })} />
@@ -763,9 +794,33 @@ export function Vydavky() {
             </select>
           </div>
         )}
+        </>
+        )}
       </div>
 
-      <div className="panel tesny">
+      {male && vydavky && vydavky.length > 0 && (
+        <div className="suhrn-zoznamu">
+          <span>
+            {prijem
+              ? pocet(vydavky.length, ['príjem', 'príjmy', 'príjmov'])
+              : pocet(vydavky.length, ['výdavok', 'výdavky', 'výdavkov'])}
+          </span>
+          <span>
+            spolu <strong>{skSuma(spolu)}</strong>
+          </span>
+          {prijem ? (
+            <span>do dane nevstupujú</span>
+          ) : (
+            Math.abs(uznatelneVZozname - spolu) > 0.005 && (
+              <span>
+                uznateľné <strong>{skSuma(uznatelneVZozname)}</strong>
+              </span>
+            )
+          )}
+        </div>
+      )}
+
+      <div className={male && vydavky?.length ? 'zoznam-zaznamov' : 'panel tesny'}>
         {!vydavky ? (
           <div className="nacitava">Načítavam…</div>
         ) : vydavky.length === 0 ? (
@@ -792,6 +847,48 @@ export function Vydavky() {
               </button>
             }
           />
+        ) : male ? (
+          // Telefón: dátum, popis s turnusom, kategória a suma – ťuknutím sa výdavok otvorí na úpravu.
+          vydavky.map((v) => (
+            <ZaznamRiadok
+              key={v.id}
+              className="vydavok-riadok"
+              otvor={() => otvorUpravu(v)}
+              hore={<span className="zaznam-datum">{skDatum(v.datum)}</span>}
+              popisAkcii={`Akcie – ${v.popis}`}
+              akcie={[
+                { text: 'Upraviť', ikona: 'upravit', sprav: () => otvorUpravu(v) },
+                { text: 'Presunúť do koša', ikona: 'zmazat', nebezpecne: true, sprav: () => zmaz(v) },
+              ]}
+              hlavny={
+                <>
+                  {v.popis}
+                  {v.turnus_nazov && <span className="pod-textom">{v.turnus_nazov}</span>}
+                </>
+              }
+              dole={
+                <>
+                  {v.kategoria && <FarebnyCip ton={tonKategorie(v.kategoria)}>{v.kategoria}</FarebnyCip>}
+                  {v.druh === 'vydavok' && v.odpocitat === 0 && <span className="stitok koncept">neuznateľný</span>}
+                  {!!v.pocet_priloh && (
+                    <span className="typ-s-ikonou ma-prilohu" aria-label={pocet(v.pocet_priloh, ['doklad', 'doklady', 'dokladov'])}>
+                      <Ikona nazov="priloha" velkost={14} /> {v.pocet_priloh}
+                    </span>
+                  )}
+                </>
+              }
+              suma={
+                <>
+                  {v.druh === 'prijem' ? (
+                    <strong className="prijem-suma">+ {skSuma(v.suma)}</strong>
+                  ) : (
+                    <strong>{skSuma(v.suma)}</strong>
+                  )}
+                  {v.mena && v.mena !== 'EUR' && <span className="pod-textom">{sumaVMene(v.suma_mena, v.mena)}</span>}
+                </>
+              }
+            />
+          ))
         ) : (
           <table>
             <thead>
@@ -857,7 +954,7 @@ export function Vydavky() {
         )}
       </div>
 
-      {vydavky && vydavky.length > 0 && (
+      {!male && vydavky && vydavky.length > 0 && (
         <div className="tlmene" style={{ fontSize: 13 }}>
           {prijem ? (
             <>

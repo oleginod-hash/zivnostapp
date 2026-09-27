@@ -101,7 +101,9 @@ prípadné s.r.o. sa líšia len voľbami v Nastaveniach), logo, vzhľady PDF a 
 ### Rozrobené
 
 - **Dizajn** – kritika obrazoviek, vlastný DESIGN.md (pravidlá vzhľadu) a podľa neho úprava ďalších
-  obrazoviek. Vzor rozloženia: KROS, vzhľad vlastný.
+  obrazoviek. Vzor rozloženia: KROS, vzhľad vlastný. Hotové: zoznamy Faktúry, Výdavky a Turnusy
+  v telefóne (karta v troch riadkoch, Filter, súhrn jedným riadkom). Ďalej: formuláre (lepkavé
+  Uložiť, fotka dokladu hore), stupnica písma a dotykové plochy 44 px, Prehľad.
 - **Prehľad** – väčšie preusporiadanie až podľa testu s ľuďmi.
 
 ### Budúce kroky (ešte prebrať s používateľom)

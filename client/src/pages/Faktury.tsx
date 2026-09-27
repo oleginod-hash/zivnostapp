@@ -8,7 +8,7 @@ import { oznam, potvrd } from '../components/Oznamenia'
 import { Ikona } from '../components/Ikony'
 import { StitokStavu, StitokZalohy } from '../components/StitokStavu'
 import { PrazdnyStav } from '../components/PrazdnyStav'
-import { MenuAkcii } from '../components/MenuAkcii'
+import { HladanieSFiltrom, ZaznamRiadok } from '../components/Zoznam'
 import { useMaleOkno } from '../maleOkno'
 
 type Zalozka = '' | 'nevyplatene' | 'vyplatene' | 'zalohy'
@@ -186,28 +186,16 @@ export function Faktury() {
       {chyba && <div className="chyba">{chyba}</div>}
 
       <div className="filtre">
-        <div className="hladanie">
-          <label htmlFor="hladat-faktury">Hľadať</label>
-          <div className="hladanie-s-filtrom">
-            <input
-              id="hladat-faktury"
-              placeholder="číslo faktúry, firma, poznámka…"
-              value={f.hladat}
-              onChange={(e) => setF({ ...f, hladat: e.target.value })}
-            />
-            {male && (
-              <button
-                type="button"
-                className={'tlacidlo-filtra' + (aktivnychFiltrov ? ' aktivny' : '')}
-                aria-expanded={filtreOtvorene}
-                onClick={() => setFiltreOtvorene(!filtreOtvorene)}
-              >
-                <Ikona nazov="filter" velkost={16} />
-                Filter{aktivnychFiltrov ? ` (${aktivnychFiltrov})` : ''}
-              </button>
-            )}
-          </div>
-        </div>
+        <HladanieSFiltrom
+          id="hladat-faktury"
+          hodnota={f.hladat}
+          zmen={(hladat) => setF({ ...f, hladat })}
+          placeholder="číslo faktúry, firma, poznámka…"
+          male={male}
+          aktivnych={aktivnychFiltrov}
+          otvorene={filtreOtvorene}
+          prepni={() => setFiltreOtvorene(!filtreOtvorene)}
+        />
         {(!male || filtreOtvorene) && (
         <>
         <div>
@@ -268,7 +256,7 @@ export function Faktury() {
         </div>
       )}
 
-      <div className={male && faktury?.length ? 'zoznam-faktur' : 'panel tesny'}>
+      <div className={male && faktury?.length ? 'zoznam-zaznamov zoznam-faktur' : 'panel tesny'}>
         {!faktury ? (
           <div className="nacitava">Načítavam…</div>
         ) : faktury.length === 0 ? (
@@ -301,50 +289,50 @@ export function Faktury() {
           faktury.map((fa) => {
             const otvorene = fa.otvoreny_zostatok > 0.005
             return (
-              <div
+              <ZaznamRiadok
                 key={fa.id}
                 className="faktura-riadok"
-                role="link"
-                tabIndex={0}
-                onClick={() => navigate(`/faktury/${fa.id}`)}
-                onKeyDown={(e) => e.key === 'Enter' && navigate(`/faktury/${fa.id}`)}
-              >
-                <div className="faktura-riadok-hore">
-                  <span className="cislo-faktury">{fa.cislo}</span>
-                  <span className="faktura-riadok-datum">{skDatum(fa.datum_vystav)}</span>
-                  {fa.typ === 'zaloha' && <StitokZalohy />}
-                  <MenuAkcii
-                    popis={`Akcie faktúry ${fa.cislo}`}
-                    akcie={[
-                      otvorene
-                        ? { text: 'Označiť ako uhradenú', ikona: 'zaplatena', sprav: () => zmenStav(fa.id, 'zaplatena') }
-                        : { text: 'Zrušiť úhradu', ikona: 'vratit', sprav: () => zmenStav(fa.id, 'vystavena') },
-                      { text: 'Otvoriť PDF', ikona: 'pdf', href: `/api/faktury/${fa.id}/pdf` },
-                      { text: 'Presunúť do koša', ikona: 'zmazat', nebezpecne: true, sprav: () => zmaz(fa) },
-                    ]}
-                  />
-                </div>
-                <div className="faktura-riadok-firma">
-                  {fa.firma_nazov || <span className="tlmene">bez odberateľa</span>}
-                  {(fa.turnus_nazov || fa.kryje_cislo) && (
-                    <span className="pod-textom">
-                      {[fa.turnus_nazov, fa.kryje_cislo && `splátka ${fa.kryje_cislo}`].filter(Boolean).join(' · ')}
-                    </span>
-                  )}
-                </div>
-                <div className="faktura-riadok-dole">
-                  <span className="faktura-riadok-stav">
+                otvor={() => navigate(`/faktury/${fa.id}`)}
+                hore={
+                  <>
+                    <span className="cislo-faktury">{fa.cislo}</span>
+                    <span className="zaznam-id">{skDatum(fa.datum_vystav)}</span>
+                    {fa.typ === 'zaloha' && <StitokZalohy />}
+                  </>
+                }
+                popisAkcii={`Akcie faktúry ${fa.cislo}`}
+                akcie={[
+                  otvorene
+                    ? { text: 'Označiť ako uhradenú', ikona: 'zaplatena', sprav: () => zmenStav(fa.id, 'zaplatena') }
+                    : { text: 'Zrušiť úhradu', ikona: 'vratit', sprav: () => zmenStav(fa.id, 'vystavena') },
+                  { text: 'Otvoriť PDF', ikona: 'pdf', href: `/api/faktury/${fa.id}/pdf` },
+                  { text: 'Presunúť do koša', ikona: 'zmazat', nebezpecne: true, sprav: () => zmaz(fa) },
+                ]}
+                hlavny={
+                  <>
+                    {fa.firma_nazov || <span className="tlmene">bez odberateľa</span>}
+                    {(fa.turnus_nazov || fa.kryje_cislo) && (
+                      <span className="pod-textom">
+                        {[fa.turnus_nazov, fa.kryje_cislo && `splátka ${fa.kryje_cislo}`].filter(Boolean).join(' · ')}
+                      </span>
+                    )}
+                  </>
+                }
+                dole={
+                  <>
                     <StitokStavu stav={fa.stav_zobraz} kratko />
                     <Dni splatnost={fa.datum_splat} otvorene={otvorene && fa.stav !== 'koncept'} />
-                  </span>
-                  <span className="faktura-riadok-suma">
+                  </>
+                }
+                suma={
+                  <>
                     <strong>{skSuma(fa.suma)}</strong>
                     {otvorene && fa.uhradene_spolu > 0.005 && (
                       <span className="pod-textom">zostáva {skSuma(fa.otvoreny_zostatok)}</span>
                     )}
-                  </span>
-                </div>
-              </div>
+                  </>
+                }
+              />
             )
           })
         ) : (

@@ -1791,9 +1791,9 @@ tr.tlmeny-riadok td, tr.tlmeny-riadok td strong { color: var(--ink3); }
 .suhrn-zoznamu strong { color: var(--ink); }
 .suhrn-zoznamu .suma-caka { color: var(--neg); }
 
-/* Faktúra ako riadok zoznamu v troch riadkoch: číslo a dátum, odberateľ, stav a suma */
-.zoznam-faktur { display: flex; flex-direction: column; gap: 10px; margin-bottom: 16px; }
-.faktura-riadok {
+/* Záznam v zozname (faktúra, výdavok, turnus…) v troch riadkoch – DESIGN.md */
+.zoznam-zaznamov { display: flex; flex-direction: column; gap: 10px; margin-bottom: 16px; }
+.zaznam {
   display: grid;
   gap: 6px;
   padding: 10px 12px 12px 14px;
@@ -1803,15 +1803,24 @@ tr.tlmeny-riadok td, tr.tlmeny-riadok td strong { color: var(--ink3); }
   box-shadow: var(--shadow);
   cursor: pointer;
 }
-.faktura-riadok:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.faktura-riadok-hore { display: flex; align-items: center; gap: 10px; min-height: 36px; }
-.faktura-riadok-hore .menu-akcii { margin-left: auto; }
-.faktura-riadok-datum { padding-left: 10px; border-left: 1px solid var(--line); font-size: 13.5px; color: var(--ink3); }
-.faktura-riadok-firma { font-size: 15.5px; font-weight: 700; overflow-wrap: anywhere; }
-.faktura-riadok-firma .pod-textom { font-weight: 500; }
-.faktura-riadok-dole { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.faktura-riadok-stav { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.faktura-riadok-suma { text-align: right; font-size: 16px; white-space: nowrap; }
+.zaznam:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.zaznam.tlmeny { opacity: 0.65; }
+.zaznam-hore { display: flex; align-items: center; gap: 10px; min-height: 36px; flex-wrap: wrap; }
+.zaznam-datum { font-size: 13.5px; font-weight: 700; color: var(--ink2); }
+.zaznam-hore .menu-akcii { margin-left: auto; }
+/* Druhý údaj v hornom riadku oddelený zvislou čiarkou (číslo | dátum). */
+.zaznam-hore > * + .zaznam-id { padding-left: 10px; border-left: 1px solid var(--line); }
+.zaznam-id { font-size: 13.5px; color: var(--ink3); }
+.zaznam-hlavny { font-size: 15.5px; font-weight: 700; overflow-wrap: anywhere; }
+.zaznam-hlavny .pod-textom { font-weight: 500; white-space: normal; }
+.zaznam-dole { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.zaznam-stav { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; min-width: 0; font-size: 13.5px; color: var(--ink3); }
+.zaznam-suma { text-align: right; font-size: 16px; white-space: nowrap; }
+.zaznam-suma .prijem-suma { color: var(--pos); }
+.zaznam-suma .pod-textom { text-align: right; }
+.chyba-fakturacie { font-weight: 700; color: var(--oranzova); }
+/* Hlavička stránky je lepkavá – formulár otvorený z karty sa pod ňu nesmie schovať. */
+.panel-formulara { scroll-margin-top: 96px; }
 
 /* Formulár faktúry */
 .nadpis-faktury { display: flex; flex-direction: column; gap: 1px; min-width: 0; }

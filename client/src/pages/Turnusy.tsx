@@ -8,6 +8,8 @@ import { Ikona } from '../components/Ikony'
 import { FirmaSAvatarom, Karticka } from '../components/Farby'
 import { oznam, oznamChybu } from '../components/Oznamenia'
 import { PrazdnyStav } from '../components/PrazdnyStav'
+import { HladanieSFiltrom, ZaznamRiadok } from '../components/Zoznam'
+import { useMaleOkno } from '../maleOkno'
 
 type SuhrnTurnusov = {
   prebiehaju: number; planovane: number; ukoncene: number; roky: string[]
@@ -21,6 +23,10 @@ export function Turnusy() {
   const [suhrn, setSuhrn] = useState<SuhrnTurnusov | null>(null)
   const [chyba, setChyba] = useState('')
   const [f, setF] = useState({ stav: '', firma: '', rok: '', hladat: '' })
+  const male = useMaleOkno()
+  /** Na telefóne sú výbery stavu, firmy a roka schované pod tlačidlom Filter. */
+  const [filtreOtvorene, setFiltreOtvorene] = useState(false)
+  const aktivnychFiltrov = [f.stav, f.firma, f.rok].filter(Boolean).length
 
   function nacitaj() {
     const q = new URLSearchParams()
@@ -68,7 +74,8 @@ export function Turnusy() {
 
       {chyba && <div className="chyba">{chyba}</div>}
 
-      {suhrn && (
+      {/* Na telefóne je súhrn jeden riadok nad zoznamom – zoznam tak začína hneď na prvej obrazovke. */}
+      {suhrn && !male && (
         <div className="karty kompaktne">
           <Karticka ikona="turnusy" ton="pos" popis="Práve prebieha" hodnota={suhrn.prebiehaju} />
           <Karticka ikona="kalendar" ton="akcent" popis="Naplánované" hodnota={suhrn.planovane} />
@@ -89,14 +96,18 @@ export function Turnusy() {
       )}
 
       <div className="filtre">
-        <div className="hladanie">
-          <label>Hľadať</label>
-          <input
-            placeholder="názov, krajina, miesto, firma…"
-            value={f.hladat}
-            onChange={(e) => setF({ ...f, hladat: e.target.value })}
-          />
-        </div>
+        <HladanieSFiltrom
+          id="hladat-turnusy"
+          hodnota={f.hladat}
+          zmen={(hladat) => setF({ ...f, hladat })}
+          placeholder="názov, krajina, miesto, firma…"
+          male={male}
+          aktivnych={aktivnychFiltrov}
+          otvorene={filtreOtvorene}
+          prepni={() => setFiltreOtvorene(!filtreOtvorene)}
+        />
+        {(!male || filtreOtvorene) && (
+        <>
         <div>
           <label>Stav</label>
           <select value={f.stav} onChange={(e) => setF({ ...f, stav: e.target.value })}>
@@ -129,9 +140,25 @@ export function Turnusy() {
             ))}
           </select>
         </div>
+        </>
+        )}
       </div>
 
-      <div className="panel tesny">
+      {male && suhrn && (
+        <div className="suhrn-zoznamu">
+          <span>
+            práve prebieha <strong>{suhrn.prebiehaju}</strong>
+          </span>
+          <span>
+            naplánované <strong>{suhrn.planovane}</strong>
+          </span>
+          <span>
+            ukončené <strong>{suhrn.ukoncene}</strong>
+          </span>
+        </div>
+      )}
+
+      <div className={male && turnusy?.length ? 'zoznam-zaznamov' : 'panel tesny'}>
         {!turnusy ? (
           <div className="nacitava">Načítavam…</div>
         ) : turnusy.length === 0 ? (
@@ -146,6 +173,46 @@ export function Turnusy() {
               </Link>
             }
           />
+        ) : male ? (
+          // Telefón: obdobie, názov s firmou a miestom, stav a vyfakturovaná suma.
+          turnusy.map((t) => {
+            const chyba = t.objednane > 0 && t.vyfakturovane < t.objednane ? t.objednane - t.vyfakturovane : 0
+            return (
+              <ZaznamRiadok
+                key={t.id}
+                className="turnus-riadok"
+                tlmeny={t.stav === 'zruseny'}
+                otvor={() => navigate('/turnusy/' + t.id)}
+                hore={
+                  <>
+                    <span className="zaznam-datum">
+                      {skDatum(t.datum_od)} – {skDatum(t.datum_do)}
+                    </span>
+                    <span className="zaznam-id">{dlzkaTurnusu(t.datum_od, t.datum_do)} dní</span>
+                  </>
+                }
+                popisAkcii={`Akcie turnusu ${t.nazov}`}
+                akcie={[{ text: 'Presunúť do koša', ikona: 'zmazat', nebezpecne: true, sprav: () => zmaz(t) }]}
+                hlavny={
+                  <>
+                    {t.nazov}
+                    {(t.firma_nazov || t.miesto || t.krajina) && (
+                      <span className="pod-textom">
+                        {[t.firma_nazov, [t.miesto, t.krajina].filter(Boolean).join(', ')].filter(Boolean).join(' · ')}
+                      </span>
+                    )}
+                  </>
+                }
+                dole={
+                  <>
+                    <span className={'stitok ' + STITOK_TURNUSU[t.stav]}>{NAZVY_STAVOV_TURNUSU[t.stav]}</span>
+                    {chyba > 0 && <span className="chyba-fakturacie">chýba {skSuma(chyba)}</span>}
+                  </>
+                }
+                suma={t.vyfakturovane > 0 ? <strong>{skSuma(t.vyfakturovane)}</strong> : undefined}
+              />
+            )
+          })
         ) : (
           <table>
             <thead>

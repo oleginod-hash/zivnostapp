@@ -84,6 +84,8 @@ na používanie v [README.md](README.md).
 
 ## Štýl
 
+- **Vzhľad a rozloženie obrazoviek podľa [DESIGN.md](DESIGN.md)** – zoznamy ako karty v troch riadkoch,
+  filtre pod tlačidlom, „Viac údajov", lepkavé Uložiť, stupnica písma a dotykové ciele.
 - **Texty v rozhraní:** slovenčina, formálnejšie tykanie, bez hovorových slov („spočíta", nie
   „zráta"; „vyprázdniť kôš", nie „vysypať"). Slová „turnus" a „appka" ostávajú.
   - Zaužívané pojmy: *splátka* (zálohová faktúra s `kryje_id`, nie „kryje"), *doklad* (nie „bloček"),
