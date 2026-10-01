@@ -21,6 +21,10 @@ nadpise, pestrofarebné bublinky. Chce pokojný, vecný vzhľad podľa vzoru **R
 
 ## Cieľový vzhľad (Ramp, prispôsobený pre túto appku)
 
+Navrhni ucelený vzhľad ako dizajnér, nie ako prepis tabuľky farieb. Hodnoty z Rampu ber ako
+východisko – keď treba niečo upraviť kvôli kontrastu, čitateľnosti alebo tmavej téme, uprav to
+a v závere napíš prečo.
+
 **Z Rampu prevezmi:**
 - Teplý papierový podklad `#f4f2f0`, biele karty `#ffffff`, text takmer čierny `#0c0a08`, tlmený text `#6d6c6b`.
 - **Žiadne tiene** na kartách a paneloch – len tenká linka `#e5e7eb`. Tieň ostáva len pri vyskakovacích
@@ -52,7 +56,21 @@ nadpise, pestrofarebné bublinky. Chce pokojný, vecný vzhľad podľa vzoru **R
 - Pravidlá z DESIGN.md: písmo najmenej 12 px, dotykové plochy na telefóne aspoň 44 × 44 px,
   kontrast aspoň AA v oboch témach, sumy `tabular-nums`.
 
-## Postup
+## Postup – dve fázy so zastávkou
+
+Kredity sú obmedzené a používateľ chce výsledok vidieť skôr, než sa prerobí všetko.
+
+**Fáza 1 – ukážka (potom sa zastav):**
+- Premenné (farby, písmo, tieň, zaoblenie) v oboch témach a spoločné prvky (bod 1 nižšie).
+- Skontroluj obrázkami tri obrazovky: **Prehľad, Faktúry, Nový výdavok** – telefón aj počítač,
+  svetlá aj tmavá téma. Celé `npm run overenie` ešte nespúšťaj.
+- Commitni, pushni do `dizajn-ramp` a napíš 3–5 viet po slovensky, čo si zmenil.
+  Potom **počkaj na odpoveď** („pokračuj" alebo pripomienky). Obrázky pre používateľa spraví
+  lokálna relácia z tvojej vetvy.
+
+**Fáza 2 – po súhlase:** zvyšok obrazoviek (body 2–4), DESIGN.md a celé overenie nižšie.
+
+### Kroky
 
 1. Najprv **premenné** (farby, písmo, tieň, zaoblenie) v oboch témach, potom **spoločné prvky**:
    tlačidlá (`.primar`, `.holy`, `.ikonove`), panely a karty (`.panel`, `.zaznam`, `.karta`), štítky
