@@ -1,27 +1,12 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import { api, type Firma, type Nastavenia } from '../api'
+import { Okno } from './Okno'
 
 /**
  * Údaje odberateľa a dodávateľa priamo z faktúry – ako „Viac údajov"
  * v bežných fakturačných appkách. Netreba kvôli preklepu v adrese odchádzať
  * z rozpísanej faktúry do Firiem či Nastavení.
  */
-
-function Okno({ nadpis, children, zavriet }: { nadpis: string; children: ReactNode; zavriet: () => void }) {
-  useEffect(() => {
-    const klaves = (e: KeyboardEvent) => e.key === 'Escape' && zavriet()
-    window.addEventListener('keydown', klaves)
-    return () => window.removeEventListener('keydown', klaves)
-  }, [zavriet])
-  return (
-    <div className="prekryv" onClick={(e) => e.target === e.currentTarget && zavriet()}>
-      <div className="dialog okno-udajov" role="dialog" aria-modal="true" aria-label={nadpis}>
-        <h2>{nadpis}</h2>
-        {children}
-      </div>
-    </div>
-  )
-}
 
 function Pole({ id, popis, children, siroke = false }: { id: string; popis: string; children: ReactNode; siroke?: boolean }) {
   return (

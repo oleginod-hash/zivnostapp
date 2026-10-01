@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import {
   api, dnesISO, pocet, skDatum, skSuma,
@@ -10,11 +10,12 @@ import { pracovnychDniMedzi, pridajPracovneDni } from '../../../server/lib/praco
 import { SADZBY_DPH, spocitajFakturu } from '../../../server/lib/dph'
 import { Ikona } from '../components/Ikony'
 import { useNeulozeneZmeny } from '../neulozene'
-import { oznam, potvrd } from '../components/Oznamenia'
+import { oznam, potvrd, zadajText } from '../components/Oznamenia'
 import { CasovaOs } from '../components/CasovaOs'
 import { MenuAkcii } from '../components/MenuAkcii'
 import { OknoDodavatela, OknoOdberatela } from '../components/UdajeStran'
 import { useMaleOkno } from '../maleOkno'
+import { CisloPole } from '../components/CisloPole'
 
 type Formular = {
   cislo: string
@@ -76,6 +77,10 @@ export function FakturaEdit() {
   const [chyba, setChyba] = useState('')
   const [uklada, setUklada] = useState(false)
   const [sablony, setSablony] = useState<Sablona[]>([])
+  /** Číslo, ktoré navrhla appka – pri zmene typu dokladu sa smie vymeniť, ručne prepísané nie. */
+  const navrhnuteCislo = useRef('')
+  /** Šablóna z adresy (?sablona=) sa použije len raz – potom už formulár patrí človeku. */
+  const sablonaPouzita = useRef(false)
   const [nevyplatene, setNevyplatene] = useState<Faktura[]>([])
   /** Zálohové faktúry, ktoré túto faktúru kryjú – ich platby ju tiež umorujú. */
   const [kryteZalohami, setKryteZalohami] = useState<Faktura[]>([])
@@ -130,6 +135,7 @@ export function FakturaEdit() {
         zTurnusu ? api.get<Turnus>('/turnusy/' + zTurnusu) : Promise.resolve(null),
       ])
         .then(([n, nastavenia, o, t]) => {
+          navrhnuteCislo.current = n.cislo
           // Faktúra vystavená z objednávky si z nej vezme popis aj sadzbu.
           // Pri hodinovke fakturujeme hodiny, inak zvyšok dohodnutej sumy.
           const zvysok = o ? Math.round((o.suma - o.vyfakturovane) * 100) / 100 : 0
@@ -210,6 +216,15 @@ export function FakturaEdit() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, novaFaktura])
+
+  // Nová faktúra otvorená zo šablóny (Faktúry → Šablóny → Vystaviť faktúru).
+  useEffect(() => {
+    const zoSablony = hladane.get('sablona')
+    if (!novaFaktura || !zoSablony || sablonaPouzita.current || !form || !sablony.length) return
+    sablonaPouzita.current = true
+    pouziSablonu(zoSablony)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form, sablony])
 
   if (chyba && !form) return <div className="chyba">{chyba}</div>
   if (!form) return <div className="nacitava">Načítavam…</div>
@@ -310,9 +325,8 @@ export function FakturaEdit() {
   const posun = (datum: string, dni: number, vPracovnych = pracovneDni) =>
     vPracovnych ? pridajPracovneDni(datum, dni) : pridajDni(datum, dni)
 
-  function zmenSplatnost(hodnota: string) {
-    const dni = Number(hodnota)
-    if (!Number.isFinite(dni) || hodnota.trim() === '') return
+  function zmenSplatnost(dni: number) {
+    if (!Number.isFinite(dni)) return
     uprav({ datum_splat: posun(form!.datum_vystav, Math.round(dni)) })
   }
 
@@ -361,6 +375,23 @@ export function FakturaEdit() {
     })
   }
 
+  /**
+   * Zmena typu dokladu. Pri novej faktúre s navrhnutým číslom sa číslo vymení za ďalšie
+   * zo správneho radu – zálohové faktúry môžu mať vlastné číslovanie (Nastavenia → Faktúry).
+   */
+  function zmenTyp(typ: TypDokladu) {
+    uprav({ typ, kryje_id: '' })
+    if (!novaFaktura || form!.cislo !== navrhnuteCislo.current) return
+    const povodne = form!.cislo
+    api
+      .get<{ cislo: string }>(`/faktury/nova?typ=${typ}&datum=${form!.datum_vystav}`)
+      .then((r) => {
+        navrhnuteCislo.current = r.cislo
+        setForm((f) => (f && f.cislo === povodne ? { ...f, cislo: r.cislo } : f))
+      })
+      .catch(() => {})
+  }
+
   /** Doplní položky (a odberateľa) zo šablóny. */
   function pouziSablonu(sablonaId: string) {
     const s = sablony.find((x) => String(x.id) === sablonaId)
@@ -375,12 +406,17 @@ export function FakturaEdit() {
   }
 
   async function ulozAkoSablonu() {
-    const nazov = prompt('Názov šablóny:', `${form!.cislo} – vzor`)
+    const odberatel = firmy.find((f) => String(f.id) === form!.company_id)?.nazov
+    const nazov = await zadajText({
+      nadpis: 'Uložiť ako šablónu',
+      text: 'Šablóna si zapamätá odberateľa, položky a poznámku. Nájdeš ju vo Faktúrach pod tlačidlom „Šablóny" a pri novej faktúre v „Použiť šablónu".',
+      pole: { popis: 'Názov šablóny', hodnota: `${odberatel ?? form!.cislo} – vzor` },
+      potvrdit: 'Uložiť šablónu',
+    })
     if (!nazov) return
     try {
       await api.post(`/sablony/z-faktury/${id}`, { nazov })
-      setSprava(`Šablóna „${nazov}" je uložená.`)
-      setTimeout(() => setSprava(''), 4000)
+      oznam(`Šablóna „${nazov}" je uložená – nájdeš ju vo Faktúrach pod „Šablóny".`)
       api.get<Sablona[]>('/sablony').then(setSablony).catch(() => {})
     api
       .get<{ nevyplatene: Faktura[] }>('/faktury/prehlad/dlhy')
@@ -460,7 +496,12 @@ export function FakturaEdit() {
       {novaFaktura && sablony.length > 0 && (
         <div className="panel">
           <label>Použiť šablónu</label>
-          <select defaultValue="" onChange={(e) => pouziSablonu(e.target.value)} style={{ maxWidth: 420 }}>
+          <select
+            aria-label="Použiť šablónu"
+            defaultValue={hladane.get('sablona') ?? ''}
+            onChange={(e) => pouziSablonu(e.target.value)}
+            style={{ maxWidth: 420 }}
+          >
             <option value="">— začať naprázdno —</option>
             {sablony.map((s) => (
               <option key={s.id} value={s.id}>
@@ -585,17 +626,19 @@ export function FakturaEdit() {
             </div>
             {/* Splatnosť dvomi spôsobmi naraz: počet dní a konkrétny dátum – zmena jedného posunie druhé. */}
             <div className="splatnost-riadok">
-              <input
+              <CisloPole
                 id="dni-splatnosti"
                 className="dni-splatnosti"
-                type="number"
                 min={0}
                 max={365}
                 step={1}
+                inputMode="numeric"
                 list="bezne-lehoty"
                 aria-label={pracovneDni ? 'Splatnosť v pracovných dňoch' : 'Splatnosť v dňoch'}
-                value={dniSplatnosti ?? ''}
-                onChange={(e) => zmenSplatnost(e.target.value)}
+                hodnota={dniSplatnosti}
+                // Prázdne pole splatnosť nemení – človek práve píše nové číslo.
+                prazdne={null}
+                zmen={zmenSplatnost}
               />
               <span className="splatnost-dni-popis">{pracovneDni ? 'prac. dní' : 'dní'}</span>
               <input
@@ -663,7 +706,7 @@ export function FakturaEdit() {
               <select
                 id="typ-dokladu"
                 value={form.typ}
-                onChange={(e) => uprav({ typ: e.target.value as TypDokladu, kryje_id: '' })}
+                onChange={(e) => zmenTyp(e.target.value as TypDokladu)}
               >
                 <option value="faktura">Faktúra</option>
                 <option value="zaloha">Zálohová faktúra</option>
@@ -772,13 +815,12 @@ export function FakturaEdit() {
                   <div className="polozka-editor-riadok">
                     <div>
                       <label htmlFor={`mnozstvo-polozky-${i}`}>Množstvo</label>
-                      <input
+                      <CisloPole
                         id={`mnozstvo-polozky-${i}`}
-                        type="number"
                         step="any"
                         inputMode="decimal"
-                        value={p.mnozstvo}
-                        onChange={(e) => upravPolozku(i, { mnozstvo: Number(e.target.value) })}
+                        hodnota={p.mnozstvo}
+                        zmen={(n) => upravPolozku(i, { mnozstvo: n })}
                       />
                     </div>
                     <div>
@@ -793,13 +835,12 @@ export function FakturaEdit() {
                   <div className="polozka-editor-riadok">
                     <div>
                       <label htmlFor={`cena-polozky-${i}`}>{sDph ? 'Cena bez DPH (€)' : 'Cena za jednotku (€)'}</label>
-                      <input
+                      <CisloPole
                         id={`cena-polozky-${i}`}
-                        type="number"
                         step="0.01"
                         inputMode="decimal"
-                        value={p.cena}
-                        onChange={(e) => upravPolozku(i, { cena: Number(e.target.value) })}
+                        hodnota={p.cena}
+                        zmen={(n) => upravPolozku(i, { cena: n })}
                       />
                     </div>
                     {sDph && (
@@ -890,24 +931,22 @@ export function FakturaEdit() {
                   />
                 </td>
                 <td>
-                  <input
-                    type="number"
+                  <CisloPole
                     step="any"
                     style={{ textAlign: 'right' }}
-                    value={p.mnozstvo}
-                    onChange={(e) => upravPolozku(i, { mnozstvo: Number(e.target.value) })}
+                    hodnota={p.mnozstvo}
+                    zmen={(n) => upravPolozku(i, { mnozstvo: n })}
                   />
                 </td>
                 <td>
                   <input value={p.jednotka} onChange={(e) => upravPolozku(i, { jednotka: e.target.value })} />
                 </td>
                 <td>
-                  <input
-                    type="number"
+                  <CisloPole
                     step="0.01"
                     style={{ textAlign: 'right' }}
-                    value={p.cena}
-                    onChange={(e) => upravPolozku(i, { cena: Number(e.target.value) })}
+                    hodnota={p.cena}
+                    zmen={(n) => upravPolozku(i, { cena: n })}
                   />
                 </td>
                 {sDph && (
@@ -963,10 +1002,10 @@ export function FakturaEdit() {
               <div>
                 Bez DPH {skSuma(sucty.zaklad)} · DPH {skSuma(sucty.dph)}
               </div>
-              <div style={{ fontSize: 18, fontWeight: 680 }}>Celkom s DPH: {skSuma(celkom)}</div>
+              <div style={{ fontSize: 18, fontWeight: 700 }}>Celkom s DPH: {skSuma(celkom)}</div>
             </div>
           ) : (
-            <div style={{ fontSize: 18, fontWeight: 680 }}>Celkom: {skSuma(celkom)}</div>
+            <div style={{ fontSize: 18, fontWeight: 700 }}>Celkom: {skSuma(celkom)}</div>
           )}
         </div>
       </div>
@@ -1001,12 +1040,11 @@ export function FakturaEdit() {
                       />
                     </td>
                     <td>
-                      <input
-                        type="number"
+                      <CisloPole
                         step="0.01"
                         style={{ textAlign: 'right' }}
-                        value={p.suma}
-                        onChange={(e) => upravPlatbu(i, { suma: Number(e.target.value) })}
+                        hodnota={p.suma}
+                        zmen={(n) => upravPlatbu(i, { suma: n })}
                       />
                     </td>
                     <td>
@@ -1047,13 +1085,13 @@ export function FakturaEdit() {
             <div style={{ fontSize: 15 }}>
               Prijaté <strong>{skSuma(prijate + zoZaloh)}</strong> z {skSuma(celkom)} ·{' '}
               {zostatok > 0.005 ? (
-                <span style={{ color: 'var(--cervena)', fontWeight: 650 }}>zostáva {skSuma(zostatok)}</span>
+                <span style={{ color: 'var(--cervena)', fontWeight: 700 }}>zostáva {skSuma(zostatok)}</span>
               ) : zostatok < -0.005 ? (
-                <span style={{ color: 'var(--zelena)', fontWeight: 650 }}>
+                <span style={{ color: 'var(--zelena)', fontWeight: 700 }}>
                   uhradené, preplatok {skSuma(-zostatok)}
                 </span>
               ) : (
-                <span style={{ color: 'var(--zelena)', fontWeight: 650 }}>uhradené</span>
+                <span style={{ color: 'var(--zelena)', fontWeight: 700 }}>uhradené</span>
               )}
             </div>
           </div>

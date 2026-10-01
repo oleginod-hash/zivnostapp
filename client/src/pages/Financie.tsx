@@ -69,7 +69,7 @@ export function Financie() {
             ikona="hore"
             ton="pos"
             farebnaHodnota
-            popis="Príjmy (uhradené faktúry)"
+            popis="Príjmy"
             hodnota={skSuma(prehlad.prijmy)}
             pod={pocet(prehlad.pocet_faktur, ['faktúra', 'faktúry', 'faktúr'])}
           />
@@ -78,19 +78,19 @@ export function Financie() {
             ton="warn"
             popis="Výdavky"
             hodnota={skSuma(prehlad.vydavky)}
-            pod={`z toho uznateľné ${skSuma(prehlad.vydavky_odpocitatelne)}`}
+            pod={`uznateľné ${skSuma(prehlad.vydavky_odpocitatelne)}`}
           />
           <Karticka
             ikona="penazenka"
             ton={prehlad.zisk >= 0 ? 'pos' : 'neg'}
             farebnaHodnota
-            popis="Zostalo (príjmy − výdavky)"
+            popis="Zisk"
             hodnota={skSuma(prehlad.zisk)}
           />
           <Karticka
             ikona="hodiny"
             ton="akcent"
-            popis="Ešte čaká na zaplatenie"
+            popis="Čaká na zaplatenie"
             hodnota={skSuma(prehlad.caka_na_zaplatenie)}
           />
           {prehlad.sukromne_prijmy > 0 && (
@@ -163,12 +163,12 @@ export function Financie() {
           <ResponsiveContainer key={skryte ? "skryte" : "viditelne"} width="100%" height={300}>
             <BarChart data={mesacne} margin={{ top: 8, right: 8, left: 8, bottom: 0 }}>
               <CartesianGrid vertical={false} />
-              <XAxis dataKey="mesiac" tick={{ fontSize: 12.5 }} axisLine={false} tickLine={false} tickMargin={8} />
-              <YAxis tickFormatter={kratkeEur} tick={{ fontSize: 12.5 }} axisLine={false} tickLine={false} width={70} />
+              <XAxis dataKey="mesiac" tick={{ fontSize: 13 }} axisLine={false} tickLine={false} tickMargin={8} />
+              <YAxis tickFormatter={kratkeEur} tick={{ fontSize: 13 }} axisLine={false} tickLine={false} width={70} />
               <Tooltip
                 formatter={((v: unknown, n: unknown) => [eur(v), n === 'prijmy' ? 'Príjmy' : 'Výdavky']) as never}
                 labelFormatter={(l) => `${l} ${rok}`}
-                contentStyle={{ fontSize: 12.5 }}
+                contentStyle={{ fontSize: 13 }}
               />
               <Legend formatter={(v) => (v === 'prijmy' ? 'Príjmy' : 'Výdavky')} />
               <Bar dataKey="prijmy" fill="#3a60dd" radius={[5, 5, 0, 0]} />
@@ -203,7 +203,7 @@ export function Financie() {
                   </Pie>
                   <Tooltip
                     formatter={((v: unknown) => eur(v)) as never}
-                    contentStyle={{ fontSize: 12.5 }}
+                    contentStyle={{ fontSize: 13 }}
                   />
                 </PieChart>
               </ResponsiveContainer>
@@ -266,7 +266,7 @@ export function Financie() {
                       <strong>{t.nazov}</strong>
                     </Link>
                     {t.firma_nazov && (
-                      <div className="tlmene" style={{ fontSize: 12.5 }}>
+                      <div className="tlmene" style={{ fontSize: 13 }}>
                         {t.firma_nazov}
                       </div>
                     )}

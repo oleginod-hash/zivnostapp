@@ -1,14 +1,17 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import {
-  api, dniDoSplatnosti, pocet, skDatum, skSuma, vetaORezerve, vratZKosa,
+  api, pocet, skDatum, skSuma, skSumaCela, vetaORezerve, vratZKosa,
   type Faktura, type Firma, type PlatbaFaktury, type PoctyFaktur, type Suhrn, type Turnus,
 } from '../api'
 import { oznam, potvrd } from '../components/Oznamenia'
 import { Ikona } from '../components/Ikony'
 import { StitokStavu, StitokZalohy } from '../components/StitokStavu'
 import { PrazdnyStav } from '../components/PrazdnyStav'
-import { HladanieSFiltrom, ZaznamRiadok } from '../components/Zoznam'
+import { Dni, FakturaKarta } from '../components/FakturaKarta'
+import { MenuAkcii } from '../components/MenuAkcii'
+import { OknoSablon } from '../components/SablonyFaktur'
+import { FiltreZoznamu, HladanieSFiltrom } from '../components/Zoznam'
 import { useMaleOkno } from '../maleOkno'
 
 type Zalozka = '' | 'nevyplatene' | 'vyplatene' | 'zalohy'
@@ -19,30 +22,6 @@ const ZALOZKY: { kluc: Zalozka; text: string }[] = [
   { kluc: 'vyplatene', text: 'Uhradené' },
   { kluc: 'zalohy', text: 'Zálohové faktúry' },
 ]
-
-/**
- * Maličký odpočet vedľa splatnosti: koľko dní ešte zostáva, alebo o koľko
- * dní je faktúra po termíne. Pri už uhradených faktúrach nemá čo robiť –
- * tam už na termíne nezáleží.
- */
-function Dni({ splatnost, otvorene }: { splatnost: string; otvorene: boolean }) {
-  if (!otvorene) return null
-  const d = dniDoSplatnosti(splatnost)
-  if (d === null) return null
-  if (d === 0) return <span className="dni dnes" title="Splatnosť je dnes">dnes</span>
-  if (d > 0) {
-    return (
-      <span className="dni zostava" title={`Do splatnosti zostáva ${pocet(d, ['deň', 'dni', 'dní'])}`}>
-        +{d} d
-      </span>
-    )
-  }
-  return (
-    <span className="dni po" title={`Po splatnosti už ${pocet(-d, ['deň', 'dni', 'dní'])}`}>
-      −{-d} d
-    </span>
-  )
-}
 
 export function Faktury() {
   const navigate = useNavigate()
@@ -58,6 +37,7 @@ export function Faktury() {
   const male = useMaleOkno()
   /** Na telefóne sú výbery firmy, turnusu a roka schované pod tlačidlom Filter. */
   const [filtreOtvorene, setFiltreOtvorene] = useState(false)
+  const [sablonyOtvorene, setSablonyOtvorene] = useState(false)
   const aktivnychFiltrov = [f.firma, f.turnus, f.rok].filter(Boolean).length
 
   function parametre(sKartou: boolean) {
@@ -162,17 +142,28 @@ export function Faktury() {
     faktury?.filter((x) => x.stav !== 'koncept' && (zalozka === 'zalohy' || !x.kryje_id)) ?? []
   const fakturovanaSuma = doSuctu.reduce((s, x) => s + x.suma, 0)
   const dlznaSuma = doSuctu.reduce((s, x) => s + Math.max(0, x.otvoreny_zostatok), 0)
+  // V súhrne celé eurá; uhradené = spolu − čaká, nech sa zaokrúhlené čísla vždy zhodujú.
+  const spoluCele = Math.round(fakturovanaSuma)
+  const cakaCele = Math.round(dlznaSuma)
 
   return (
     <>
       <div className="hlavicka">
         <h1>Faktúry</h1>
         <div className="akcie">
+          {!male && <button onClick={() => setSablonyOtvorene(true)}>Šablóny</button>}
           <Link className="tlacidlo primar" to="/faktury/nova">
             + Nová faktúra
           </Link>
+          {male && (
+            <MenuAkcii
+              popis="Ďalšie možnosti"
+              akcie={[{ text: 'Šablóny faktúr', ikona: 'subor', sprav: () => setSablonyOtvorene(true) }]}
+            />
+          )}
         </div>
       </div>
+      {sablonyOtvorene && <OknoSablon zavriet={() => setSablonyOtvorene(false)} />}
 
       <div className="taby">
         {ZALOZKY.map((z) => (
@@ -185,19 +176,22 @@ export function Faktury() {
 
       {chyba && <div className="chyba">{chyba}</div>}
 
-      <div className="filtre">
-        <HladanieSFiltrom
-          id="hladat-faktury"
-          hodnota={f.hladat}
-          zmen={(hladat) => setF({ ...f, hladat })}
-          placeholder="číslo faktúry, firma, poznámka…"
-          male={male}
-          aktivnych={aktivnychFiltrov}
-          otvorene={filtreOtvorene}
-          prepni={() => setFiltreOtvorene(!filtreOtvorene)}
-        />
-        {(!male || filtreOtvorene) && (
-        <>
+      <FiltreZoznamu
+        male={male}
+        otvorene={filtreOtvorene}
+        hladanie={
+          <HladanieSFiltrom
+            id="hladat-faktury"
+            hodnota={f.hladat}
+            zmen={(hladat) => setF({ ...f, hladat })}
+            placeholder="číslo faktúry, firma, poznámka…"
+            male={male}
+            aktivnych={aktivnychFiltrov}
+            otvorene={filtreOtvorene}
+            prepni={() => setFiltreOtvorene(!filtreOtvorene)}
+          />
+        }
+      >
         <div>
           <label>Firma</label>
           <select value={f.firma} onChange={(e) => setF({ ...f, firma: e.target.value })}>
@@ -231,9 +225,7 @@ export function Faktury() {
             ))}
           </select>
         </div>
-        </>
-        )}
-      </div>
+      </FiltreZoznamu>
 
       {zalozka === 'zalohy' && (
         <div className="napoveda" style={{ marginTop: -8, marginBottom: 12 }}>
@@ -242,17 +234,18 @@ export function Faktury() {
         </div>
       )}
 
-      {male && faktury && faktury.length > 0 && (
-        <div className="suhrn-zoznamu">
-          <span>{pocet(faktury.length, ['faktúra', 'faktúry', 'faktúr'])}</span>
+      {/* Súhrn jedným riadkom – rovnako na telefóne aj na počítači. */}
+      {faktury && faktury.length > 0 && (
+        <div className="suhrn-zoznamu jeden-riadok">
           <span>
-            spolu <strong>{skSuma(fakturovanaSuma)}</strong>
+            spolu <strong>{skSumaCela(spoluCele)}</strong>
           </span>
-          {dlznaSuma > 0.005 && (
-            <span>
-              čaká <strong className="suma-caka">{skSuma(dlznaSuma)}</strong>
-            </span>
-          )}
+          <span>
+            uhradené <strong className="suma-uhradene">{skSumaCela(spoluCele - cakaCele)}</strong>
+          </span>
+          <span>
+            čaká <strong className={cakaCele > 0 ? 'suma-caka' : undefined}>{skSumaCela(cakaCele)}</strong>
+          </span>
         </div>
       )}
 
@@ -286,55 +279,20 @@ export function Faktury() {
         ) : male ? (
           // Telefón: každá faktúra v troch riadkoch – číslo a dátum, odberateľ, stav a suma.
           // Menej časté akcie sú v ponuke ⋮, ťuknutím na riadok sa faktúra otvorí.
-          faktury.map((fa) => {
-            const otvorene = fa.otvoreny_zostatok > 0.005
-            return (
-              <ZaznamRiadok
-                key={fa.id}
-                className="faktura-riadok"
-                otvor={() => navigate(`/faktury/${fa.id}`)}
-                hore={
-                  <>
-                    <span className="cislo-faktury">{fa.cislo}</span>
-                    <span className="zaznam-id">{skDatum(fa.datum_vystav)}</span>
-                    {fa.typ === 'zaloha' && <StitokZalohy />}
-                  </>
-                }
-                popisAkcii={`Akcie faktúry ${fa.cislo}`}
-                akcie={[
-                  otvorene
-                    ? { text: 'Označiť ako uhradenú', ikona: 'zaplatena', sprav: () => zmenStav(fa.id, 'zaplatena') }
-                    : { text: 'Zrušiť úhradu', ikona: 'vratit', sprav: () => zmenStav(fa.id, 'vystavena') },
-                  { text: 'Otvoriť PDF', ikona: 'pdf', href: `/api/faktury/${fa.id}/pdf` },
-                  { text: 'Presunúť do koša', ikona: 'zmazat', nebezpecne: true, sprav: () => zmaz(fa) },
-                ]}
-                hlavny={
-                  <>
-                    {fa.firma_nazov || <span className="tlmene">bez odberateľa</span>}
-                    {(fa.turnus_nazov || fa.kryje_cislo) && (
-                      <span className="pod-textom">
-                        {[fa.turnus_nazov, fa.kryje_cislo && `splátka ${fa.kryje_cislo}`].filter(Boolean).join(' · ')}
-                      </span>
-                    )}
-                  </>
-                }
-                dole={
-                  <>
-                    <StitokStavu stav={fa.stav_zobraz} kratko />
-                    <Dni splatnost={fa.datum_splat} otvorene={otvorene && fa.stav !== 'koncept'} />
-                  </>
-                }
-                suma={
-                  <>
-                    <strong>{skSuma(fa.suma)}</strong>
-                    {otvorene && fa.uhradene_spolu > 0.005 && (
-                      <span className="pod-textom">zostáva {skSuma(fa.otvoreny_zostatok)}</span>
-                    )}
-                  </>
-                }
-              />
-            )
-          })
+          faktury.map((fa) => (
+            <FakturaKarta
+              key={fa.id}
+              fa={fa}
+              otvor={() => navigate(`/faktury/${fa.id}`)}
+              akcie={[
+                fa.otvoreny_zostatok > 0.005
+                  ? { text: 'Označiť ako uhradenú', ikona: 'zaplatena', sprav: () => zmenStav(fa.id, 'zaplatena') }
+                  : { text: 'Zrušiť úhradu', ikona: 'vratit', sprav: () => zmenStav(fa.id, 'vystavena') },
+                { text: 'Otvoriť PDF', ikona: 'pdf', href: `/api/faktury/${fa.id}/pdf` },
+                { text: 'Presunúť do koša', ikona: 'zmazat', nebezpecne: true, sprav: () => zmaz(fa) },
+              ]}
+            />
+          ))
         ) : (
           // Tabuľka má veľa stĺpcov – keby sa na úzkom okne predsa nezmestila,
           // radšej sa posunie do strany, než by sa tlačidlá orezali.
@@ -459,18 +417,6 @@ export function Faktury() {
         )}
       </div>
 
-      {!male && faktury && faktury.length > 0 && (
-        <div className="tlmene" style={{ fontSize: 13 }}>
-          {pocet(faktury.length, ['faktúra', 'faktúry', 'faktúr'])} ·{' '}
-          fakturované {skSuma(fakturovanaSuma)}
-          {dlznaSuma > 0.005 && (
-            <>
-              {' '}
-              · ešte čaká <strong>{skSuma(dlznaSuma)}</strong>
-            </>
-          )}
-        </div>
-      )}
     </>
   )
 }

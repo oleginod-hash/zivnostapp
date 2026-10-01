@@ -1,7 +1,7 @@
 import { Router } from 'express'
 import { db } from '../db.js'
 import { doKosa } from '../lib/kos.js'
-import { dalsieCislo } from '../lib/cislovanie.js'
+import { dalsieCislo, vzorPreTyp } from '../lib/cislovanie.js'
 import { dnesISO, hladajVStlpcoch, pridajDni, vzorHladania, zaokruhli } from '../lib/format.js'
 import { fakturaPdfPodlaId, vytvorFakturuPdf } from '../lib/invoicePdf.js'
 import { pridajPracovneDni } from '../lib/pracovneDni.js'
@@ -281,7 +281,8 @@ invoicesRouter.get('/nova', (req, res) => {
   const n = nastavenia()
   const datum = String(req.query.datum ?? '') || dnesISO()
   res.json({
-    cislo: dalsieCislo(n.cislo_vzor, datum),
+    // Zálohová faktúra (?typ=zaloha) dostane číslo zo svojho radu, ak ho má nastavený.
+    cislo: dalsieCislo(vzorPreTyp(n, String(req.query.typ ?? '')), datum),
     datum_vystav: datum,
     datum_dodania: datum,
     datum_splat: predvolenaSplatnost(n, datum),
@@ -331,13 +332,13 @@ invoicesRouter.post('/', (req, res) => {
   const sucty = spocitajFakturu(polozky, !!s_dph && !prenos_dph)
 
   const stav: Stav = STAVY.includes(b.stav) ? b.stav : 'vystavena'
-  const cislo = String(b.cislo ?? '').trim() || dalsieCislo(n.cislo_vzor, datum_vystav)
+  const typ = TYPY.includes(b.typ) ? b.typ : 'faktura'
+  const cislo = String(b.cislo ?? '').trim() || dalsieCislo(vzorPreTyp(n, typ), datum_vystav)
 
   if (db.prepare('SELECT 1 FROM invoices WHERE cislo = ?').get(cislo)) {
     return res.status(400).json({ chyba: `Faktúra s číslom ${cislo} už existuje.` })
   }
 
-  const typ = TYPY.includes(b.typ) ? b.typ : 'faktura'
   const data = {
     cislo,
     ...vazby(b),

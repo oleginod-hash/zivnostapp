@@ -1,10 +1,13 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { api, pocet, vratZKosa, type Firma } from '../api'
 import { Ikona } from '../components/Ikony'
 import { Avatar } from '../components/Farby'
 import { oznam, oznamChybu } from '../components/Oznamenia'
 import { PrazdnyStav } from '../components/PrazdnyStav'
 import { useNeulozeneZmeny } from '../neulozene'
+import { MenuAkcii } from '../components/MenuAkcii'
+import { ZaznamRiadok } from '../components/Zoznam'
+import { useMaleOkno } from '../maleOkno'
 
 const PRAZDNA: Omit<Firma, 'id' | 'archived'> = {
   nazov: '', kontaktna_osoba: '', adresa: '', psc_mesto: '', krajina: '', ico: '', dic: '', ic_dph: '',
@@ -19,6 +22,21 @@ export function Firmy() {
   const [hlada, setHlada] = useState(false)
   const [sprava, setSprava] = useState('')
   const oznacUlozene = useNeulozeneZmeny(uprava, uprava?.id ?? 'nova')
+  const male = useMaleOkno()
+  const formular = useRef<HTMLDivElement>(null)
+  /** Formulár je nad zoznamom – po otvorení z karty nižšie by ostal mimo obrazovky. */
+  const posunutNaFormular = useRef(false)
+
+  useEffect(() => {
+    if (!uprava || !posunutNaFormular.current) return
+    posunutNaFormular.current = false
+    formular.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }, [uprava])
+
+  function otvor(f: typeof PRAZDNA & { id?: number }) {
+    posunutNaFormular.current = true
+    setUprava(f)
+  }
 
   function nacitaj(archiv = zobrazArchiv) {
     api.get<Firma[]>('/firmy' + (archiv ? '?archivovane=1' : '')).then(setFirmy).catch((e) => setChyba(e.message))
@@ -104,12 +122,26 @@ export function Firmy() {
       <div className="hlavicka">
         <h1>Firmy</h1>
         <div className="akcie">
-          <button onClick={() => setZobrazArchiv(!zobrazArchiv)}>
-            {zobrazArchiv ? 'Skryť archivované' : 'Zobraziť aj archivované'}
-          </button>
-          <button className="primar" onClick={() => setUprava({ ...PRAZDNA })}>
+          {!male && (
+            <button onClick={() => setZobrazArchiv(!zobrazArchiv)}>
+              {zobrazArchiv ? 'Skryť archivované' : 'Zobraziť aj archivované'}
+            </button>
+          )}
+          <button className="primar" onClick={() => otvor({ ...PRAZDNA })}>
             + Nová firma
           </button>
+          {male && (
+            <MenuAkcii
+              popis="Ďalšie možnosti"
+              akcie={[
+                {
+                  text: zobrazArchiv ? 'Skryť archivované' : 'Zobraziť aj archivované',
+                  ikona: 'firmy',
+                  sprav: () => setZobrazArchiv(!zobrazArchiv),
+                },
+              ]}
+            />
+          )}
         </div>
       </div>
 
@@ -117,12 +149,12 @@ export function Firmy() {
       {sprava && <div className="uspech">{sprava}</div>}
 
       {uprava && (
-        <div className="panel">
+        <div className="panel panel-formulara" ref={formular}>
           <h2>{uprava.id ? 'Úprava firmy' : 'Nová firma'}</h2>
-          <div className="mriezka">
+          <div className="mriezka dvojice">
             <div className="pole-siroke">
               <label>Názov firmy *</label>
-              <input autoFocus value={uprava.nazov} onChange={(e) => setUprava({ ...uprava, nazov: e.target.value })} />
+              <input autoFocus={!male} value={uprava.nazov} onChange={(e) => setUprava({ ...uprava, nazov: e.target.value })} />
             </div>
             <div className="pole-siroke">
               <label>Kontaktná osoba</label>
@@ -132,7 +164,7 @@ export function Firmy() {
                 onChange={(e) => setUprava({ ...uprava, kontaktna_osoba: e.target.value })}
               />
             </div>
-            <div>
+            <div className="pole-siroke">
               <label>Ulica a číslo</label>
               <input value={uprava.adresa} onChange={(e) => setUprava({ ...uprava, adresa: e.target.value })} />
             </div>
@@ -148,7 +180,7 @@ export function Firmy() {
               <label>Krajina</label>
               <input value={uprava.krajina} onChange={(e) => setUprava({ ...uprava, krajina: e.target.value })} />
             </div>
-            <div>
+            <div className="pole-siroke">
               <label>IČO / registračné číslo</label>
               <div style={{ display: 'flex', gap: 6 }}>
                 <input value={uprava.ico} onChange={(e) => setUprava({ ...uprava, ico: e.target.value })} />
@@ -171,11 +203,11 @@ export function Firmy() {
               <label>IČ DPH / VAT ID</label>
               <input value={uprava.ic_dph} onChange={(e) => setUprava({ ...uprava, ic_dph: e.target.value })} />
             </div>
-            <div>
+            <div className="pole-siroke">
               <label>E-mail</label>
               <input value={uprava.email} onChange={(e) => setUprava({ ...uprava, email: e.target.value })} />
             </div>
-            <div>
+            <div className="pole-siroke">
               <label>Telefón</label>
               <input value={uprava.telefon} onChange={(e) => setUprava({ ...uprava, telefon: e.target.value })} />
             </div>
@@ -184,7 +216,8 @@ export function Firmy() {
               <textarea value={uprava.poznamka} onChange={(e) => setUprava({ ...uprava, poznamka: e.target.value })} />
             </div>
           </div>
-          <div className="riadok-akcii">
+          {/* Na telefóne ostáva Uložiť po ruke, kým je formulár na obrazovke. */}
+          <div className="riadok-akcii lepkave-akcie">
             <button onClick={() => setUprava(null)}>Zrušiť</button>
             <button className="primar" onClick={uloz} disabled={!uprava.nazov.trim()}>
               Uložiť
@@ -193,7 +226,7 @@ export function Firmy() {
         </div>
       )}
 
-      <div className="panel tesny">
+      <div className={male && firmy?.length ? 'zoznam-zaznamov' : 'panel tesny'}>
         {!firmy ? (
           <div className="nacitava">Načítavam…</div>
         ) : firmy.length === 0 ? (
@@ -203,11 +236,52 @@ export function Firmy() {
             nadpis="Zatiaľ žiadne firmy"
             text="Odberateľ na faktúre. Stačí zadať IČO a údaje sa doplnia z verejného registra."
             akcia={
-              <button className="primar" onClick={() => setUprava({ ...PRAZDNA })}>
+              <button className="primar" onClick={() => otvor({ ...PRAZDNA })}>
                 + Pridať prvú firmu
               </button>
             }
           />
+        ) : male ? (
+          // Telefón: IČO, názov s kontaktnou osobou, sídlo – ťuknutím sa firma otvorí na úpravu.
+          firmy.map((f) => (
+            <ZaznamRiadok
+              key={f.id}
+              className="firma-riadok"
+              tlmeny={f.archived === 1}
+              otvor={f.archived === 1 ? undefined : () => otvor({ ...f })}
+              hore={<span className="zaznam-datum">{f.ico ? `IČO ${f.ico}` : 'bez IČO'}</span>}
+              popisAkcii={`Akcie firmy ${f.nazov}`}
+              akcie={
+                f.archived === 1
+                  ? [
+                      {
+                        text: 'Obnoviť z archívu',
+                        ikona: 'vratit',
+                        sprav: async () => {
+                          await api.post(`/firmy/${f.id}/obnovit`)
+                          nacitaj()
+                        },
+                      },
+                    ]
+                  : [
+                      { text: 'Upraviť', ikona: 'upravit', sprav: () => otvor({ ...f }) },
+                      { text: 'Presunúť do koša', ikona: 'zmazat', nebezpecne: true, sprav: () => zmaz(f) },
+                    ]
+              }
+              hlavny={
+                <>
+                  {f.nazov}
+                  {f.kontaktna_osoba && <span className="pod-textom">{f.kontaktna_osoba}</span>}
+                </>
+              }
+              dole={
+                <>
+                  {f.archived === 1 && <span className="stitok koncept">archivovaná</span>}
+                  <span>{[f.psc_mesto, f.krajina].filter(Boolean).join(', ') || 'bez adresy'}</span>
+                </>
+              }
+            />
+          ))
         ) : (
           <table>
             <thead>
@@ -250,7 +324,7 @@ export function Firmy() {
                       </button>
                     ) : (
                       <>
-                        <button className="maly" onClick={() => setUprava({ ...f })}>
+                        <button className="maly" onClick={() => otvor({ ...f })}>
                           Upraviť
                         </button>{' '}
                         <button className="ikonove maly holy zmazat" title="Zmazať" onClick={() => zmaz(f)}>

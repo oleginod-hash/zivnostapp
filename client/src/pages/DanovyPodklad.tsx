@@ -5,6 +5,8 @@ import {
 } from '../api'
 import { StitokZalohy } from '../components/StitokStavu'
 import { Karticka } from '../components/Farby'
+import { MenuAkcii } from '../components/MenuAkcii'
+import { useMaleOkno } from '../maleOkno'
 
 const NAZVY_MESIACOV = [
   'Január', 'Február', 'Marec', 'Apríl', 'Máj', 'Jún',
@@ -25,6 +27,7 @@ function csvDatum(iso: string | null | undefined): string {
 
 /** Podklad pre účtovníčku – všetko za rok na jednom mieste, pripravené na tlač. */
 export function DanovyPodklad() {
+  const male = useMaleOkno()
   const [roky, setRoky] = useState<string[]>([])
   const [rok, setRok] = useState(String(new Date().getFullYear() - 1))
   const [d, setD] = useState<TPodklad | null>(null)
@@ -180,10 +183,22 @@ export function DanovyPodklad() {
             ))}
           </select>
           <a className="tlacidlo primar" href={`/api/danovy-podklad/xlsx?rok=${d.rok}`}>
-            Stiahnuť Excel pre účtovníčku
+            {male ? 'Excel' : 'Stiahnuť Excel pre účtovníčku'}
           </a>
-          <button onClick={stiahnutCsv}>CSV</button>
-          <button onClick={() => window.print()}>Vytlačiť</button>
+          {male ? (
+            <MenuAkcii
+              popis="Ďalšie možnosti"
+              akcie={[
+                { text: 'Stiahnuť CSV', ikona: 'excel', sprav: stiahnutCsv },
+                { text: 'Vytlačiť', ikona: 'tlacit', sprav: () => window.print() },
+              ]}
+            />
+          ) : (
+            <>
+              <button onClick={stiahnutCsv}>CSV</button>
+              <button onClick={() => window.print()}>Vytlačiť</button>
+            </>
+          )}
         </div>
       </div>
 
@@ -345,7 +360,7 @@ export function DanovyPodklad() {
                     <div>
                       <StitokZalohy />
                       {f.kryje_cislo && (
-                        <span className="tlmene" style={{ fontSize: 12.5 }}> kryje {f.kryje_cislo}</span>
+                        <span className="tlmene" style={{ fontSize: 13 }}> kryje {f.kryje_cislo}</span>
                       )}
                     </div>
                   )}

@@ -8,6 +8,11 @@ import { StitokStavu, StitokZalohy } from '../components/StitokStavu'
 import { useNeulozeneZmeny } from '../neulozene'
 import { Karticka } from '../components/Farby'
 import { VykazHodin } from '../components/VykazHodin'
+import { FakturaVZozname } from '../components/FakturaKarta'
+import { MenuAkcii } from '../components/MenuAkcii'
+import { ObjednavkaKarta } from '../components/ObjednavkaKarta'
+import { useMaleOkno } from '../maleOkno'
+import { oznam } from '../components/Oznamenia'
 
 type Formular = {
   nazov: string; company_id: string; krajina: string; miesto: string
@@ -33,6 +38,7 @@ export function TurnusEdit() {
   const [stravne, setStravne] = useState<StravneTurnus | null>(null)
   const [zapisujeStravne, setZapisujeStravne] = useState(false)
   const oznacUlozene = useNeulozeneZmeny(form, id ?? 'novy')
+  const male = useMaleOkno()
 
   function nacitajStravne() {
     if (!id) return
@@ -100,8 +106,8 @@ export function TurnusEdit() {
         navigate('/turnusy/' + novyId, { replace: true })
       } else {
         await api.put('/turnusy/' + id, telo)
-        setSprava('Zmeny sú uložené.')
-        setTimeout(() => setSprava(''), 3000)
+        // Oznámenie dole – na telefóne je Uložiť dole a správa hore by nebola vidno.
+        oznam('Zmeny sú uložené.')
         nacitaj()
       }
     } catch (e: any) {
@@ -116,7 +122,7 @@ export function TurnusEdit() {
       <div className="hlavicka">
         <h1>{novyTurnus ? 'Nový turnus' : form.nazov || 'Turnus'}</h1>
         <div className="akcie">
-          {!novyTurnus && (
+          {!novyTurnus && !male && (
             <>
               <Link className="tlacidlo" to={`/objednavky/nova?turnus=${id}`}>
                 + Objednávka
@@ -129,6 +135,15 @@ export function TurnusEdit() {
           <Link className="tlacidlo" to="/turnusy">
             Späť
           </Link>
+          {!novyTurnus && male && (
+            <MenuAkcii
+              popis="Ďalšie akcie s turnusom"
+              akcie={[
+                { text: 'Vystaviť faktúru', ikona: 'faktury', sprav: () => navigate(`/faktury/nova?turnus=${id}`) },
+                { text: 'Nová objednávka', ikona: 'objednavky', sprav: () => navigate(`/objednavky/nova?turnus=${id}`) },
+              ]}
+            />
+          )}
         </div>
       </div>
 
@@ -146,17 +161,17 @@ export function TurnusEdit() {
 
       <div className="panel">
         <h2>O turnuse</h2>
-        <div className="mriezka">
+        <div className="mriezka dvojice">
           <div className="pole-siroke">
             <label>Názov turnusu *</label>
             <input
-              autoFocus
+              autoFocus={!male}
               placeholder="napr. Marec 2026 – München"
               value={form.nazov}
               onChange={(e) => uprav({ nazov: e.target.value })}
             />
           </div>
-          <div>
+          <div className="pole-siroke">
             <label>Firma</label>
             <select value={form.company_id} onChange={(e) => uprav({ company_id: e.target.value })}>
               <option value="">— vyber firmu —</option>
@@ -186,14 +201,9 @@ export function TurnusEdit() {
               <div className="napoveda">Spolu {dlzkaTurnusu(form.datum_od, form.datum_do)} dní.</div>
             )}
           </div>
-          <div style={{ alignSelf: 'end' }}>
-            <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, color: 'var(--text)' }}>
-              <input
-                type="checkbox"
-                style={{ width: 'auto' }}
-                checked={form.zruseny}
-                onChange={(e) => uprav({ zruseny: e.target.checked })}
-              />
+          <div className="pole-zaskrtavacie">
+            <label className="zaskrtavacie">
+              <input type="checkbox" checked={form.zruseny} onChange={(e) => uprav({ zruseny: e.target.checked })} />
               Turnus je zrušený
             </label>
           </div>
@@ -208,6 +218,15 @@ export function TurnusEdit() {
         </div>
         <div className="napoveda" style={{ marginTop: 10 }}>
           Stav turnusu (plánovaný / prebieha / ukončený) sa počíta z dátumov, nemusíš ho prepínať.
+        </div>
+        {/* Uložiť patrí k údajom turnusu – na telefóne ostáva po ruke, kým je tento panel na obrazovke. */}
+        <div className="riadok-akcii lepkave-akcie">
+          <Link className="tlacidlo" to="/turnusy">
+            Zrušiť
+          </Link>
+          <button className="primar" onClick={uloz} disabled={uklada || !form.nazov.trim() || !form.datum_od || !form.datum_do}>
+            {uklada ? 'Ukladám…' : novyTurnus ? 'Vytvoriť turnus' : 'Uložiť zmeny'}
+          </button>
         </div>
       </div>
 
@@ -225,7 +244,7 @@ export function TurnusEdit() {
                 <div>
                   <span className="tlmene">{stravne.dni} dní</span> ×{' '}
                   <span className="tlmene">{skSuma(stravne.sadzba!)}/deň</span> ={' '}
-                  <strong style={{ fontSize: 19 }}>{skSuma(stravne.suma!)}</strong>
+                  <strong style={{ fontSize: 20 }}>{skSuma(stravne.suma!)}</strong>
                 </div>
                 {stravne.uz_zapisane.length === 0 ? (
                   <button className="primar" onClick={zapisStravne} disabled={zapisujeStravne}>
@@ -257,16 +276,22 @@ export function TurnusEdit() {
       ) : (
         <>
           <div className="panel tesny">
-            <div style={{ padding: '14px 18px 0', display: 'flex', justifyContent: 'space-between' }}>
-              <h2 style={{ margin: 0 }}>Objednávky</h2>
-              <Link to={`/objednavky/nova?turnus=${id}`} style={{ fontSize: 13 }}>
+            <div className="hlavicka-karty">
+              <h2 className="nadpis-karty">Objednávky</h2>
+              <Link className="odkaz-karty" to={`/objednavky/nova?turnus=${id}`}>
                 + Pridať objednávku
               </Link>
             </div>
             {!turnus?.objednavky?.length ? (
               <div className="prazdne">Na tento turnus zatiaľ nie je žiadna objednávka.</div>
+            ) : male ? (
+              <div className="zoznam-zaznamov">
+                {turnus.objednavky.map((o) => (
+                  <ObjednavkaKarta key={o.id} o={o} vTurnuse otvor={() => navigate('/objednavky/' + o.id)} />
+                ))}
+              </div>
             ) : (
-              <table style={{ marginTop: 12 }}>
+              <table>
                 <thead>
                   <tr>
                     <th>Objednávka</th>
@@ -283,7 +308,7 @@ export function TurnusEdit() {
                         <Link to={'/objednavky/' + o.id}>
                           <strong>{o.cislo || o.popis || 'bez čísla'}</strong>
                         </Link>
-                        {o.cislo && o.popis && <div className="tlmene" style={{ fontSize: 12.5 }}>{o.popis}</div>}
+                        {o.cislo && o.popis && <div className="tlmene" style={{ fontSize: 13 }}>{o.popis}</div>}
                       </td>
                       <td>{skDatum(o.datum)}</td>
                       <td className="cislo">
@@ -303,16 +328,22 @@ export function TurnusEdit() {
           </div>
 
           <div className="panel tesny">
-            <div style={{ padding: '14px 18px 0', display: 'flex', justifyContent: 'space-between' }}>
-              <h2 style={{ margin: 0 }}>Faktúry za tento turnus</h2>
-              <Link to={`/faktury/nova?turnus=${id}`} style={{ fontSize: 13 }}>
+            <div className="hlavicka-karty">
+              <h2 className="nadpis-karty">Faktúry za tento turnus</h2>
+              <Link className="odkaz-karty" to={`/faktury/nova?turnus=${id}`}>
                 + Vystaviť faktúru
               </Link>
             </div>
             {!turnus?.faktury?.length ? (
               <div className="prazdne">K tomuto turnusu zatiaľ nie je žiadna faktúra.</div>
+            ) : male ? (
+              <div className="zoznam-zaznamov">
+                {turnus.faktury.map((f) => (
+                  <FakturaVZozname key={f.id} fa={f} otvor={() => navigate('/faktury/' + f.id)} />
+                ))}
+              </div>
             ) : (
-              <table style={{ marginTop: 12 }}>
+              <table>
                 <thead>
                   <tr>
                     <th>Číslo</th>
@@ -345,15 +376,6 @@ export function TurnusEdit() {
           </div>
         </>
       )}
-
-      <div className="riadok-akcii">
-        <Link className="tlacidlo" to="/turnusy">
-          Späť na zoznam
-        </Link>
-        <button className="primar" onClick={uloz} disabled={uklada || !form.nazov.trim() || !form.datum_od || !form.datum_do}>
-          {uklada ? 'Ukladám…' : novyTurnus ? 'Vytvoriť turnus' : 'Uložiť zmeny'}
-        </button>
-      </div>
     </>
   )
 }

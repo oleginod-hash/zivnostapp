@@ -11,11 +11,13 @@ import { NajblizsieTerminy } from '../components/Terminy'
 import { Ikona, type KlucIkony } from '../components/Ikony'
 import { TlacidloSum, useSkryteSumy } from '../components/SkryteSumy'
 import { StitokStavu } from '../components/StitokStavu'
+import { Dni, FakturaKarta } from '../components/FakturaKarta'
+import { useMaleOkno } from '../maleOkno'
 import { oznam } from '../components/Oznamenia'
 
 type Konverzacia = { id: number; asistent: string; nazov: string; updated_at: string; pocet_sprav: number }
-/** Obdobie vo Finančnom prehľade – bez účtovníckeho „kvartálu", minulý rok sa hodí pri daňovom priznaní. */
-type Obdobie = 'mesiac' | 'rok' | 'minuly'
+/** Obdobie vo Finančnom prehľade – bez účtovníckeho „kvartálu", od týždňa po celý rok. */
+type Obdobie = 'tyzden' | 'mesiac' | 'rok'
 
 const iso = (d: Date) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
@@ -24,7 +26,12 @@ const iso = (d: Date) =>
 function rozsah(o: Obdobie, dnes: Date): { od: string; do: string } {
   const rok = dnes.getFullYear()
   if (o === 'rok') return { od: `${rok}-01-01`, do: `${rok}-12-31` }
-  if (o === 'minuly') return { od: `${rok - 1}-01-01`, do: `${rok - 1}-12-31` }
+  if (o === 'tyzden') {
+    // Týždeň začína pondelkom.
+    const pondelok = new Date(rok, dnes.getMonth(), dnes.getDate() - ((dnes.getDay() + 6) % 7))
+    const nedela = new Date(pondelok.getFullYear(), pondelok.getMonth(), pondelok.getDate() + 6)
+    return { od: iso(pondelok), do: iso(nedela) }
+  }
   return { od: iso(new Date(rok, dnes.getMonth(), 1)), do: iso(new Date(rok, dnes.getMonth() + 1, 0)) }
 }
 
@@ -69,14 +76,6 @@ function pozdrav(dnes: Date): string {
 
 const DNI_TYZDNA = ['Nedeľa', 'Pondelok', 'Utorok', 'Streda', 'Štvrtok', 'Piatok', 'Sobota']
 
-/** Maličký odpočet do splatnosti, rovnaký ako v zozname faktúr. */
-function Dni({ splatnost }: { splatnost: string }) {
-  const d = dniDoSplatnosti(splatnost)
-  if (d === null) return null
-  if (d === 0) return <span className="dni dnes">dnes</span>
-  return d > 0 ? <span className="dni zostava">+{d} d</span> : <span className="dni po">−{-d} d</span>
-}
-
 /** Dlaždica pod hlavnou časťou – nadpis s odkazom a krátka ukážka. */
 function Sekcia({
   nadpis, kam, odkaz = 'Zobraziť všetky', deti,
@@ -110,6 +109,7 @@ type Pozornost = {
 
 export function Prehlad() {
   const navigate = useNavigate()
+  const male = useMaleOkno()
   const [skryte] = useSkryteSumy()
   const [obdobie, setObdobie] = useState<Obdobie>('rok')
   const DNES = useTeraz()
@@ -277,6 +277,67 @@ export function Prehlad() {
   const podielPoSplatnosti = suhrn && suhrn.nezaplatene > 0 ? Math.min(100, (suhrn.po_splatnosti / suhrn.nezaplatene) * 100) : 0
   const najvacsiaKategoria = kategorieRok[0]?.suma ?? 0
 
+  const graf = (
+    <div className="graf-prehlad">
+      <ResponsiveContainer key={skryte ? 'skryte' : 'viditelne'} width="100%" height={150}>
+        <ComposedChart data={dataGrafu} margin={{ top: 6, right: 4, bottom: 0, left: 4 }}>
+          <defs>
+            <linearGradient id="prijmyVypln" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" className="prijmy-zaciatok" />
+              <stop offset="100%" className="prijmy-koniec" />
+            </linearGradient>
+          </defs>
+          <CartesianGrid vertical={false} />
+          <XAxis
+            dataKey="mesiac"
+            axisLine={false}
+            tickLine={false}
+            interval={0}
+            tickMargin={8}
+            // Krajné mesiace (jan, dec) by inak boli na hrane grafu orezané.
+            padding={{ left: 14, right: 14 }}
+          />
+          <YAxis hide />
+          <Tooltip
+            cursor={{ stroke: 'var(--line)' }}
+            formatter={((v: unknown, n: unknown) => [skSuma(Number(v) || 0), n === 'prijmy' ? 'Príjmy' : 'Výdavky']) as never}
+          />
+          <Area
+            type="monotone"
+            dataKey="prijmy"
+            className="prijmy"
+            fill="url(#prijmyVypln)"
+            strokeWidth={2.5}
+            activeDot={{ r: 4 }}
+            isAnimationActive={false}
+          />
+          <Line
+            type="monotone"
+            dataKey="vydavky"
+            className="vydavky"
+            strokeWidth={1.6}
+            strokeDasharray="5 4"
+            dot={false}
+            isAnimationActive={false}
+          />
+        </ComposedChart>
+      </ResponsiveContainer>
+      <div className="graf-legenda">
+        <span>
+          <i /> Príjmy {ROK}
+        </span>
+        <span>
+          <i className="prerusovana" /> Výdavky
+        </span>
+        {financie && financie.sukromne_prijmy > 0 && (
+          <span style={{ marginLeft: 'auto' }}>
+            súkromné príjmy mimo podnikania {skSuma(financie.sukromne_prijmy)}
+          </span>
+        )}
+      </div>
+    </div>
+  )
+
   return (
     <>
       <div className="hlavicka">
@@ -312,12 +373,18 @@ export function Prehlad() {
               <div className="segment" role="tablist">
                 {(
                   [
-                    ['mesiac', 'Tento mesiac'],
-                    ['rok', `Rok ${ROK}`],
-                    ['minuly', `Rok ${ROK - 1}`],
+                    ['tyzden', 'Týždeň'],
+                    ['mesiac', 'Mesiac'],
+                    ['rok', 'Rok'],
                   ] as [Obdobie, string][]
                 ).map(([k, text]) => (
-                  <button key={k} className={obdobie === k ? 'aktivny' : ''} aria-pressed={obdobie === k} onClick={() => setObdobie(k)}>
+                  <button
+                    key={k}
+                    className={'plocha-44' + (obdobie === k ? ' aktivny' : '')}
+                    aria-pressed={obdobie === k}
+                    title={`Tento ${text.toLowerCase()}`}
+                    onClick={() => setObdobie(k)}
+                  >
                     {text}
                   </button>
                 ))}
@@ -388,64 +455,7 @@ export function Prehlad() {
               </Link>
             </div>
 
-            <div className="graf-prehlad">
-              <ResponsiveContainer key={skryte ? 'skryte' : 'viditelne'} width="100%" height={150}>
-                <ComposedChart data={dataGrafu} margin={{ top: 6, right: 4, bottom: 0, left: 4 }}>
-                  <defs>
-                    <linearGradient id="prijmyVypln" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" className="prijmy-zaciatok" />
-                      <stop offset="100%" className="prijmy-koniec" />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid vertical={false} />
-                  <XAxis
-                    dataKey="mesiac"
-                    axisLine={false}
-                    tickLine={false}
-                    interval={0}
-                    tickMargin={8}
-                    // Krajné mesiace (jan, dec) by inak boli na hrane grafu orezané.
-                    padding={{ left: 14, right: 14 }}
-                  />
-                  <YAxis hide />
-                  <Tooltip
-                    cursor={{ stroke: 'var(--line)' }}
-                    formatter={((v: unknown, n: unknown) => [skSuma(Number(v) || 0), n === 'prijmy' ? 'Príjmy' : 'Výdavky']) as never}
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="prijmy"
-                    className="prijmy"
-                    fill="url(#prijmyVypln)"
-                    strokeWidth={2.5}
-                    activeDot={{ r: 4 }}
-                    isAnimationActive={false}
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="vydavky"
-                    className="vydavky"
-                    strokeWidth={1.6}
-                    strokeDasharray="5 4"
-                    dot={false}
-                    isAnimationActive={false}
-                  />
-                </ComposedChart>
-              </ResponsiveContainer>
-              <div className="graf-legenda">
-                <span>
-                  <i /> Príjmy {ROK}
-                </span>
-                <span>
-                  <i className="prerusovana" /> Výdavky
-                </span>
-                {financie && financie.sukromne_prijmy > 0 && (
-                  <span style={{ marginLeft: 'auto' }}>
-                    súkromné príjmy mimo podnikania {skSuma(financie.sukromne_prijmy)}
-                  </span>
-                )}
-              </div>
-            </div>
+            {graf}
           </div>
 
           <div className="panel tesny">
@@ -458,6 +468,12 @@ export function Prehlad() {
             {posledne.length === 0 ? (
               <div className="prazdne">
                 Zatiaľ žiadne faktúry. <Link to="/faktury/nova">Vystav prvú</Link>.
+              </div>
+            ) : male ? (
+              <div className="zoznam-zaznamov">
+                {posledne.map((f) => (
+                  <FakturaKarta key={f.id} fa={f} otvor={() => navigate('/faktury/' + f.id)} />
+                ))}
               </div>
             ) : (
               <div className="tabulka-obal">
@@ -662,11 +678,11 @@ export function Prehlad() {
                         <td className="tlmene dl-pod" style={{ width: 92 }}>{skDatum(v.datum)}</td>
                         <td className="dl-hlavne">
                           <strong>{v.popis}</strong>
-                          {v.kategoria && <div className="tlmene" style={{ fontSize: 12.5 }}>{v.kategoria}</div>}
+                          {v.kategoria && <div className="tlmene" style={{ fontSize: 13 }}>{v.kategoria}</div>}
                         </td>
                         <td className="cislo dl-pravo">
                           {skSuma(v.suma)}
-                          {v.odpocitat === 0 && <div className="tlmene" style={{ fontSize: 12.5, fontWeight: 500 }}>neuznateľný</div>}
+                          {v.odpocitat === 0 && <div className="tlmene" style={{ fontSize: 13, fontWeight: 500 }}>neuznateľný</div>}
                         </td>
                       </tr>
                     ))}
@@ -690,7 +706,7 @@ export function Prehlad() {
                       <tr key={t.id} style={{ cursor: 'pointer' }} onClick={() => navigate('/turnusy/' + t.id)}>
                         <td className="dl-hlavne">
                           <strong>{t.nazov}</strong>
-                          <div className="tlmene" style={{ fontSize: 12.5 }}>
+                          <div className="tlmene" style={{ fontSize: 13 }}>
                             {[t.miesto, t.krajina].filter(Boolean).join(', ') || t.firma_nazov || '—'}
                           </div>
                         </td>

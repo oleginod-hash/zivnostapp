@@ -5,13 +5,15 @@ import { MenuAkcii, type AkciaMenu } from './MenuAkcii'
 /**
  * Záznam v zozname na telefóne – karta v troch riadkoch (DESIGN.md):
  * 1) identifikátor drobne a ponuka ⋮, 2) hlavný text tučne, 3) stav vľavo a suma vpravo.
- * Ťuknutím sa záznam otvorí, menej časté akcie sú v ⋮.
+ * Ťuknutím sa záznam otvorí, menej časté akcie sú v ⋮. Hlavná akcia obrazovky
+ * (napr. Poslať upomienku, Vrátiť späť) môže byť tlačidlom v päte karty.
  */
 export function ZaznamRiadok({
   hore,
   hlavny,
   dole,
   suma,
+  pata,
   akcie,
   popisAkcii,
   otvor,
@@ -22,20 +24,23 @@ export function ZaznamRiadok({
   hlavny: ReactNode
   dole?: ReactNode
   suma?: ReactNode
+  /** Tlačidlá hlavnej akcie pod kartou – ťuknutie na ne kartu neotvorí. */
+  pata?: ReactNode
   akcie?: AkciaMenu[]
   popisAkcii?: string
-  otvor: () => void
+  /** Bez `otvor` karta len ukazuje údaje (napr. kôš) – nie je na ňu kam ťuknúť. */
+  otvor?: () => void
   className?: string
   /** Napr. zrušený turnus – ostáva v zozname, ale ustúpi. */
   tlmeny?: boolean
 }) {
   return (
     <div
-      className={`zaznam ${className}${tlmeny ? ' tlmeny' : ''}`}
-      role="link"
-      tabIndex={0}
+      className={`zaznam ${className}${tlmeny ? ' tlmeny' : ''}${otvor ? ' otvaraci' : ''}`}
+      role={otvor ? 'link' : undefined}
+      tabIndex={otvor ? 0 : undefined}
       onClick={otvor}
-      onKeyDown={(e) => e.key === 'Enter' && otvor()}
+      onKeyDown={otvor ? (e) => e.key === 'Enter' && e.target === e.currentTarget && otvor() : undefined}
     >
       <div className="zaznam-hore">
         {hore}
@@ -46,6 +51,11 @@ export function ZaznamRiadok({
         <div className="zaznam-dole">
           <span className="zaznam-stav">{dole}</span>
           {suma && <span className="zaznam-suma">{suma}</span>}
+        </div>
+      )}
+      {pata && (
+        <div className="zaznam-pata" onClick={(e) => e.stopPropagation()}>
+          {pata}
         </div>
       )}
     </div>
@@ -89,6 +99,29 @@ export function HladanieSFiltrom({
           </button>
         )}
       </div>
+    </div>
+  )
+}
+
+/**
+ * Filtre zoznamu: na počítači vždy viditeľné, na telefóne schované pod tlačidlom Filter.
+ * Stav otvorenia a počet zapnutých filtrov drží stránka, sem ide len obsah.
+ */
+export function FiltreZoznamu({
+  hladanie,
+  male,
+  otvorene,
+  children,
+}: {
+  hladanie: ReactNode
+  male: boolean
+  otvorene: boolean
+  children: ReactNode
+}) {
+  return (
+    <div className="filtre">
+      {hladanie}
+      {(!male || otvorene) && children}
     </div>
   )
 }

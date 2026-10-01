@@ -133,7 +133,7 @@ export function PristupZTelefonu() {
       <p style={{ margin: 0 }}>
         Appku práve používaš cez telefón. Zapína a vypína sa pri počítači.
         <br />
-        <span className="tlmene" style={{ fontSize: 13.5 }}>
+        <span className="tlmene" style={{ fontSize: 14 }}>
           Tip: v menu prehliadača vyber „Pridať na plochu" – appka bude mať v telefóne vlastnú ikonu.
         </span>
       </p>
@@ -222,11 +222,11 @@ export function PristupZTelefonu() {
                 </a>
               </div>
             ) : (
-              <p className="tlmene" style={{ fontSize: 13.5 }}>
+              <p className="tlmene" style={{ fontSize: 14 }}>
                 Klikni pravým tlačidlom na ikonu Tailscale pri hodinách vpravo dole a vyber Log in.
               </p>
             )}
-            <p className="tlmene" style={{ fontSize: 13.5, marginTop: 0 }}>
+            <p className="tlmene" style={{ fontSize: 14, marginTop: 0 }}>
               Po prihlásení klikni na Skontrolovať znova.
             </p>
           </>

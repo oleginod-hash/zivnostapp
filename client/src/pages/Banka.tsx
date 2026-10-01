@@ -228,7 +228,7 @@ export function Banka() {
               výdavky. Návrhy skontroluj a klikni <strong>Zapísať</strong>.
             </li>
           </ol>
-          <p className="tlmene" style={{ margin: 0, fontSize: 13.5 }}>
+          <p className="tlmene" style={{ margin: 0, fontSize: 14 }}>
             Výpis sa spracuje len v tejto appke. Ten istý výpis môžeš nahrať aj viackrát – čo už je zapísané,
             druhýkrát sa nezapíše.
           </p>
@@ -238,7 +238,7 @@ export function Banka() {
       {nahlad?.stlpce_nenajdene && (
         <div className="panel">
           <h2>Priraď stĺpce</h2>
-          <p className="tlmene" style={{ marginTop: 0, fontSize: 13.5 }}>
+          <p className="tlmene" style={{ marginTop: 0, fontSize: 14 }}>
             Vo výpise sa nepodarilo nájsť stĺpec s dátumom alebo sumou. Vyber, ktorý stĺpec je ktorý.
           </p>
           <div className="mriezka">

@@ -100,10 +100,10 @@ prípadné s.r.o. sa líšia len voľbami v Nastaveniach), logo, vzhľady PDF a 
 
 ### Rozrobené
 
-- **Dizajn** – kritika obrazoviek, vlastný DESIGN.md (pravidlá vzhľadu) a podľa neho úprava ďalších
-  obrazoviek. Vzor rozloženia: KROS, vzhľad vlastný. Hotové: zoznamy Faktúry, Výdavky a Turnusy
-  v telefóne (karta v troch riadkoch, Filter, súhrn jedným riadkom). Ďalej: formuláre (lepkavé
-  Uložiť, fotka dokladu hore), stupnica písma a dotykové plochy 44 px, Prehľad.
+- **Dizajn** – rozloženie podľa DESIGN.md je hotové na všetkých obrazovkách (karty v troch riadkoch,
+  Filter, lepkavé Uložiť, dotykové plochy 44 px – kontroluje `npm run overenie`). Ďalší krok je nový
+  **vzhľad** (menej „AI" – vzor Ramp: papierový podklad, bez tieňov, jeden výrazný akcent); zvažuje sa
+  skúška v samostatnej vetve, aby pôvodná appka ostala, ako je.
 - **Prehľad** – väčšie preusporiadanie až podľa testu s ľuďmi.
 
 ### Budúce kroky (ešte prebrať s používateľom)

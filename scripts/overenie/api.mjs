@@ -299,6 +299,27 @@ t.over(
 )
 await api('DELETE', `/faktury/${nahrada}`)
 
+t.sekcia('Číslovanie zálohových faktúr')
+const predCislovanim = (await api('GET', '/nastavenia')).d
+await api('PUT', '/nastavenia', { cislo_vzor: '{RRRR}{NNNN}', cislo_vzor_zaloha: '30{RR}{NNNN}' })
+const novaZaloha = async () =>
+  (await api('POST', '/faktury', { company_id: firma.id, typ: 'zaloha', datum_vystav: '2026-10-01', polozky: [{ popis: 'Záloha', mnozstvo: 1, cena: 250 }] })).d.id
+const zaloha1 = await novaZaloha()
+const zaloha2 = await novaZaloha()
+t.over('zálohová faktúra má vlastný rad podľa vzoru', [(await faktura(zaloha1)).cislo, (await faktura(zaloha2)).cislo], ['30260001', '30260002'])
+t.over('návrh čísla pre zálohovú faktúru pokračuje v jej rade', (await api('GET', '/faktury/nova?typ=zaloha&datum=2026-10-02')).d.cislo, '30260003')
+const beznaFaktura = (await api('POST', '/faktury', { company_id: firma.id, datum_vystav: '2026-10-01', polozky: [{ popis: 'Práca', mnozstvo: 1, cena: 100 }] })).d.id
+t.over('bežná faktúra ostáva vo svojom rade – zálohy ho neposúvajú', (await faktura(beznaFaktura)).cislo.startsWith('2026'), true)
+t.over(
+  'vzor bez poradia appka neuloží a povie prečo',
+  [(await api('PUT', '/nastavenia', { cislo_vzor_zaloha: '30{RR}' })).stav, (await api('GET', '/nastavenia')).d.cislo_vzor_zaloha],
+  [400, '30{RR}{NNNN}'],
+)
+await api('PUT', '/nastavenia', { cislo_vzor_zaloha: '' })
+t.over('bez vlastného vzoru má zálohová faktúra rovnaký rad ako faktúry', (await api('GET', '/faktury/nova?typ=zaloha&datum=2026-10-02')).d.cislo.startsWith('2026'), true)
+for (const id of [zaloha1, zaloha2, beznaFaktura]) await api('DELETE', `/faktury/${id}`)
+await api('PUT', '/nastavenia', { cislo_vzor: predCislovanim.cislo_vzor, cislo_vzor_zaloha: predCislovanim.cislo_vzor_zaloha })
+
 // ── Automatická záloha ────────────────────────────────────────
 t.sekcia('Automatická záloha')
 const znacka = dnesISO().replace(/-/g, '')

@@ -1,13 +1,16 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import {
-  api, skCislo, skDatum, skSuma, vratZKosa, NAZVY_STAVOV_OBJEDNAVKY, STITOK_OBJEDNAVKY,
+  api, pocet, skCislo, skDatum, skSuma, vratZKosa, NAZVY_STAVOV_OBJEDNAVKY, STITOK_OBJEDNAVKY,
   type Firma, type Objednavka, type Turnus,
 } from '../api'
 import { Ikona } from '../components/Ikony'
 import { FirmaSAvatarom } from '../components/Farby'
 import { oznam, oznamChybu } from '../components/Oznamenia'
 import { PrazdnyStav } from '../components/PrazdnyStav'
+import { ObjednavkaKarta } from '../components/ObjednavkaKarta'
+import { FiltreZoznamu, HladanieSFiltrom } from '../components/Zoznam'
+import { useMaleOkno } from '../maleOkno'
 
 export function Objednavky() {
   const navigate = useNavigate()
@@ -16,6 +19,10 @@ export function Objednavky() {
   const [turnusy, setTurnusy] = useState<Turnus[]>([])
   const [chyba, setChyba] = useState('')
   const [f, setF] = useState({ stav: '', firma: '', turnus: '', hladat: '' })
+  const male = useMaleOkno()
+  /** Na telefóne sú výbery stavu, turnusu a firmy schované pod tlačidlom Filter. */
+  const [filtreOtvorene, setFiltreOtvorene] = useState(false)
+  const aktivnychFiltrov = [f.stav, f.turnus, f.firma].filter(Boolean).length
 
   function nacitaj() {
     const q = new URLSearchParams()
@@ -63,15 +70,22 @@ export function Objednavky() {
 
       {chyba && <div className="chyba">{chyba}</div>}
 
-      <div className="filtre">
-        <div className="hladanie">
-          <label>Hľadať</label>
-          <input
+      <FiltreZoznamu
+        male={male}
+        otvorene={filtreOtvorene}
+        hladanie={
+          <HladanieSFiltrom
+            id="hladat-objednavky"
+            hodnota={f.hladat}
+            zmen={(hladat) => setF({ ...f, hladat })}
             placeholder="číslo, popis, firma, turnus…"
-            value={f.hladat}
-            onChange={(e) => setF({ ...f, hladat: e.target.value })}
+            male={male}
+            aktivnych={aktivnychFiltrov}
+            otvorene={filtreOtvorene}
+            prepni={() => setFiltreOtvorene(!filtreOtvorene)}
           />
-        </div>
+        }
+      >
         <div>
           <label>Stav</label>
           <select value={f.stav} onChange={(e) => setF({ ...f, stav: e.target.value })}>
@@ -104,9 +118,18 @@ export function Objednavky() {
             ))}
           </select>
         </div>
-      </div>
+      </FiltreZoznamu>
 
-      <div className="panel tesny">
+      {male && objednavky && objednavky.length > 0 && (
+        <div className="suhrn-zoznamu">
+          <span>{pocet(objednavky.length, ['objednávka', 'objednávky', 'objednávok'])}</span>
+          <span>
+            dohodnuté <strong>{skSuma(objednavky.reduce((s, o) => s + o.suma, 0))}</strong>
+          </span>
+        </div>
+      )}
+
+      <div className={male && objednavky?.length ? 'zoznam-zaznamov' : 'panel tesny'}>
         {!objednavky ? (
           <div className="nacitava">Načítavam…</div>
         ) : objednavky.length === 0 ? (
@@ -121,6 +144,15 @@ export function Objednavky() {
               </Link>
             }
           />
+        ) : male ? (
+          objednavky.map((o) => (
+            <ObjednavkaKarta
+              key={o.id}
+              o={o}
+              otvor={() => navigate('/objednavky/' + o.id)}
+              akcie={[{ text: 'Presunúť do koša', ikona: 'zmazat', nebezpecne: true, sprav: () => zmaz(o) }]}
+            />
+          ))
         ) : (
           <table>
             <thead>
@@ -144,7 +176,7 @@ export function Objednavky() {
                 >
                   <td>
                     <strong>{o.cislo || o.popis || 'bez čísla'}</strong>
-                    {o.cislo && o.popis && <div className="tlmene" style={{ fontSize: 12.5 }}>{o.popis}</div>}
+                    {o.cislo && o.popis && <div className="tlmene" style={{ fontSize: 13 }}>{o.popis}</div>}
                   </td>
                   <td>
                     <FirmaSAvatarom nazov={o.firma_nazov} />
@@ -165,7 +197,7 @@ export function Objednavky() {
                   <td className="cislo">
                     {o.suma ? skSuma(o.suma) : <span className="tlmene">—</span>}
                     {o.hodiny > 0 && (
-                      <div className="tlmene" style={{ fontSize: 12.5 }}>{skCislo(o.hodiny)} h</div>
+                      <div className="tlmene" style={{ fontSize: 13 }}>{skCislo(o.hodiny)} h</div>
                     )}
                   </td>
                   <td>

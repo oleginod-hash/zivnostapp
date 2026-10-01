@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { api, ibanJePlatny, type Nastavenia } from '../api'
 import { Ikona, type KlucIkony } from '../components/Ikony'
+import { CisloPole } from '../components/CisloPole'
 
 /**
  * Sprievodca prvým spustením. Namiesto dlhých Nastavení sa spýta na päť vecí,
@@ -337,15 +338,14 @@ export function Sprievodca() {
                   {d} dní
                 </button>
               ))}
-              <input
+              <CisloPole
                 id="s-splatnost"
-                type="number"
                 min={0}
                 max={365}
                 className="splatnost-vlastna"
                 aria-label="Vlastný počet dní"
-                value={udaje.splatnost_dni}
-                onChange={(e) => uprav({ splatnost_dni: Number(e.target.value) })}
+                hodnota={udaje.splatnost_dni}
+                zmen={(n) => uprav({ splatnost_dni: n })}
               />
             </div>
             <label className="zaskrtavacie">

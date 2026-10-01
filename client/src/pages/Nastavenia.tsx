@@ -1,11 +1,14 @@
 import { useEffect, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { api, ibanJePlatny, pocet, type Nastavenia as TNastavenia, type Sadzba } from '../api'
 import { Ikona } from '../components/Ikony'
 import { oznam, oznamChybu } from '../components/Oznamenia'
 import { PristupZTelefonu } from '../components/PristupZTelefonu'
 import { SADZBY_DPH } from '../../../server/lib/dph'
 import { useNeulozeneZmeny } from '../neulozene'
+import { CisloPole } from '../components/CisloPole'
+import { useMaleOkno } from '../maleOkno'
+import { MenuAkcii } from '../components/MenuAkcii'
 
 /** Pár overených odtieňov – dosť výrazných na obrazovke, dosť tlmených na tlač. */
 const FARBY_FAKTURY = [
@@ -22,6 +25,19 @@ const FARBY_FAKTURY = [
  * pre účtovníčku, ktoré netreba vyplniť hneď. Prvé spustenie rieši sprievodca.
  */
 export function Nastavenia() {
+  const male = useMaleOkno()
+  /** Ukážka čísel, ktoré dostane ďalšia faktúra a zálohová faktúra podľa uložených vzorov. */
+  const [dalsieCisla, setDalsieCisla] = useState<{ faktura: string; zaloha: string } | null>(null)
+  function nacitajDalsieCisla() {
+    Promise.all([
+      api.get<{ cislo: string }>('/faktury/nova'),
+      api.get<{ cislo: string }>('/faktury/nova?typ=zaloha'),
+    ])
+      .then(([f, z]) => setDalsieCisla({ faktura: f.cislo, zaloha: z.cislo }))
+      .catch(() => {})
+  }
+  useEffect(nacitajDalsieCisla, [])
+  const navigate = useNavigate()
   const [n, setN] = useState<TNastavenia | null>(null)
   const [sprava, setSprava] = useState('')
   const [chyba, setChyba] = useState('')
@@ -65,8 +81,9 @@ export function Nastavenia() {
       const ulozene = await api.put<TNastavenia>('/nastavenia', n)
       setN(ulozene)
       oznacUlozene(ulozene)
-      setSprava('Nastavenia sú uložené.')
-      setTimeout(() => setSprava(''), 3000)
+      // Oznámenie dole – na telefóne je Uložiť dole a správa hore by nebola vidno.
+      oznam('Nastavenia sú uložené.')
+      nacitajDalsieCisla()
     } catch (e: any) {
       setChyba(e.message)
     }
@@ -125,12 +142,21 @@ export function Nastavenia() {
       <div className="hlavicka">
         <h1>Nastavenia</h1>
         <div className="akcie">
-          <Link className="tlacidlo" to="/sprievodca">
-            Sprievodca nastavením
-          </Link>
-          <button className="primar" onClick={uloz}>
-            Uložiť
-          </button>
+          {male ? (
+            <MenuAkcii
+              popis="Ďalšie možnosti"
+              akcie={[{ text: 'Sprievodca nastavením', ikona: 'nastavenia', sprav: () => navigate('/sprievodca') }]}
+            />
+          ) : (
+            <>
+              <Link className="tlacidlo" to="/sprievodca">
+                Sprievodca nastavením
+              </Link>
+              <button className="primar" onClick={uloz}>
+                Uložiť
+              </button>
+            </>
+          )}
         </div>
       </div>
 
@@ -139,7 +165,7 @@ export function Nastavenia() {
 
       <div className="panel">
         <h2>Údaje na faktúre</h2>
-        <p className="tlmene" style={{ fontSize: 13.5, marginTop: 0 }}>
+        <p className="tlmene" style={{ fontSize: 14, marginTop: 0 }}>
           Tlačia sa na každú faktúru ako údaje dodávateľa.
         </p>
         <div className="mriezka">
@@ -314,13 +340,12 @@ export function Nastavenia() {
           </div>
           <div>
             <label>Rezerva na dane a odvody (%)</label>
-            <input
-              type="number"
+            <CisloPole
               min={0}
               max={60}
               step={0.5}
-              value={n.rezerva_percento ?? 0}
-              onChange={(e) => uprav({ rezerva_percento: Number(e.target.value) })}
+              hodnota={n.rezerva_percento ?? 0}
+              zmen={(n) => uprav({ rezerva_percento: n })}
             />
             <div className="napoveda">
               Koľko percent z každej prijatej platby si odkladáš. Appka ti to pri platbe pripomenie; 0 = nepripomínať.
@@ -338,6 +363,23 @@ export function Nastavenia() {
             <div className="napoveda">
               {'{RRRR}'} = rok, {'{RR}'} = rok dvojmiestne, {'{MM}'} = mesiac, {'{NNN}'} = poradie (počet N = počet
               miest). Napr. <code>{'{RRRR}{NNN}'}</code> dá 2026001.
+              {dalsieCisla && <> Ďalšia faktúra dostane číslo <strong>{dalsieCisla.faktura}</strong>.</>}
+            </div>
+          </div>
+          <div>
+            <label htmlFor="cislo-vzor-zaloha">Vzor čísla zálohovej faktúry</label>
+            <input
+              id="cislo-vzor-zaloha"
+              placeholder="rovnaký ako pri faktúrach"
+              value={n.cislo_vzor_zaloha ?? ''}
+              onChange={(e) => uprav({ cislo_vzor_zaloha: e.target.value })}
+            />
+            <div className="napoveda">
+              Vlastný číselný rad zálohových faktúr, napr. <code>{'30{RR}{NNNN}'}</code> dá 30260001. Prázdne = zálohové
+              faktúry pokračujú v rade faktúr.
+              {dalsieCisla && n.cislo_vzor_zaloha?.trim() && (
+                <> Ďalšia zálohová faktúra dostane číslo <strong>{dalsieCisla.zaloha}</strong>.</>
+              )}
             </div>
           </div>
           <div>
@@ -354,12 +396,11 @@ export function Nastavenia() {
                 pracovné
               </button>
             </div>
-            <input
-              type="number"
+            <CisloPole
               min={0}
               max={365}
-              value={n.splatnost_dni}
-              onChange={(e) => uprav({ splatnost_dni: Number(e.target.value) })}
+              hodnota={n.splatnost_dni}
+              zmen={(n) => uprav({ splatnost_dni: n })}
             />
             <div className="napoveda">
               {n.splatnost_pracovne
@@ -464,13 +505,13 @@ export function Nastavenia() {
         {!!n.praca_v_zahranici && (
           <>
             <h3 className="podnadpis">Sadzby stravného</h3>
-            <p className="tlmene" style={{ fontSize: 13.5, marginTop: 0 }}>
+            <p className="tlmene" style={{ fontSize: 14, marginTop: 0 }}>
               Zadaj dennú sadzbu pre krajiny, kam chodievaš. Appka z nej pri turnuse vypočíta stravné a jedným
               kliknutím ho zapíše medzi výdavky. <strong>Sadzby treba udržiavať aktuálne</strong> – menia sa
               a appka ich nepredpisuje.
             </p>
             {sadzby.length === 0 ? (
-              <p className="tlmene" style={{ fontSize: 13.5, margin: '0 0 4px' }}>
+              <p className="tlmene" style={{ fontSize: 14, margin: '0 0 4px' }}>
                 Zatiaľ nie je zadaná žiadna krajina.
               </p>
             ) : (
@@ -494,12 +535,11 @@ export function Nastavenia() {
                         />
                       </td>
                       <td>
-                        <input
-                          type="number"
+                        <CisloPole
                           step="0.01"
                           style={{ textAlign: 'right' }}
-                          value={sa.sadzba}
-                          onChange={(e) => upravSadzbu(i, { sadzba: Number(e.target.value) })}
+                          hodnota={sa.sadzba}
+                          zmen={(n) => upravSadzbu(i, { sadzba: n })}
                         />
                       </td>
                       <td>
@@ -561,7 +601,7 @@ export function Nastavenia() {
             môžeš doplniť neskôr · vyplnené {vyplnenePreUctovnicku} z {preUctovnicku.length}
           </span>
         </summary>
-        <p className="tlmene" style={{ fontSize: 13.5, marginTop: 0 }}>
+        <p className="tlmene" style={{ fontSize: 14, marginTop: 0 }}>
           Na faktúru sa netlačia. Hodia sa pri daňovom priznaní a asistent z nich vie, ako podnikáš.
         </p>
         <div className="mriezka">
@@ -639,7 +679,8 @@ export function Nastavenia() {
         )}
       </div>
 
-      <div className="riadok-akcii">
+      {/* Na telefóne ostáva Uložiť stále po ruke – nastavenia sú dlhé. */}
+      <div className="riadok-akcii lepkave-akcie">
         <button className="primar" onClick={uloz}>
           Uložiť nastavenia
         </button>

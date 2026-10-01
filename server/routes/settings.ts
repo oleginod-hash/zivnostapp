@@ -6,12 +6,13 @@ import multer from 'multer'
 import { db } from '../db.js'
 import { cestaLoga, PRIECINOK_LOGA } from '../lib/logo.js'
 import { jeSadzbaDph } from '../lib/dph.js'
+import { vzorJePlatny } from '../lib/cislovanie.js'
 
 export const settingsRouter = Router()
 
 const POLIA = [
   'meno', 'adresa', 'psc_mesto', 'krajina', 'ico', 'dic', 'zapis',
-  'email', 'telefon', 'iban', 'swift', 'banka', 'cislo_vzor', 'poznamka_pati',
+  'email', 'telefon', 'iban', 'swift', 'banka', 'cislo_vzor', 'cislo_vzor_zaloha', 'poznamka_pati',
   'predmety', 'datum_vzniku', 'urad_zr', 'cislo_zr', 'ic_dph',
   'zdravotna_poistovna', 'web', 'sposob_uhrady',
 ] as const
@@ -94,6 +95,12 @@ settingsRouter.put('/', (req, res) => {
     hodnoty[p] = b[p] === undefined ? teraz[p] : String(b[p] ?? '').trim()
   }
   if (!hodnoty.cislo_vzor) hodnoty.cislo_vzor = '{RRRR}{NNN}'
+  for (const [pole, nazov] of [['cislo_vzor', 'faktúry'], ['cislo_vzor_zaloha', 'zálohovej faktúry']] as const) {
+    const vzor = String(hodnoty[pole] ?? '')
+    if (vzor && !vzorJePlatny(vzor)) {
+      return res.status(400).json({ chyba: `Vzor čísla ${nazov} musí obsahovať poradie, napr. {NNNN}.` })
+    }
+  }
 
   if (b.splatnost_dni === undefined) {
     hodnoty.splatnost_dni = teraz.splatnost_dni

@@ -1,15 +1,18 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { OdoslatMail } from '../components/OdoslatMail'
-import { api, pocet, skDatum, skSuma, vetaORezerve, type PoSplatnosti, type StavMailu } from '../api'
+import { api, pocet, skDatum, skSuma, vetaORezerve, type PoSplatnosti } from '../api'
 import { Ikona } from '../components/Ikony'
 import { FirmaSAvatarom, Karticka } from '../components/Farby'
 import { oznam } from '../components/Oznamenia'
 import { PrazdnyStav } from '../components/PrazdnyStav'
+import { ZaznamRiadok } from '../components/Zoznam'
+import { useMaleOkno } from '../maleOkno'
 
 export function Upomienky() {
+  const navigate = useNavigate()
   const [faktury, setFaktury] = useState<PoSplatnosti[] | null>(null)
-  const [stavMailu, setStavMailu] = useState<StavMailu | null>(null)
+  const male = useMaleOkno()
   const [posielam, setPosielam] = useState<number | null>(null)
   const [chyba, setChyba] = useState('')
 
@@ -19,7 +22,6 @@ export function Upomienky() {
 
   useEffect(() => {
     nacitaj()
-    api.get<StavMailu>('/mail/stav').then(setStavMailu).catch(() => {})
   }, [])
 
   async function oznacZaplatenu(f: PoSplatnosti) {
@@ -49,14 +51,20 @@ export function Upomienky() {
 
       {chyba && <div className="chyba">{chyba}</div>}
 
-      {stavMailu && !stavMailu.nastavene && (
-        <div className="info-pruh">
-          Odosielanie e-mailov zatiaľ nie je nastavené – texty upomienok si môžeš aspoň skopírovať.
-          Na priame odosielanie doplň údaje SMTP do súboru <code>.env</code>.
+      {/* Na telefóne je súhrn jeden riadok nad zoznamom (DESIGN.md). */}
+      {male && faktury && faktury.length > 0 && (
+        <div className="suhrn-zoznamu">
+          <span>{pocet(faktury.length, ['faktúra', 'faktúry', 'faktúr'])} po splatnosti</span>
+          <span>
+            spolu <strong className="suma-caka">{skSuma(spolu)}</strong>
+          </span>
+          <span>
+            najdlhšie <strong>{pocet(Math.max(...faktury.map((f) => f.dni_po_splatnosti)), ['deň', 'dni', 'dní'])}</strong>
+          </span>
         </div>
       )}
 
-      {faktury && faktury.length > 0 && (
+      {!male && faktury && faktury.length > 0 && (
         <div className="karty kompaktne">
           <Karticka
             ikona="pozor"
@@ -74,7 +82,7 @@ export function Upomienky() {
         </div>
       )}
 
-      <div className="panel tesny">
+      <div className={male && faktury?.length ? 'zoznam-zaznamov' : 'panel tesny'}>
         {!faktury ? (
           <div className="nacitava">Načítavam…</div>
         ) : faktury.length === 0 ? (
@@ -84,6 +92,44 @@ export function Upomienky() {
             nadpis="Nikto ti nedlhuje"
             text="Žiadna faktúra nie je po splatnosti. Keď sa niektorá dostane po splatnosti, zobrazí sa tu aj s textom upomienky."
           />
+        ) : male ? (
+          faktury.map((f) => (
+            <ZaznamRiadok
+              key={f.id}
+              className="upomienka-riadok"
+              otvor={() => navigate('/faktury/' + f.id)}
+              hore={
+                <>
+                  <span className="cislo-faktury">{f.cislo}</span>
+                  <span className="zaznam-id">splatná {skDatum(f.datum_splat)}</span>
+                </>
+              }
+              hlavny={
+                <>
+                  {f.firma_nazov || <span className="tlmene">bez odberateľa</span>}
+                  {!f.firma_email && <span className="pod-textom">bez e-mailu</span>}
+                </>
+              }
+              dole={<span className="chyba-text">{pocet(f.dni_po_splatnosti, ['deň', 'dni', 'dní'])} po termíne</span>}
+              suma={
+                <>
+                  <strong>{skSuma(f.otvoreny_zostatok)}</strong>
+                  {f.otvoreny_zostatok < f.suma - 0.005 && <span className="pod-textom">z {skSuma(f.suma)}</span>}
+                </>
+              }
+              pata={
+                <>
+                  <button className="primar" onClick={() => setPosielam(f.id)}>
+                    Poslať upomienku
+                  </button>
+                  <button onClick={() => oznacZaplatenu(f)}>
+                    <Ikona nazov="zaplatena" velkost={15} hrubka={2.2} />
+                    Uhradená
+                  </button>
+                </>
+              }
+            />
+          ))
         ) : (
           <table>
             <thead>
@@ -111,14 +157,14 @@ export function Upomienky() {
                   </td>
                   <td>
                     {skDatum(f.datum_splat)}
-                    <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--cervena)' }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--cervena)' }}>
                       {pocet(f.dni_po_splatnosti, ['deň', 'dni', 'dní'])} po termíne
                     </div>
                   </td>
                   <td className="cislo">
                     <strong>{skSuma(f.otvoreny_zostatok)}</strong>
                     {f.otvoreny_zostatok < f.suma - 0.005 && (
-                      <div className="tlmene" style={{ fontSize: 12.5 }}>
+                      <div className="tlmene" style={{ fontSize: 13 }}>
                         z {skSuma(f.suma)}
                       </div>
                     )}

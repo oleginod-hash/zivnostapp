@@ -236,7 +236,7 @@ export function Turnusy() {
                   <td>
                     <strong>{t.nazov}</strong>
                     {(t.miesto || t.krajina) && (
-                      <div className="tlmene" style={{ fontSize: 12.5 }}>
+                      <div className="tlmene" style={{ fontSize: 13 }}>
                         {[t.miesto, t.krajina].filter(Boolean).join(', ')}
                       </div>
                     )}
@@ -246,7 +246,7 @@ export function Turnusy() {
                   </td>
                   <td>
                     {skDatum(t.datum_od)} – {skDatum(t.datum_do)}
-                    <div className="tlmene" style={{ fontSize: 12.5 }}>
+                    <div className="tlmene" style={{ fontSize: 13 }}>
                       {dlzkaTurnusu(t.datum_od, t.datum_do)} dní
                     </div>
                   </td>
@@ -254,7 +254,7 @@ export function Turnusy() {
                   <td className="cislo">
                     {t.vyfakturovane ? skSuma(t.vyfakturovane) : <span className="tlmene">—</span>}
                     {t.objednane > 0 && t.vyfakturovane < t.objednane && (
-                      <div style={{ fontSize: 12.5, color: 'var(--oranzova)', fontWeight: 600 }}>
+                      <div style={{ fontSize: 13, color: 'var(--oranzova)', fontWeight: 600 }}>
                         chýba {skSuma(t.objednane - t.vyfakturovane)}
                       </div>
                     )}

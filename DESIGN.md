@@ -17,7 +17,8 @@ počítač. Preto: **pokojne, čitateľne, málo vecí naraz**. Každá obrazovk
 ## Obrazovka na telefóne (pod 820 px)
 
 1. **Hlavička:** názov stránky vľavo, vpravo najviac **jedno** hlavné tlačidlo (napr. „+ Nová faktúra")
-   alebo „Späť". Menej časté akcie idú do ponuky **⋮** (`MenuAkcii`).
+   alebo „Späť". Menej časté akcie idú do ponuky **⋮** (`MenuAkcii`). Detail záznamu (turnus,
+   objednávka, faktúra) má na telefóne „Späť" a ⋮ s akciami ako *Vystaviť faktúru*.
 2. **Záložky** (ak sú): mriežka po dve, počet vpravo (`.taby`).
 3. **Hľadanie + tlačidlo Filter** v jednom riadku (`HladanieSFiltrom` v `components/Zoznam.tsx`).
    Ďalšie výbery (firma, turnus, rok, dátumy) sú schované pod Filtrom – zoznam musí začínať na prvej
@@ -38,11 +39,18 @@ Každý záznam je **samostatná karta v troch riadkoch** – súčasť `ZaznamR
 | 3 | stav (štítok) a drobná doplnková informácia | suma tučne |
 
 - Ťuknutie na kartu otvorí detail. Úpravy a mazanie sú v ⋮ – nie ako ikony v každej karte.
+- Hlavná akcia obrazovky (Poslať upomienku, Vrátiť späť z koša, Vystaviť faktúru zo šablóny) môže byť
+  tlačidlom v päte karty (`pata`) cez celú šírku.
+- Spoločné karty: `FakturaKarta` (faktúry, Prehľad), `FakturaVZozname` (pri turnuse a objednávke),
+  `ObjednavkaKarta`.
 - Karta nemá popisy pri každej hodnote („Dátum: …") – poradie riadkov je vždy rovnaké.
 - Tabuľky s popismi pri každej bunke (`table[data-karty]`) sú len náhradné riešenie pre zriedkavé
   zoznamy; nový zoznam robíme ako kartu v troch riadkoch.
 - Súhrnné čísla (Príjmy, Výdavky, Čaká…) sú **zoznam riadkov** v jednom paneli – popis vľavo,
-  suma vpravo (`.karty.kompaktne` na telefóne), nie mriežka dlaždíc.
+  suma vpravo (`.karty.kompaktne` na telefóne), nie mriežka dlaždíc. Výnimka: štyri hlavné čísla
+  na Prehľade ostávajú v mriežke 2 × 2 (rozhodnutie používateľa, 1. 10. 2026).
+- Súhrn nad zoznamom faktúr je **jeden riadok** v celých eurách („spolu · uhradené · čaká") –
+  rovnaký na telefóne aj na počítači, zmestia sa aj päťciferné sumy.
 
 ## Formulár
 
@@ -52,7 +60,13 @@ Vzor: faktúra (`FakturaEdit`).
 - Zriedkavé polia pod **„Viac údajov"** (`details.viac-udajov`), rozbalí sa samo, keď je v nich
   niečo vyplnené.
 - Zoznam vo formulári (položky) na telefóne ako riadky, ktoré sa otvárajú **po jednom** na úpravu.
-- **Uložiť** je na telefóne lepkavé dole (`.lepkave-akcie`), cez celú šírku.
+- **Uložiť** je na telefóne lepkavé dole (`.lepkave-akcie`), cez celú šírku. Vo formulári v paneli
+  (výdavok, firma, turnus) je lišta vnútri panela – drží sa dole, kým je panel na obrazovke.
+- Číselné polia cez `CisloPole` – dajú sa celé vymazať (obyčajné pole by v nich nechalo „0").
+  Prázdne číslo sa ukazuje ako prázdne pole s nápovedou „0,00", nie ako nula.
+- Na telefóne sa formulár neotvára s klávesnicou (`autoFocus` len na počítači).
+- Rady tlačidiel (`.riadok-akcii`) sa na telefóne zalamujú a tlačidlá vyplnia šírku – nič nesmie
+  vyliezť zo strany (`npm run overenie` kontroluje aj prvky mimo obrazovky vľavo).
 - Údaje z inej časti appky (odberateľ, moje údaje) sa upravujú v okne cez „Viac údajov",
   nie odchodom z formulára.
 
@@ -68,6 +82,9 @@ Telo **Manrope**, nadpisy **Barlow Condensed**. Používame len tieto veľkosti:
 | bežný text, polia formulára | 14 px (polia 16 px – inak iPhone stránku priblíži) |
 | drobný text (dátum, popis) | 13 px / 500 |
 | štítky, popisy polí | 12 px / 700 – menšie nikdy |
+| veľké sumy (Prehľad, súčet faktúry) | 18 – 22 px / 700 – 800 |
+
+Polovičné veľkosti (12,5 px, 13,5 px…) nepoužívame – zaokrúhľujú sa nahor.
 
 Sumy vždy `tabular-nums`, zarovnané vpravo, jednotka „€" za číslom.
 
@@ -82,6 +99,9 @@ Sumy vždy `tabular-nums`, zarovnané vpravo, jednotka „€" za číslom.
 ## Ovládanie
 
 - Dotykový cieľ na telefóne aspoň **44 × 44 px** (aj keď ikona je menšia – väčšia plocha okolo).
+  Odkaz mimo vety (Zobraziť všetky →) má neviditeľnú plochu navyše cez záporný okraj. Kontroluje
+  to `npm run overenie` na každej obrazovke. Naoko menšie tlačidlo (prepínač obdobia) dostane
+  triedu `plocha-44` – neviditeľná plocha okolo má 44 px a test ho preto neráta medzi malé.
 - Jeden štýl ikonových tlačidiel: bez rámčeka, sivá ikona, pri stlačení podklad `--soft`.
 - Nevratná akcia sa pýta (`potvrd()`), vratná ponúkne **Vrátiť späť** (`oznam()`).
 - Texty podľa [CLAUDE.md](CLAUDE.md) – formálnejšie tykanie, bez hovorových slov, rodovo neutrálne.

@@ -5,8 +5,10 @@ import {
   type Firma, type Obnova, type Priloha, type StavZmluvy, type Zmluva,
 } from '../api'
 import { useNeulozeneZmeny } from '../neulozene'
-import { potvrd } from '../components/Oznamenia'
+import { useMaleOkno } from '../maleOkno'
+import { oznam, potvrd } from '../components/Oznamenia'
 import { Ikona } from '../components/Ikony'
+import { CisloPole } from '../components/CisloPole'
 
 type Formular = {
   nazov: string; company_id: string; kategoria: string; cislo_zmluvy: string
@@ -60,6 +62,7 @@ export function ZmluvaEdit() {
   const [uklada, setUklada] = useState(false)
   const [nahrava, setNahrava] = useState(false)
   const oznacUlozene = useNeulozeneZmeny(form, id ?? 'nova')
+  const male = useMaleOkno()
   const vstupSuborov = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -113,8 +116,8 @@ export function ZmluvaEdit() {
       } else {
         await api.put('/zmluvy/' + id, telo)
         oznacUlozene()
-        setSprava('Zmeny sú uložené.')
-        setTimeout(() => setSprava(''), 3000)
+        // Oznámenie dole – na telefóne je Uložiť dole a správa hore by nebola vidno.
+        oznam('Zmeny sú uložené.')
       }
     } catch (e: any) {
       setChyba(e.message)
@@ -168,17 +171,17 @@ export function ZmluvaEdit() {
 
       <div className="panel">
         <h2>O zmluve</h2>
-        <div className="mriezka">
+        <div className="mriezka dvojice">
           <div className="pole-siroke">
             <label>Názov zmluvy *</label>
             <input
-              autoFocus
+              autoFocus={!male}
               placeholder="napr. Rámcová zmluva o dielo – Bau GmbH"
               value={form.nazov}
               onChange={(e) => uprav({ nazov: e.target.value })}
             />
           </div>
-          <div>
+          <div className="pole-siroke">
             <label>Firma</label>
             <select value={form.company_id} onChange={(e) => uprav({ company_id: e.target.value })}>
               <option value="">— vyber firmu —</option>
@@ -246,21 +249,19 @@ export function ZmluvaEdit() {
           </div>
           <div>
             <label>Výpovedná lehota (dni)</label>
-            <input
-              type="number"
+            <CisloPole
               min={0}
-              value={form.vypoved_dni}
-              onChange={(e) => uprav({ vypoved_dni: Number(e.target.value) })}
+              hodnota={form.vypoved_dni}
+              zmen={(n) => uprav({ vypoved_dni: n })}
             />
           </div>
           <div>
             <label>Upozorniť koľko dní vopred</label>
-            <input
-              type="number"
+            <CisloPole
               min={0}
               max={365}
-              value={form.pripomienka_dni}
-              onChange={(e) => uprav({ pripomienka_dni: Number(e.target.value) })}
+              hodnota={form.pripomienka_dni}
+              zmen={(n) => uprav({ pripomienka_dni: n })}
             />
             <div className="napoveda">Zmluva sa objaví medzi pripomienkami na Prehľade.</div>
           </div>
@@ -336,9 +337,10 @@ export function ZmluvaEdit() {
         />
       </div>
 
-      <div className="riadok-akcii">
+      {/* Na telefóne ostáva Uložiť stále po ruke nad spodnou lištou. */}
+      <div className="riadok-akcii lepkave-akcie">
         <Link className="tlacidlo" to="/zmluvy">
-          Späť na zoznam
+          Zrušiť
         </Link>
         <button className="primar" onClick={uloz} disabled={uklada || !form.nazov.trim()}>
           {uklada ? 'Ukladám…' : novaZmluva ? 'Vytvoriť zmluvu' : 'Uložiť zmeny'}

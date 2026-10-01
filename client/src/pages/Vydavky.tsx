@@ -8,12 +8,13 @@ import {
 import { Ikona } from '../components/Ikony'
 import { FarebnyCip, tonKategorie } from '../components/Farby'
 import { MenuAkcii } from '../components/MenuAkcii'
-import { oznam } from '../components/Oznamenia'
+import { oznam, potvrd } from '../components/Oznamenia'
 import { PrazdnyStav } from '../components/PrazdnyStav'
 import { QrOkno, usePristup } from '../components/PristupZTelefonu'
-import { HladanieSFiltrom, ZaznamRiadok } from '../components/Zoznam'
+import { FiltreZoznamu, HladanieSFiltrom, ZaznamRiadok } from '../components/Zoznam'
 import { useMaleOkno } from '../maleOkno'
 import { useNeulozeneZmeny } from '../neulozene'
+import { CisloPole } from '../components/CisloPole'
 
 type Formular = {
   id?: number
@@ -84,6 +85,8 @@ export function Vydavky() {
   const [qrOkno, setQrOkno] = useState(false)
   /** Formulár otvorený z QR kódu v telefóne – fotoaparát ide na prvé miesto. */
   const [fotoHned, setFotoHned] = useState(false)
+  /** „Viac údajov" – null = podľa obsahu (rozbalí sa, keď je v nich niečo nezvyčajné). */
+  const [viacUdajov, setViacUdajov] = useState<boolean | null>(null)
   const oznacUlozene = useNeulozeneZmeny(uprava, uprava?.id ?? 'novy')
   const navigate = useNavigate()
   const male = useMaleOkno()
@@ -226,6 +229,7 @@ export function Vydavky() {
 
   function otvorNovy(kategoria = '') {
     posunutNaFormular.current = true
+    setViacUdajov(null)
     setUprava({ ...PRAZDNY(druh), kategoria })
     setFotoHned(false)
     setEfaktura(null)
@@ -246,6 +250,7 @@ export function Vydavky() {
     kurzPre.current = `${mena}|${detail.datum}`
     setKurzInfo(kurz ? 'uložený kurz' : '')
     posunutNaFormular.current = true
+    setViacUdajov(null)
     setUprava({
       id: detail.id,
       datum: detail.datum,
@@ -307,12 +312,12 @@ export function Vydavky() {
     }
   }
 
-  async function nahrajSubory(subory: FileList | null) {
-    if (!subory?.length || !uprava?.id) return
+  async function nahrajSubory(subory: File[]) {
+    if (!subory.length || !uprava?.id) return
     setNahrava(true)
     try {
       const data = new FormData()
-      for (const s of Array.from(subory)) data.append('subory', s)
+      for (const s of subory) data.append('subory', s)
       const r = await api.upload<{ prilohy: Priloha[] }>(`/vydavky/${uprava.id}/subory`, data)
       setPrilohy(r.prilohy)
       nacitaj()
@@ -320,7 +325,30 @@ export function Vydavky() {
       setChyba(e.message)
     } finally {
       setNahrava(false)
-      if (vstupSuborov.current) vstupSuborov.current.value = ''
+    }
+  }
+
+  /** Uložený výdavok dostane doklad hneď, nový si ho podrží a nahrá po uložení. */
+  function pridajSubory(subory: File[]) {
+    if (!subory.length) return
+    if (uprava?.id) nahrajSubory(subory)
+    else setCakajuceSubory([...cakajuceSubory, ...subory])
+  }
+
+  async function zmazDoklad(p: Priloha) {
+    const ano = await potvrd({
+      nadpis: `Zmazať doklad „${p.nazov}"?`,
+      text: 'Súbor sa odstráni z počítača a vrátiť sa nedá.',
+      potvrdit: 'Zmazať doklad',
+      nebezpecne: true,
+    })
+    if (!ano) return
+    try {
+      await api.del('/vydavky/subory/' + p.id)
+      setPrilohy(prilohy.filter((x) => x.id !== p.id))
+      nacitaj()
+    } catch (e: any) {
+      setChyba(e.message)
     }
   }
 
@@ -349,6 +377,25 @@ export function Vydavky() {
 
   const upravujemPrijem = uprava?.druh === 'prijem'
   const ef = efaktura?.efaktura
+  const doklady = uprava?.id ? prilohy : cakajuceSubory
+  /** Na telefóne sa doklad fotí priamo – na počítači len keď formulár otvoril QR kód. */
+  const fotoaparat = male || fotoHned
+
+  const turnusFormulara = uprava?.tour_id ? turnusy.find((t) => String(t.id) === uprava.tour_id) : null
+  const zhrnutieViac = uprava
+    ? [
+        !upravujemPrijem && (turnusFormulara?.nazov ?? navrhnutyTurnus?.nazov ?? 'bez turnusu'),
+        NAZVY_PLATIEB[uprava.platba]?.toLowerCase(),
+        !upravujemPrijem && (uprava.odpocitat ? 'uznateľný' : 'neuznateľný'),
+        uprava.druh !== druh && (upravujemPrijem ? 'súkromný príjem' : 'výdavok'),
+        uprava.poznamka.trim() && 'poznámka',
+      ]
+        .filter(Boolean)
+        .join(' · ')
+    : ''
+  // Zbalené, pokiaľ v nich nie je nič nezvyčajné – inak by človek zmenu prehliadol.
+  const viacOtvorene =
+    viacUdajov ?? (!!uprava && (!!uprava.poznamka.trim() || uprava.druh !== druh || (!upravujemPrijem && !uprava.odpocitat)))
 
   return (
     <>
@@ -395,7 +442,7 @@ export function Vydavky() {
           <p style={{ marginTop: 0 }}>
             Naskenuj kód fotoaparátom telefónu. Otvorí sa nový výdavok – odfoť doklad, doplň sumu a popis a ulož.
           </p>
-          <p className="tlmene" style={{ fontSize: 13.5 }}>
+          <p className="tlmene" style={{ fontSize: 14 }}>
             Výdavok sa tu potom objaví sám. V telefóne musí byť zapnutý Tailscale.
           </p>
         </QrOkno>
@@ -420,21 +467,105 @@ export function Vydavky() {
                 ? 'Nový súkromný príjem'
                 : 'Nový výdavok'}
           </h2>
-          {!uprava.id && !upravujemPrijem && (
-            <div className="riadok-nastroju">
-              <input
-                ref={vstupXml}
-                type="file"
-                accept=".xml,application/xml,text/xml"
-                style={{ display: 'none' }}
-                onChange={(e) => nacitajEfakturu(e.target.files?.[0])}
-              />
-              <button className="maly" onClick={() => vstupXml.current?.click()}>
-                <Ikona nazov="subor" velkost={15} /> Načítať z e-faktúry (XML)
+
+          {/* Doklad je na prvom mieste – na telefóne sa začína fotkou a čísla sa dopíšu podľa nej. */}
+          <div className="doklady-formulara">
+            {doklady.length > 0 && (
+              <div className="zoznam-dokladov">
+                {uprava.id
+                  ? prilohy.map((p) => (
+                      <div key={p.id} className="doklad-riadok">
+                        <a className="typ-s-ikonou" href={`/api/vydavky/subory/${p.id}`} target="_blank" rel="noreferrer">
+                          <Ikona nazov="subor" velkost={15} />
+                          {p.nazov}
+                        </a>
+                        <span className="tlmene">{velkostSuboru(p.velkost)}</span>
+                        <button
+                          className="ikonove holy zmazat"
+                          title="Zmazať doklad"
+                          aria-label={`Zmazať doklad ${p.nazov}`}
+                          onClick={() => zmazDoklad(p)}
+                        >
+                          <Ikona nazov="zmazat" velkost={15} />
+                        </button>
+                      </div>
+                    ))
+                  : cakajuceSubory.map((su, i) => (
+                      <div key={i} className="doklad-riadok">
+                        <span className="typ-s-ikonou">
+                          <Ikona nazov="subor" velkost={15} /> {su.name}
+                        </span>
+                        <span className="tlmene">{velkostSuboru(su.size)}</span>
+                        <button
+                          className="ikonove holy"
+                          title="Odobrať"
+                          aria-label={`Odobrať ${su.name}`}
+                          onClick={() => setCakajuceSubory(cakajuceSubory.filter((_, j) => j !== i))}
+                        >
+                          <Ikona nazov="zavriet" velkost={14} hrubka={2} />
+                        </button>
+                      </div>
+                    ))}
+              </div>
+            )}
+            <input
+              ref={vstupFotky}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              style={{ display: 'none' }}
+              onChange={(e) => {
+                const subory = Array.from(e.target.files ?? [])
+                e.target.value = ''
+                pridajSubory(subory)
+              }}
+            />
+            <input
+              ref={vstupSuborov}
+              type="file"
+              multiple
+              accept="image/*,.pdf"
+              style={{ display: 'none' }}
+              onChange={(e) => {
+                const subory = Array.from(e.target.files ?? [])
+                e.target.value = ''
+                pridajSubory(subory)
+              }}
+            />
+            {fotoaparat && (
+              <button className="primar foto-dokladu" onClick={() => vstupFotky.current?.click()} disabled={nahrava}>
+                <Ikona nazov="sken" velkost={20} /> {doklady.length ? 'Odfotiť ďalší doklad' : 'Odfotiť doklad'}
               </button>
-              {!ef && <span className="tlmene">Údaje z e-faktúry od dodávateľa sa vyplnia samy.</span>}
+            )}
+            <div className="riadok-nastroju">
+              <button className="maly" onClick={() => vstupSuborov.current?.click()} disabled={nahrava}>
+                <Ikona nazov="priloha" velkost={15} />
+                {nahrava ? 'Nahrávam…' : fotoaparat ? 'Vybrať súbor' : '+ Pridať doklad'}
+              </button>
+              {!uprava.id && !upravujemPrijem && (
+                <>
+                  <input
+                    ref={vstupXml}
+                    type="file"
+                    accept=".xml,application/xml,text/xml"
+                    style={{ display: 'none' }}
+                    onChange={(e) => nacitajEfakturu(e.target.files?.[0])}
+                  />
+                  <button className="maly" onClick={() => vstupXml.current?.click()}>
+                    <Ikona nazov="subor" velkost={15} /> Načítať e-faktúru (XML)
+                  </button>
+                </>
+              )}
             </div>
-          )}
+            {!uprava.id && !ef && (
+              <div className="napoveda">
+                {upravujemPrijem
+                  ? 'Priložiť môžeš napríklad výpis z banky – uloží sa spolu so záznamom.'
+                  : 'Fotka alebo PDF dokladu sa priloží po uložení. Z e-faktúry (XML) sa údaje vyplnia samy.'}
+              </div>
+            )}
+          </div>
+
           {ef && !uprava.id && (
             <>
               {efaktura.zapisana ? (
@@ -460,46 +591,33 @@ export function Vydavky() {
               )}
             </>
           )}
-          {fotoHned && !uprava.id && cakajuceSubory.length === 0 && (
-            <>
+
+          <div className="mriezka dvojice">
+            <div className="pole-siroke">
+              <label htmlFor="popis-vydavku">Popis *</label>
               <input
-                ref={vstupFotky}
-                type="file"
-                accept="image/*"
-                capture="environment"
-                style={{ display: 'none' }}
-                onChange={(e) => {
-                  setCakajuceSubory([...cakajuceSubory, ...Array.from(e.target.files ?? [])])
-                  if (vstupFotky.current) vstupFotky.current.value = ''
-                }}
-              />
-              <button className="primar foto-dokladu" onClick={() => vstupFotky.current?.click()}>
-                <Ikona nazov="sken" velkost={20} /> Odfotiť doklad
-              </button>
-            </>
-          )}
-          <div className="mriezka">
-            <div>
-              <label>Dátum *</label>
-              <input
-                type="date"
-                value={uprava.datum}
-                onChange={(e) => setUprava({ ...uprava, datum: e.target.value })}
+                id="popis-vydavku"
+                autoFocus={!male && !fotoHned}
+                placeholder={upravujemPrijem ? 'napr. Prevod od brata' : 'napr. Nafta – cesta do Mníchova'}
+                value={uprava.popis}
+                onChange={(e) => setUprava({ ...uprava, popis: e.target.value })}
               />
             </div>
-            <div>
+            <div className="pole-siroke">
               <label htmlFor="suma-vydavku">{uprava.mena === 'EUR' ? 'Suma (€) *' : `Suma (${uprava.mena}) *`}</label>
               <div className="suma-s-menou">
-                <input
+                <CisloPole
                   id="suma-vydavku"
-                  type="number"
                   step="0.01"
-                  value={uprava.mena === 'EUR' ? uprava.suma : uprava.suma_mena}
-                  onChange={(e) =>
+                  inputMode="decimal"
+                  placeholder="0,00"
+                  // Prázdne pole namiesto „0" – nulu by človek musel najprv zmazať.
+                  hodnota={(uprava.mena === 'EUR' ? uprava.suma : uprava.suma_mena)}
+                  zmen={(n) =>
                     setUprava(
                       uprava.mena === 'EUR'
-                        ? { ...uprava, suma: Number(e.target.value) }
-                        : prepocitaj({ ...uprava, suma_mena: Number(e.target.value) }),
+                        ? { ...uprava, suma: n }
+                        : prepocitaj({ ...uprava, suma_mena: n }),
                     )
                   }
                 />
@@ -516,53 +634,45 @@ export function Vydavky() {
               <>
                 <div>
                   <label htmlFor="kurz-vydavku">Kurz ({uprava.mena} za 1 €)</label>
-                  <input
+                  <CisloPole
                     id="kurz-vydavku"
-                    type="number"
                     step="0.0001"
-                    value={uprava.kurz ?? ''}
-                    onChange={(e) => setUprava(prepocitaj({ ...uprava, kurz: Number(e.target.value) || null }))}
+                    inputMode="decimal"
+                    hodnota={uprava.kurz}
+                    zmen={(n) => setUprava(prepocitaj({ ...uprava, kurz: n || null }))}
                   />
-                  <div className="napoveda">{kurzInfo}</div>
                 </div>
                 <div>
                   <label htmlFor="suma-v-eurach">Suma v eurách *</label>
-                  <input
+                  <CisloPole
                     id="suma-v-eurach"
-                    type="number"
                     step="0.01"
-                    value={uprava.suma}
-                    onChange={(e) => setUprava({ ...uprava, suma: Number(e.target.value), sumaRucne: true })}
+                    inputMode="decimal"
+                    hodnota={uprava.suma}
+                    zmen={(n) => setUprava({ ...uprava, suma: n, sumaRucne: true })}
                   />
-                  <div className="napoveda">Keď sa platilo kartou, prepíš ju podľa výpisu z banky – to je skutočný výdavok.</div>
+                </div>
+                <div className="pole-siroke napoveda" style={{ marginTop: -6 }}>
+                  {kurzInfo && `${kurzInfo}. `}Keď sa platilo kartou, prepíš sumu v eurách podľa výpisu z banky – to je
+                  skutočný výdavok.
                 </div>
               </>
             )}
             <div>
-              <label>Druh záznamu</label>
-              <select
-                value={uprava.druh}
-                onChange={(e) => {
-                  const d = e.target.value as DruhVydavku
-                  setUprava({
-                    ...uprava,
-                    druh: d,
-                    // Súkromný príjem nie je daňový výdavok a nepatrí k turnusu.
-                    odpocitat: d === 'vydavok' ? uprava.odpocitat : false,
-                    tour_id: d === 'prijem' ? '' : uprava.tour_id,
-                    bezTurnusu: d === 'prijem' ? true : uprava.bezTurnusu,
-                  })
-                }}
-              >
-                <option value="vydavok">Výdavok</option>
-                <option value="prijem">Súkromný príjem (mimo podnikania)</option>
-              </select>
+              <label htmlFor="datum-vydavku">Dátum *</label>
+              <input
+                id="datum-vydavku"
+                type="date"
+                value={uprava.datum}
+                onChange={(e) => setUprava({ ...uprava, datum: e.target.value })}
+              />
             </div>
             <div>
-              <label>Kategória</label>
+              <label htmlFor="kategoria-vydavku">Kategória</label>
               <input
+                id="kategoria-vydavku"
                 list="kategorie-vydavkov"
-                placeholder="vyber alebo napíš vlastnú"
+                placeholder={upravujemPrijem ? 'napr. vklad' : 'napr. PHM'}
                 value={uprava.kategoria}
                 onChange={(e) => setUprava({ ...uprava, kategoria: e.target.value })}
               />
@@ -572,167 +682,114 @@ export function Vydavky() {
                 ))}
               </datalist>
             </div>
-            <div className="pole-siroke">
-              <label>Popis *</label>
-              <input
-                autoFocus={!fotoHned}
-                placeholder={upravujemPrijem ? 'napr. Prevod od brata' : 'napr. Nafta – cesta do Mníchova'}
-                value={uprava.popis}
-                onChange={(e) => setUprava({ ...uprava, popis: e.target.value })}
-              />
-            </div>
-            {!upravujemPrijem && (
-              <div>
-                <label>Turnus</label>
-                <select
-                  value={uprava.tour_id}
-                  onChange={(e) =>
-                    setUprava({ ...uprava, tour_id: e.target.value, bezTurnusu: e.target.value === '' })
-                  }
-                >
-                  <option value="">
-                    {navrhnutyTurnus ? `automaticky: ${navrhnutyTurnus.nazov}` : '— bez turnusu —'}
-                  </option>
-                  {turnusy.map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {t.nazov}
-                    </option>
-                  ))}
-                </select>
-                <div className="napoveda">
-                  {navrhnutyTurnus
-                    ? `${skDatum(uprava.datum)} spadá do turnusu ${navrhnutyTurnus.nazov} – priradí sa k nemu automaticky.`
-                    : 'Vďaka priradeniu k turnusu appka spočíta jeho skutočný zisk.'}
-                </div>
-              </div>
-            )}
-            <div>
-              <label>Platba</label>
-              <select value={uprava.platba} onChange={(e) => setUprava({ ...uprava, platba: e.target.value as Platba })}>
-                {(Object.keys(NAZVY_PLATIEB) as Platba[]).map((p) => (
-                  <option key={p} value={p}>
-                    {NAZVY_PLATIEB[p]}
-                  </option>
-                ))}
-              </select>
-            </div>
-            {!upravujemPrijem && (
-              <div style={{ alignSelf: 'end' }}>
-                <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, color: 'var(--text)' }}>
-                  <input
-                    type="checkbox"
-                    style={{ width: 'auto' }}
-                    checked={uprava.odpocitat}
-                    onChange={(e) => setUprava({ ...uprava, odpocitat: e.target.checked })}
-                  />
-                  Daňovo uznateľný
-                </label>
-              </div>
-            )}
             {platitelDph && !upravujemPrijem && (
               <div>
                 <label htmlFor="dph-vydavku">DPH z dokladu (€)</label>
-                <input
+                <CisloPole
                   id="dph-vydavku"
-                  type="number"
                   step="0.01"
-                  value={uprava.dph || ''}
-                  placeholder="0"
-                  onChange={(e) => setUprava({ ...uprava, dph: Number(e.target.value) || 0 })}
+                  inputMode="decimal"
+                  hodnota={uprava.dph}
+                  placeholder="0,00"
+                  zmen={(n) => setUprava({ ...uprava, dph: n || 0 })}
                 />
                 <div className="napoveda">Odpočítaš si ju v priznaní k DPH.</div>
               </div>
             )}
-            <div className="pole-siroke">
-              <label>Poznámka</label>
-              <input value={uprava.poznamka} onChange={(e) => setUprava({ ...uprava, poznamka: e.target.value })} />
-            </div>
           </div>
 
-          <div style={{ marginTop: 18, paddingTop: 16, borderTop: '1px solid var(--ciara)' }}>
-            <label>{upravujemPrijem ? 'Doklady (napr. výpis z banky)' : 'Doklady'}</label>
-            {!uprava.id ? (
-              <>
-                {cakajuceSubory.length > 0 && (
-                  <div style={{ margin: '8px 0' }}>
-                    {cakajuceSubory.map((f, i) => (
-                      <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '4px 0' }}>
-                        <span className="typ-s-ikonou"><Ikona nazov="subor" velkost={15} /> {f.name}</span>
-                        <span className="tlmene" style={{ fontSize: 12.5 }}>{velkostSuboru(f.size)}</span>
-                        <button
-                          className="ikonove maly holy"
-                          onClick={() => setCakajuceSubory(cakajuceSubory.filter((_, j) => j !== i))}
-                        >
-                          <Ikona nazov="zavriet" velkost={14} hrubka={2} />
-                        </button>
-                      </div>
+          {/* Zriedkavé polia – súhrn v nadpise ukáže, čo v nich je, aj keď sú zbalené. */}
+          <details className="viac-udajov" open={viacOtvorene} onToggle={(e) => setViacUdajov(e.currentTarget.open)}>
+            <summary>
+              Viac údajov {zhrnutieViac && <span className="tlmene zhrnutie-viac">{zhrnutieViac}</span>}
+            </summary>
+            <div className="mriezka dvojice">
+              {!upravujemPrijem && (
+                <div className="pole-siroke">
+                  <label htmlFor="turnus-vydavku">Turnus</label>
+                  <select
+                    id="turnus-vydavku"
+                    value={uprava.tour_id}
+                    onChange={(e) =>
+                      setUprava({ ...uprava, tour_id: e.target.value, bezTurnusu: e.target.value === '' })
+                    }
+                  >
+                    <option value="">
+                      {navrhnutyTurnus ? `automaticky: ${navrhnutyTurnus.nazov}` : '— bez turnusu —'}
+                    </option>
+                    {turnusy.map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {t.nazov}
+                      </option>
                     ))}
+                  </select>
+                  <div className="napoveda">
+                    {navrhnutyTurnus
+                      ? `${skDatum(uprava.datum)} spadá do turnusu ${navrhnutyTurnus.nazov} – priradí sa k nemu automaticky.`
+                      : 'Vďaka priradeniu k turnusu appka spočíta jeho skutočný zisk.'}
                   </div>
-                )}
-                <input
-                  ref={vstupSuborov}
-                  type="file"
-                  multiple
-                  accept="image/*,.pdf"
-                  style={{ display: 'none' }}
-                  onChange={(e) => {
-                    // Výdavok ešte neexistuje – doklady si podržíme a nahráme po uložení.
-                    setCakajuceSubory([...cakajuceSubory, ...Array.from(e.target.files ?? [])])
-                    if (vstupSuborov.current) vstupSuborov.current.value = ''
-                  }}
-                />
-                <button style={{ marginTop: 6 }} onClick={() => vstupSuborov.current?.click()}>
-                  + Pridať doklad
-                </button>
-                <div className="napoveda">
-                  {cakajuceSubory.length
-                    ? 'Doklady sa priložia hneď po uložení.'
-                    : 'Odfoť doklad alebo vyber PDF – priloží sa po uložení.'}
                 </div>
-              </>
-            ) : (
-              <>
-                {prilohy.length > 0 && (
-                  <div style={{ margin: '8px 0' }}>
-                    {prilohy.map((p) => (
-                      <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '4px 0' }}>
-                        <a className="typ-s-ikonou" href={`/api/vydavky/subory/${p.id}`} target="_blank" rel="noreferrer">
-                          <Ikona nazov="subor" velkost={15} />
-                          {p.nazov}
-                        </a>
-                        <span className="tlmene" style={{ fontSize: 12.5 }}>
-                          {velkostSuboru(p.velkost)}
-                        </span>
-                        <button
-                          className="ikonove maly holy zmazat"
-                          title="Zmazať doklad"
-                          onClick={async () => {
-                            await api.del('/vydavky/subory/' + p.id)
-                            setPrilohy(prilohy.filter((x) => x.id !== p.id))
-                            nacitaj()
-                          }}
-                        >
-                          <Ikona nazov="zmazat" velkost={15} />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
+              )}
+              <div>
+                <label htmlFor="platba-vydavku">Platba</label>
+                <select
+                  id="platba-vydavku"
+                  value={uprava.platba}
+                  onChange={(e) => setUprava({ ...uprava, platba: e.target.value as Platba })}
+                >
+                  {(Object.keys(NAZVY_PLATIEB) as Platba[]).map((p) => (
+                    <option key={p} value={p}>
+                      {NAZVY_PLATIEB[p]}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              {!upravujemPrijem && (
+                <div className="pole-zaskrtavacie">
+                  <label className="zaskrtavacie">
+                    <input
+                      type="checkbox"
+                      checked={uprava.odpocitat}
+                      onChange={(e) => setUprava({ ...uprava, odpocitat: e.target.checked })}
+                    />
+                    Daňovo uznateľný
+                  </label>
+                </div>
+              )}
+              <div className="pole-siroke">
+                <label htmlFor="druh-vydavku">Druh záznamu</label>
+                <select
+                  id="druh-vydavku"
+                  value={uprava.druh}
+                  onChange={(e) => {
+                    const d = e.target.value as DruhVydavku
+                    setUprava({
+                      ...uprava,
+                      druh: d,
+                      // Súkromný príjem nie je daňový výdavok a nepatrí k turnusu.
+                      odpocitat: d === 'vydavok' ? uprava.odpocitat : false,
+                      tour_id: d === 'prijem' ? '' : uprava.tour_id,
+                      bezTurnusu: d === 'prijem' ? true : uprava.bezTurnusu,
+                    })
+                  }}
+                >
+                  <option value="vydavok">Výdavok</option>
+                  <option value="prijem">Súkromný príjem (mimo podnikania)</option>
+                </select>
+              </div>
+              <div className="pole-siroke">
+                <label htmlFor="poznamka-vydavku">Poznámka</label>
                 <input
-                  ref={vstupSuborov}
-                  type="file"
-                  multiple
-                  style={{ display: 'none' }}
-                  onChange={(e) => nahrajSubory(e.target.files)}
+                  id="poznamka-vydavku"
+                  value={uprava.poznamka}
+                  onChange={(e) => setUprava({ ...uprava, poznamka: e.target.value })}
                 />
-                <button style={{ marginTop: 6 }} onClick={() => vstupSuborov.current?.click()} disabled={nahrava}>
-                  {nahrava ? 'Nahrávam…' : '+ Pridať doklad'}
-                </button>
-              </>
-            )}
-          </div>
+              </div>
+            </div>
+          </details>
 
-          <div className="riadok-akcii">
+          {/* Na telefóne ostáva Uložiť po ruke, kým je formulár na obrazovke. */}
+          <div className="riadok-akcii lepkave-akcie">
             <button onClick={() => setUprava(null)}>Zavrieť</button>
             <button className="primar" onClick={() => uloz(true)} disabled={!uprava.popis.trim() || !!efaktura?.zapisana}>
               {uprava.id ? 'Uložiť zmeny' : 'Uložiť'}
@@ -741,19 +798,22 @@ export function Vydavky() {
         </div>
       )}
 
-      <div className="filtre">
-        <HladanieSFiltrom
-          id="hladat-vydavky"
-          hodnota={f.hladat}
-          zmen={(hladat) => setF({ ...f, hladat })}
-          placeholder={prijem ? 'popis, kategória…' : 'popis, kategória, turnus…'}
-          male={male}
-          aktivnych={aktivnychFiltrov}
-          otvorene={filtreOtvorene}
-          prepni={() => setFiltreOtvorene(!filtreOtvorene)}
-        />
-        {(!male || filtreOtvorene) && (
-        <>
+      <FiltreZoznamu
+        male={male}
+        otvorene={filtreOtvorene}
+        hladanie={
+          <HladanieSFiltrom
+            id="hladat-vydavky"
+            hodnota={f.hladat}
+            zmen={(hladat) => setF({ ...f, hladat })}
+            placeholder={prijem ? 'popis, kategória…' : 'popis, kategória, turnus…'}
+            male={male}
+            aktivnych={aktivnychFiltrov}
+            otvorene={filtreOtvorene}
+            prepni={() => setFiltreOtvorene(!filtreOtvorene)}
+          />
+        }
+      >
         <div>
           <label>Od</label>
           <input type="date" value={f.od} onChange={(e) => setF({ ...f, od: e.target.value })} />
@@ -794,9 +854,7 @@ export function Vydavky() {
             </select>
           </div>
         )}
-        </>
-        )}
-      </div>
+      </FiltreZoznamu>
 
       {male && vydavky && vydavky.length > 0 && (
         <div className="suhrn-zoznamu">

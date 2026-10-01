@@ -198,6 +198,9 @@ metódu DELETE odmieta bez ohľadu na to, čo by skúsil. Mazanie ostáva ručno
 - [x] Faktúry s rozložením ako v bežných fakturačných appkách: zoznam v troch riadkoch, „Viac údajov",
       odberateľ a dodávateľ upraviteľní priamo z faktúry, číslo objednávky a úvodný text
 - [x] Telefón: menu „Viac" so všetkými stránkami, súčty ako prehľadný zoznam, pozdrav s okom na skrytie súm
+- [x] Telefón: každý zoznam v kartách v troch riadkoch s tlačidlom Filter, formuláre s Uložiť stále dole,
+      všetko na ťuknutie aspoň 44 px (pravidlá v [DESIGN.md](DESIGN.md))
+- [x] Šablóny faktúr na jednom mieste (Faktúry → Šablóny): vystaviť faktúru zo šablóny, premenovať, zmazať
 
 ### Stravné a dni v zahraničí
 
@@ -316,8 +319,8 @@ v PDF sa nemenia.
 
 ### Prehľad
 
-Úvodná stránka je rozcestník. Hore sú hlavné čísla (klikateľné — vedú rovno na príslušný
-zoznam), pod nimi dlaždica za každú oblasť: posledné faktúry, financie za rok, posledné
+Úvodná stránka je rozcestník. Hore sú hlavné čísla za tento týždeň, mesiac alebo rok (klikateľné —
+vedú rovno na príslušný zoznam; na telefóne je graf po mesiacoch zbalený), pod nimi dlaždica za každú oblasť: posledné faktúry, financie za rok, posledné
 výdavky, na čo idú peniaze, turnusy, čo je po splatnosti a posledné rozhovory s asistentom.
 Každý riadok v tabuľke je odkaz na konkrétny záznam.
 
@@ -378,7 +381,8 @@ faktúru appka druhýkrát nezapíše a pri ďalšej od toho istého dodávateľ
 Na stránke turnusu je *Výkaz hodín*: hodiny po dňoch (tlačidlom *Vyplniť* napr. 10 h na po – so,
 potom sa opravia výnimky), hodinová sadzba (navrhne sa z objednávky alebo z predošlého turnusu
 u tej istej firmy), súčet a *Vystaviť faktúru za turnus* – koncept faktúry s hodinami a sadzbou.
-*Výkaz v PDF* je na podpis zákazníkovi.
+*Výkaz v PDF* je na podpis zákazníkovi – pred otvorením sa výkaz sám uloží, takže v PDF sú aj práve
+dopísané hodiny.
 
 ### Platiteľ DPH
 
@@ -400,6 +404,10 @@ Nastavení. Keď odberateľ ešte v zozname nie je, *+ Nová firma* ho pridá pr
 je *Viac údajov* faktúry: číslo, typ dokladu, objednávka, číslo objednávky odberateľa, úvodný text nad
 položkami a záverečný text (poznámka). Na telefóne sa položky upravujú po jednej (ťuknutím na riadok),
 zoznam faktúr má každú faktúru v troch riadkoch a menej časté akcie sú v ponuke ⋮.
+
+Faktúru, ktorú vystavuješ pravidelne, ulož ako šablónu (v ponuke faktúry *Uložiť ako šablónu*).
+Všetky šablóny sú vo Faktúrach pod tlačidlom *Šablóny* (na telefóne v ⋮): odtiaľ sa z nich vystaví
+nová faktúra, dajú sa premenovať aj zmazať. Pri novej faktúre ich ponúkne aj *Použiť šablónu*.
 
 ### Vzhľad faktúry a časová os
 

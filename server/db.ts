@@ -561,6 +561,12 @@ const migrations: string[] = [
   ALTER TABLE invoices ADD COLUMN cislo_objednavky TEXT NOT NULL DEFAULT '';
   ALTER TABLE invoices ADD COLUMN uvodny_text TEXT NOT NULL DEFAULT '';
   `,
+
+  // 27 – vlastný číselný rad zálohových faktúr
+  `
+  -- Vzor čísla zálohovej faktúry (napr. 30{RR}{NNNN}); prázdne = rovnaký rad ako faktúry.
+  ALTER TABLE settings ADD COLUMN cislo_vzor_zaloha TEXT NOT NULL DEFAULT '';
+  `,
 ]
 
 /** Verzia schémy, na ktorú databázu dostanú migrácie – kontrolujú ju aj testy. */

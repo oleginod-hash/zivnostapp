@@ -4,6 +4,7 @@ import { api, dnesISO, skDatum, skSuma, type Turnus } from '../api'
 import { useNeulozeneZmeny } from '../neulozene'
 import { Ikona } from './Ikony'
 import { oznam, potvrd } from './Oznamenia'
+import { CisloPole } from './CisloPole'
 
 type Den = { datum: string; hodiny: number; poznamka: string }
 type Vykaz = {
@@ -87,6 +88,21 @@ export function VykazHodin({ turnus }: { turnus: Turnus }) {
     }
   }
 
+  /**
+   * PDF sa robí z uloženého výkazu – preto ho najprv uložíme, inak by v PDF chýbali
+   * práve dopísané hodiny. Okno sa otvára hneď pri ťuknutí, inak by ho iPhone zablokoval.
+   */
+  async function otvorPdf() {
+    const okno = window.open('about:blank', '_blank')
+    if (!(await uloz())) {
+      okno?.close()
+      return
+    }
+    const adresa = `/api/turnusy/${turnus.id}/hodiny/pdf`
+    if (okno) okno.location.href = adresa
+    else window.location.href = adresa
+  }
+
   async function vystavFakturu() {
     if (!spolu) return
     if (turnus.vyfakturovane > 0) {
@@ -139,14 +155,13 @@ export function VykazHodin({ turnus }: { turnus: Turnus }) {
       <div className="vykaz-nastroje">
         <div>
           <label htmlFor="sadzba-turnusu">Hodinová sadzba (€/h)</label>
-          <input
+          <CisloPole
             id="sadzba-turnusu"
-            type="number"
             min={0}
             step="0.5"
-            value={sadzba || ''}
+            hodnota={sadzba}
             placeholder="napr. 25"
-            onChange={(e) => setSadzba(Number(e.target.value) || 0)}
+            zmen={(n) => setSadzba(n || 0)}
           />
           {odkial === 'objednavka' && <div className="napoveda">Podľa objednávky k turnusu.</div>}
           {odkial === 'predosly_turnus' && <div className="napoveda">Ako pri predošlom turnuse u tejto firmy.</div>}
@@ -154,14 +169,13 @@ export function VykazHodin({ turnus }: { turnus: Turnus }) {
         <div className="vykaz-hromadne">
           <label htmlFor="hromadne-hodiny">Vyplniť prázdne dni</label>
           <div className="vykaz-hromadne-riadok">
-            <input
+            <CisloPole
               id="hromadne-hodiny"
-              type="number"
               min={0}
               max={24}
               step="0.5"
-              value={hromadne.hodiny}
-              onChange={(e) => setHromadne({ ...hromadne, hodiny: Number(e.target.value) || 0 })}
+              hodnota={hromadne.hodiny}
+              zmen={(n) => setHromadne({ ...hromadne, hodiny: n || 0 })}
             />
             <span>h</span>
             <select
@@ -198,15 +212,14 @@ export function VykazHodin({ turnus }: { turnus: Turnus }) {
                   {skDatum(d.datum)} <span className="tlmene">{DNI[den]}</span>
                 </td>
                 <td>
-                  <input
+                  <CisloPole
                     className="pole-hodin"
-                    type="number"
                     min={0}
                     max={24}
                     step="0.5"
                     aria-label={`Hodiny ${skDatum(d.datum)}`}
-                    value={d.hodiny || ''}
-                    onChange={(e) => upravDen(i, { hodiny: Number(e.target.value) || 0 })}
+                    hodnota={d.hodiny}
+                    zmen={(n) => upravDen(i, { hodiny: n || 0 })}
                   />
                 </td>
                 <td>
@@ -232,20 +245,22 @@ export function VykazHodin({ turnus }: { turnus: Turnus }) {
         )}
       </div>
 
-      <div className="riadok-akcii">
-        <a className="tlacidlo" href={`/api/turnusy/${turnus.id}/hodiny/pdf`} target="_blank" rel="noreferrer">
-          <Ikona nazov="pdf" velkost={16} /> Výkaz v PDF
-        </a>
-        <button onClick={uloz} disabled={pracuje}>
-          Uložiť výkaz
-        </button>
+      <div className="riadok-akcii vykaz-akcie">
         <button className="primar" onClick={vystavFakturu} disabled={pracuje || !spolu || !sadzba}>
           Vystaviť faktúru za turnus
         </button>
+        <button onClick={uloz} disabled={pracuje}>
+          Uložiť výkaz
+        </button>
+        <button onClick={otvorPdf} disabled={pracuje}>
+          <Ikona nazov="pdf" velkost={16} /> Výkaz v PDF
+        </button>
       </div>
-      <div className="napoveda" style={{ textAlign: 'right' }}>
-        {!sadzba && spolu > 0 ? 'Na faktúru doplň hodinovú sadzbu. ' : ''}PDF ukazuje uložený výkaz.
-      </div>
+      {!sadzba && spolu > 0 && (
+        <div className="napoveda" style={{ textAlign: 'right' }}>
+          Na faktúru doplň hodinovú sadzbu.
+        </div>
+      )}
     </details>
   )
 }

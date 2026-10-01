@@ -3,6 +3,8 @@ import { api, pocet, skDatum, type PolozkaKosa } from '../api'
 import { Ikona, type KlucIkony } from '../components/Ikony'
 import { PrazdnyStav } from '../components/PrazdnyStav'
 import { potvrd } from '../components/Oznamenia'
+import { ZaznamRiadok } from '../components/Zoznam'
+import { useMaleOkno } from '../maleOkno'
 
 /** Ktorá ikona patrí ktorej tabuľke – nech je na prvý pohľad jasné, čo to bolo. */
 const IKONY: Record<string, KlucIkony> = {
@@ -20,6 +22,7 @@ export function Kos() {
   const [chyba, setChyba] = useState('')
   const [sprava, setSprava] = useState('')
   const [pracujem, setPracujem] = useState(false)
+  const male = useMaleOkno()
 
   function nacitaj() {
     api
@@ -177,7 +180,7 @@ export function Kos() {
         </div>
       )}
 
-      <div className="panel tesny">
+      <div className={male && polozky?.length ? 'zoznam-zaznamov' : 'panel tesny'}>
         {!polozky ? (
           <div className="nacitava">Načítavam…</div>
         ) : polozky.length === 0 ? (
@@ -186,6 +189,31 @@ export function Kos() {
             nadpis="Kôš je prázdny"
             text="Všetko, čo v appke zmažeš, tu zostane 30 dní a dá sa vrátiť aj s platbami a dokladmi."
           />
+        ) : male ? (
+          // Telefón: čo to bolo a kedy sa to zmazalo; „Vrátiť späť" je hlavná akcia, mazanie natrvalo je v ⋮.
+          polozky.map((p) => (
+            <ZaznamRiadok
+              key={p.id}
+              className="kos-riadok"
+              hore={
+                <>
+                  <span className="typ-s-ikonou zaznam-datum">
+                    <Ikona nazov={IKONY[p.tabulka] ?? 'podklad'} velkost={15} />
+                    {p.nazov_typu}
+                  </span>
+                  <span className="zaznam-id">zmazané {skDatum(p.zmazane_at)}</span>
+                </>
+              }
+              popisAkcii={`Akcie – ${p.popis}`}
+              akcie={[{ text: 'Zmazať natrvalo', ikona: 'zmazat', nebezpecne: true, sprav: () => zmazNatrvalo(p) }]}
+              hlavny={p.popis}
+              pata={
+                <button className="primar" onClick={() => obnov(p)} disabled={pracujem}>
+                  <Ikona nazov="vratit" velkost={15} hrubka={2.2} /> Vrátiť späť
+                </button>
+              }
+            />
+          ))
         ) : (
           <table>
             <thead>
@@ -247,7 +275,7 @@ export function Kos() {
         )}
       </div>
 
-      {polozky && polozky.length > 0 && (
+      {!male && polozky && polozky.length > 0 && (
         <div className="tlmene" style={{ fontSize: 13 }}>
           {pocet(polozky.length, ['položka', 'položky', 'položiek'])} v koši · klikni na riadok pre výber
         </div>

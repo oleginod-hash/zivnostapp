@@ -7,6 +7,29 @@ import { Ikona } from '../components/Ikony'
 import { FarebnyCip, FirmaSAvatarom, tonPreText } from '../components/Farby'
 import { oznam } from '../components/Oznamenia'
 import { PrazdnyStav } from '../components/PrazdnyStav'
+import { FiltreZoznamu, HladanieSFiltrom, ZaznamRiadok } from '../components/Zoznam'
+import { useMaleOkno } from '../maleOkno'
+
+/** Štítok stavu zmluvy – vypršaná má prednosť pred uloženým stavom. */
+function StitokZmluvy({ z }: { z: Zmluva }) {
+  const trieda =
+    z.expiracia === 'po_expiracii'
+      ? 'po_splatnosti'
+      : z.stav === 'aktivna'
+        ? 'zaplatena'
+        : z.stav === 'navrh'
+          ? 'vystavena'
+          : 'koncept'
+  return <span className={'stitok ' + trieda}>{z.expiracia === 'po_expiracii' ? 'Vypršala' : NAZVY_STAVOV_ZMLUV[z.stav]}</span>
+}
+
+/** Krátko, koľko zostáva do konca platnosti (alebo odkedy vypršala). */
+function DoKonca({ z }: { z: Zmluva }) {
+  const d = z.dni_do_konca
+  if (z.expiracia === 'po_expiracii') return <span className="chyba-text">vypršala {d !== null ? `pred ${Math.abs(d)} dňami` : ''}</span>
+  if (z.expiracia === 'coskoro') return <span className="chyba-fakturacie">{d === 0 ? 'končí dnes' : `končí o ${d} dní`}</span>
+  return null
+}
 
 /** Textový popis toho, ako blízko je koniec platnosti. */
 function Platnost({ z }: { z: Zmluva }) {
@@ -16,12 +39,12 @@ function Platnost({ z }: { z: Zmluva }) {
     <>
       {skDatum(z.platnost_do)}
       {z.expiracia === 'po_expiracii' && (
-        <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--cervena)' }}>
+        <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--cervena)' }}>
           vypršala {d !== null ? `pred ${Math.abs(d)} dňami` : ''}
         </div>
       )}
       {z.expiracia === 'coskoro' && (
-        <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--oranzova)' }}>
+        <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--oranzova)' }}>
           {d === 0 ? 'končí dnes' : `o ${d} dní`}
         </div>
       )}
@@ -36,6 +59,10 @@ export function Zmluvy() {
   const [suhrn, setSuhrn] = useState<SuhrnZmluv | null>(null)
   const [chyba, setChyba] = useState('')
   const [f, setF] = useState({ stav: '', firma: '', kategoria: '', hladat: '' })
+  const male = useMaleOkno()
+  /** Na telefóne sú výbery stavu, kategórie a firmy schované pod tlačidlom Filter. */
+  const [filtreOtvorene, setFiltreOtvorene] = useState(false)
+  const aktivnychFiltrov = [f.stav, f.kategoria, f.firma].filter(Boolean).length
 
   function nacitaj() {
     const q = new URLSearchParams()
@@ -90,15 +117,22 @@ export function Zmluvy() {
         </div>
       )}
 
-      <div className="filtre">
-        <div className="hladanie">
-          <label>Hľadať</label>
-          <input
+      <FiltreZoznamu
+        male={male}
+        otvorene={filtreOtvorene}
+        hladanie={
+          <HladanieSFiltrom
+            id="hladat-zmluvy"
+            hodnota={f.hladat}
+            zmen={(hladat) => setF({ ...f, hladat })}
             placeholder="názov, číslo zmluvy, firma, poznámka…"
-            value={f.hladat}
-            onChange={(e) => setF({ ...f, hladat: e.target.value })}
+            male={male}
+            aktivnych={aktivnychFiltrov}
+            otvorene={filtreOtvorene}
+            prepni={() => setFiltreOtvorene(!filtreOtvorene)}
           />
-        </div>
+        }
+      >
         <div>
           <label>Stav</label>
           <select value={f.stav} onChange={(e) => setF({ ...f, stav: e.target.value })}>
@@ -130,9 +164,9 @@ export function Zmluvy() {
             ))}
           </select>
         </div>
-      </div>
+      </FiltreZoznamu>
 
-      <div className="panel tesny">
+      <div className={male && zmluvy?.length ? 'zoznam-zaznamov' : 'panel tesny'}>
         {!zmluvy ? (
           <div className="nacitava">Načítavam…</div>
         ) : zmluvy.length === 0 ? (
@@ -147,6 +181,41 @@ export function Zmluvy() {
               </Link>
             }
           />
+        ) : male ? (
+          zmluvy.map((z) => (
+            <ZaznamRiadok
+              key={z.id}
+              className="zmluva-riadok"
+              tlmeny={z.stav === 'ukoncena'}
+              otvor={() => navigate('/zmluvy/' + z.id)}
+              hore={
+                <>
+                  <span className="zaznam-datum">{z.platnost_do ? `platí do ${skDatum(z.platnost_do)}` : 'na neurčito'}</span>
+                  {z.cislo_zmluvy && <span className="zaznam-id">č. {z.cislo_zmluvy}</span>}
+                </>
+              }
+              popisAkcii={`Akcie zmluvy ${z.nazov}`}
+              akcie={[{ text: 'Presunúť do koša', ikona: 'zmazat', nebezpecne: true, sprav: () => zmaz(z) }]}
+              hlavny={
+                <>
+                  {z.nazov}
+                  {z.firma_nazov && <span className="pod-textom">{z.firma_nazov}</span>}
+                </>
+              }
+              dole={
+                <>
+                  <StitokZmluvy z={z} />
+                  <DoKonca z={z} />
+                  {z.kategoria && <FarebnyCip ton={tonPreText(z.kategoria)}>{z.kategoria}</FarebnyCip>}
+                  {!!z.pocet_priloh && (
+                    <span className="typ-s-ikonou" aria-label={pocet(z.pocet_priloh, ['príloha', 'prílohy', 'príloh'])}>
+                      <Ikona nazov="priloha" velkost={14} /> {z.pocet_priloh}
+                    </span>
+                  )}
+                </>
+              }
+            />
+          ))
         ) : (
           <table>
             <thead>
@@ -169,7 +238,7 @@ export function Zmluvy() {
                 >
                   <td>
                     <strong>{z.nazov}</strong>
-                    {z.cislo_zmluvy && <div className="tlmene" style={{ fontSize: 12.5 }}>č. {z.cislo_zmluvy}</div>}
+                    {z.cislo_zmluvy && <div className="tlmene" style={{ fontSize: 13 }}>č. {z.cislo_zmluvy}</div>}
                   </td>
                   <td>
                     <FirmaSAvatarom nazov={z.firma_nazov} />
@@ -192,20 +261,7 @@ export function Zmluvy() {
                     '—'
                   )}</td>
                   <td>
-                    <span
-                      className={
-                        'stitok ' +
-                        (z.expiracia === 'po_expiracii'
-                          ? 'po_splatnosti'
-                          : z.stav === 'aktivna'
-                            ? 'zaplatena'
-                            : z.stav === 'navrh'
-                              ? 'vystavena'
-                              : 'koncept')
-                      }
-                    >
-                      {z.expiracia === 'po_expiracii' ? 'Vypršala' : NAZVY_STAVOV_ZMLUV[z.stav]}
-                    </span>
+                    <StitokZmluvy z={z} />
                   </td>
                   <td onClick={(e) => e.stopPropagation()} style={{ textAlign: 'right' }}>
                     <button className="ikonove maly holy zmazat" title="Zmazať" onClick={() => zmaz(z)}>

@@ -6,6 +6,11 @@ import {
 } from '../api'
 import { StitokStavu, StitokZalohy } from '../components/StitokStavu'
 import { useNeulozeneZmeny } from '../neulozene'
+import { FakturaVZozname } from '../components/FakturaKarta'
+import { MenuAkcii } from '../components/MenuAkcii'
+import { useMaleOkno } from '../maleOkno'
+import { CisloPole } from '../components/CisloPole'
+import { oznam } from '../components/Oznamenia'
 
 type Formular = {
   cislo: string; company_id: string; tour_id: string; datum: string
@@ -34,6 +39,7 @@ export function ObjednavkaEdit() {
   const [sprava, setSprava] = useState('')
   const [uklada, setUklada] = useState(false)
   const oznacUlozene = useNeulozeneZmeny(form, id ?? 'nova')
+  const male = useMaleOkno()
 
   useEffect(() => {
     api.get<Firma[]>('/firmy').then(setFirmy).catch(() => {})
@@ -89,8 +95,8 @@ export function ObjednavkaEdit() {
       } else {
         await api.put('/objednavky/' + id, telo)
         oznacUlozene()
-        setSprava('Zmeny sú uložené.')
-        setTimeout(() => setSprava(''), 3000)
+        // Oznámenie dole – na telefóne je Uložiť dole a správa hore by nebola vidno.
+        oznam('Zmeny sú uložené.')
       }
     } catch (e: any) {
       setChyba(e.message)
@@ -111,7 +117,7 @@ export function ObjednavkaEdit() {
       <div className="hlavicka">
         <h1>{novaObjednavka ? 'Nová objednávka' : `Objednávka ${form.cislo || ''}`.trim()}</h1>
         <div className="akcie">
-          {!novaObjednavka && (
+          {!novaObjednavka && !male && (
             <Link className="tlacidlo primar" to={`/faktury/nova?objednavka=${id}`}>
               Vystaviť faktúru
             </Link>
@@ -119,6 +125,12 @@ export function ObjednavkaEdit() {
           <Link className="tlacidlo" to="/objednavky">
             Späť
           </Link>
+          {!novaObjednavka && male && (
+            <MenuAkcii
+              popis="Ďalšie akcie s objednávkou"
+              akcie={[{ text: 'Vystaviť faktúru', ikona: 'faktury', sprav: () => navigate(`/faktury/nova?objednavka=${id}`) }]}
+            />
+          )}
         </div>
       </div>
 
@@ -127,11 +139,11 @@ export function ObjednavkaEdit() {
 
       <div className="panel">
         <h2>O objednávke</h2>
-        <div className="mriezka">
+        <div className="mriezka dvojice">
           <div>
             <label>Číslo objednávky</label>
             <input
-              autoFocus
+              autoFocus={!male}
               placeholder="číslo od firmy"
               value={form.cislo}
               onChange={(e) => uprav({ cislo: e.target.value })}
@@ -141,7 +153,7 @@ export function ObjednavkaEdit() {
             <label>Dátum objednávky</label>
             <input type="date" value={form.datum} onChange={(e) => uprav({ datum: e.target.value })} />
           </div>
-          <div>
+          <div className="pole-siroke">
             <label>Turnus</label>
             <select value={form.tour_id} onChange={(e) => vyberTurnus(e.target.value)}>
               <option value="">— bez turnusu —</option>
@@ -152,7 +164,7 @@ export function ObjednavkaEdit() {
               ))}
             </select>
           </div>
-          <div>
+          <div className="pole-siroke">
             <label>Firma</label>
             <select value={form.company_id} onChange={(e) => uprav({ company_id: e.target.value })}>
               <option value="">— vyber firmu —</option>
@@ -164,33 +176,30 @@ export function ObjednavkaEdit() {
             </select>
           </div>
           <div>
-            <label>Dohodnutá hodinová sadzba (€/h)</label>
-            <input
-              type="number"
+            <label>Hodinová sadzba (€/h)</label>
+            <CisloPole
               step="0.01"
-              value={form.hodinovka}
-              onChange={(e) => uprav({ hodinovka: Number(e.target.value) })}
+              hodnota={form.hodinovka}
+              zmen={(n) => uprav({ hodinovka: n })}
             />
             <div className="napoveda">Predvyplní sa na faktúre ako cena za hodinu.</div>
           </div>
           <div>
-            <label>Dohodnutý počet hodín</label>
-            <input
-              type="number"
+            <label>Počet hodín</label>
+            <CisloPole
               step="0.5"
               min={0}
-              value={form.hodiny}
-              onChange={(e) => uprav({ hodiny: Number(e.target.value) })}
+              hodnota={form.hodiny}
+              zmen={(n) => uprav({ hodiny: n })}
             />
             <div className="napoveda">Ak rozsah ešte nepoznáš, nechaj 0.</div>
           </div>
           <div>
             <label>Alebo pevná suma (€)</label>
-            <input
-              type="number"
+            <CisloPole
               step="0.01"
-              value={form.suma}
-              onChange={(e) => uprav({ suma: Number(e.target.value) })}
+              hodnota={form.suma}
+              zmen={(n) => uprav({ suma: n })}
               disabled={form.hodinovka > 0 && form.hodiny > 0}
             />
             <div className="napoveda">
@@ -225,13 +234,19 @@ export function ObjednavkaEdit() {
 
       {!novaObjednavka && (
         <div className="panel tesny">
-          <div style={{ padding: '14px 18px 0' }}>
-            <h2 style={{ margin: 0 }}>Faktúry k objednávke</h2>
+          <div className="hlavicka-karty">
+            <h2 className="nadpis-karty">Faktúry k objednávke</h2>
           </div>
           {!objednavka?.faktury?.length ? (
             <div className="prazdne">Zatiaľ žiadne faktúry.</div>
+          ) : male ? (
+            <div className="zoznam-zaznamov">
+              {objednavka.faktury.map((f) => (
+                <FakturaVZozname key={f.id} fa={f} otvor={() => navigate('/faktury/' + f.id)} />
+              ))}
+            </div>
           ) : (
-            <table style={{ marginTop: 12 }}>
+            <table>
               <thead>
                 <tr>
                   <th>Číslo</th>
@@ -262,9 +277,10 @@ export function ObjednavkaEdit() {
         </div>
       )}
 
-      <div className="riadok-akcii">
+      {/* Na telefóne ostáva Uložiť stále po ruke nad spodnou lištou. */}
+      <div className="riadok-akcii lepkave-akcie">
         <Link className="tlacidlo" to="/objednavky">
-          Späť na zoznam
+          Zrušiť
         </Link>
         <button className="primar" onClick={uloz} disabled={uklada || (!form.cislo.trim() && !form.popis.trim())}>
           {uklada ? 'Ukladám…' : novaObjednavka ? 'Vytvoriť objednávku' : 'Uložiť zmeny'}

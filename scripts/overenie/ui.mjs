@@ -199,8 +199,30 @@ const MERANIE = `(() => {
   const pretekajuce = [...document.querySelectorAll('.obsah *')]
     .filter((e) => ['auto', 'scroll'].includes(getComputedStyle(e).overflowX) && e.scrollWidth > e.clientWidth + 1)
     .map((e) => e.className || e.tagName)
+  const sirka = document.documentElement.clientWidth
+  const orezane = (e) => { for (let x = e.parentElement; x; x = x.parentElement) if (getComputedStyle(x).overflowX !== 'visible') return true; return false }
+  const vyliezajuce = [...document.querySelectorAll('.obsah *')]
+    .filter((e) => { const r = e.getBoundingClientRect(); return r.width > 1 && r.height > 1 && (r.left < -1 || r.right > sirka + 1) && !orezane(e) })
+    .map((e) => (e.className || e.tagName) + ' ' + Math.round(e.getBoundingClientRect().left) + '..' + Math.round(e.getBoundingClientRect().right))
+  const male = []
+  const videne = new Set()
+  for (let e of document.querySelectorAll('.obsah a, .obsah button, .obsah input:not([type=hidden]), .obsah select, .obsah textarea, .obsah summary, .obsah [role=button], .obsah [role=link]')) {
+    if (e.matches('input[type=checkbox], input[type=radio]') && e.closest('label')) e = e.closest('label')
+    if (videne.has(e)) continue
+    videne.add(e)
+    const r = e.getBoundingClientRect()
+    if (!r.width || !r.height) continue
+    const cs = getComputedStyle(e)
+    if (cs.visibility === 'hidden') continue
+    // Odkaz vnútri vety je výnimka – ťuká sa naň ako na text.
+    if (e.tagName === 'A' && cs.display === 'inline') continue
+    // Naoko menšie tlačidlo s neviditeľnou plochou 44 px okolo (styles.css: .plocha-44).
+    const plocha = getComputedStyle(e, '::after')
+    if (plocha.position === 'absolute' && parseFloat(plocha.height) >= 44 && parseFloat(plocha.width || '0') >= 0) continue
+    if (r.height < 43.5 || r.width < 43.5) male.push((e.getAttribute('aria-label') || e.textContent || e.tagName).trim().slice(0, 24) + ' ' + Math.round(r.width) + '×' + Math.round(r.height))
+  }
   return {
-    slabe, najmensie, najmensieKde, pretekajuce,
+    slabe, najmensie, najmensieKde, pretekajuce, vyliezajuce, male,
     stranaSaPosuva: document.documentElement.scrollWidth > innerWidth + 1,
   }
 })()`
@@ -270,8 +292,9 @@ t.over('po sprievodcovi sa appka otvára Prehľadom', await js('location.pathnam
 
 const OBRAZOVKY = [
   ['/', 'Prehľad'], ['/terminy', 'Termíny'], ['/faktury', 'Faktúry'], ['/faktury/nova', 'Nová faktúra'], ['/upomienky', 'Upomienky'],
-  ['/turnusy', 'Turnusy'], ['/objednavky', 'Objednávky'], ['/zmluvy', 'Zmluvy'], ['/firmy', 'Firmy'],
-  ['/vydavky', 'Výdavky'], ['/banka', 'Výpis z banky'], ['/financie', 'Financie'], ['/dph', 'DPH'], ['/danovy-podklad', 'Daňový podklad'],
+  ['/turnusy', 'Turnusy'], ['/turnusy/novy', 'Nový turnus'], ['/objednavky', 'Objednávky'], ['/objednavky/nova', 'Nová objednávka'],
+  ['/zmluvy', 'Zmluvy'], ['/zmluvy/nova', 'Nová zmluva'], ['/firmy', 'Firmy'],
+  ['/vydavky', 'Výdavky'], ['/vydavky?novy=1', 'Nový výdavok'], ['/banka', 'Výpis z banky'], ['/financie', 'Financie'], ['/dph', 'DPH'], ['/danovy-podklad', 'Daňový podklad'],
   ['/asistent', 'Asistent'], ['/kos', 'Kôš'], ['/nastavenia', 'Nastavenia'],
 ]
 for (const [cesta, nazov] of OBRAZOVKY) {
@@ -455,7 +478,7 @@ t.over(
   await js(`[document.querySelector('#kurz-vydavku')?.value, document.querySelector('#suma-v-eurach')?.value, document.querySelector('label[for=suma-vydavku]')?.textContent]`),
   ['25', '50', 'Suma (CZK) *'],
 )
-await nastav('.panel input[autofocus], .panel .pole-siroke input', 'Nafta v Česku')
+await nastav('#popis-vydavku', 'Nafta v Česku')
 await zmeraj('Výdavok v cudzej mene')
 await klik('.panel .riadok-akcii .primar')
 await pockaj(() => js(`[...document.querySelectorAll('tbody tr')].some((r) => r.textContent.includes('Nafta v Česku'))`), 5000)
@@ -488,7 +511,7 @@ await js(`(() => {
 await pockaj(() => js(`!!document.querySelector('.panel .info-pruh')`), 5000)
 t.over(
   'e-faktúra (XML) vyplní formulár a pripraví sa ako doklad',
-  await js(`[document.querySelector('#suma-vydavku').value, document.querySelector('.panel .pole-siroke input').value, document.querySelector('.panel .info-pruh').textContent.includes('Orange Slovensko, a.s.'), [...document.querySelector('.panel').querySelectorAll('.typ-s-ikonou')].map((e) => e.textContent.trim())]`),
+  await js(`[document.querySelector('#suma-vydavku').value, document.querySelector('#popis-vydavku').value, document.querySelector('.panel .info-pruh').textContent.includes('Orange Slovensko, a.s.'), [...document.querySelector('.panel').querySelectorAll('.typ-s-ikonou')].map((e) => e.textContent.trim())]`),
   ['24.99', 'Orange Slovensko, a.s. – faktúra 2026000123', true, ['faktura.xml']],
 )
 await zmeraj('Výdavok z e-faktúry')
@@ -534,7 +557,7 @@ await api('PUT', `/faktury/${idFaktur[1]}`, { poznamka: `[${datumZnacky} odoslan
 await otvor(`/faktury/${idFaktur[1]}`)
 t.over(
   'časová os: vystavená, odoslaná, platba a splatnosť po termíne',
-  await js(`[...document.querySelectorAll('.casova-os li .casova-os-text')].map((e) => e.textContent)`),
+  (await js(`[...document.querySelectorAll('.casova-os li .casova-os-text')].map((e) => e.textContent)`)).map((x) => x.replace(/\s+/g, ' ')),
   ['Vystavená', 'Odoslaná e-mailom na faktury@example.com', 'Splatnosť – 16 dní po splatnosti', 'Platba 500,00 €'],
 )
 await zmeraj('Časová os faktúry')
@@ -572,6 +595,58 @@ t.over('…faktúra je vyplatená', await stavRiadku(nezaplatena), 'Uhradená')
 await klik('.oznam-akcia')
 await cakaj(800)
 t.over('…a „Vrátiť späť" platbu zruší', (await stavRiadku(nezaplatena)) !== 'Uhradená', true)
+
+t.sekcia('Šablóny, splatnosť a obdobia')
+await api('POST', `/sablony/z-faktury/${idFaktur[1]}`, { nazov: 'Zváranie – vzor' })
+await otvor('/faktury')
+await klik('.hlavicka .akcie > button')
+t.over(
+  'tlačidlo „Šablóny" vo Faktúrach ukáže všetky uložené šablóny',
+  await js(`[...document.querySelectorAll('.okno-sablon .sablona-riadok .zaznam-hlavny')].map((e) => e.childNodes[0].textContent)`),
+  ['Zváranie – vzor'],
+)
+await zmeraj('Okno so šablónami')
+await klik('.okno-sablon .zaznam-pata .primar')
+await pockaj(() => js(`[...document.querySelectorAll('.obsah input')].some((e) => e.value === 'Zváranie')`), 5000)
+t.over(
+  '„Vystaviť faktúru" otvorí novú faktúru s položkami a odberateľom zo šablóny',
+  await js(`[location.pathname, [...document.querySelectorAll('.obsah input')].some((e) => e.value === 'Zváranie'), document.querySelector('#odberatel-faktury').value]`),
+  ['/faktury/nova', true, String(firmy[1])],
+)
+// Splatnosť: číslo sa dá celé zmazať a napísať nové – predtým v poli vždy ostala jedna číslica.
+const datumSplatnosti = `document.querySelector('.splatnost-riadok input[type=date]').value`
+const povodnaSplatnost = await js(datumSplatnosti)
+await js(`document.querySelector('#dni-splatnosti').focus(); true`)
+await cdp('Input.dispatchKeyEvent', { type: 'rawKeyDown', key: 'a', code: 'KeyA', windowsVirtualKeyCode: 65, modifiers: 2, commands: ['selectAll'] })
+await cdp('Input.dispatchKeyEvent', { type: 'keyUp', key: 'a', code: 'KeyA', windowsVirtualKeyCode: 65, modifiers: 2 })
+await cdp('Input.dispatchKeyEvent', { type: 'rawKeyDown', key: 'Backspace', code: 'Backspace', windowsVirtualKeyCode: 8 })
+await cdp('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Backspace', code: 'Backspace', windowsVirtualKeyCode: 8 })
+await cakaj(200)
+t.over('splatnosť v dňoch sa dá celá zmazať', await js(`document.querySelector('#dni-splatnosti').value`), '')
+await cdp('Input.insertText', { text: '45' })
+await cakaj(300)
+t.over(
+  '…a napísať nové číslo, ktoré posunie dátum splatnosti',
+  [await js(`document.querySelector('#dni-splatnosti').value`), (await js(datumSplatnosti)) !== povodnaSplatnost],
+  ['45', true],
+)
+await otvor('/')
+t.over(
+  'Finančný prehľad: týždeň, mesiac a rok',
+  await js(`[...document.querySelectorAll('.segment button')].map((b) => b.textContent)`),
+  ['Týždeň', 'Mesiac', 'Rok'],
+)
+await klik('.segment button')
+t.over('…týždeň sa dá vybrať', await js(`document.querySelector('.segment button.aktivny')?.textContent`), 'Týždeň')
+t.over('graf po mesiacoch je na Prehľade vždy viditeľný', await js(`!!document.querySelector('.graf-prehlad svg') && !document.querySelector('.graf-skladaci')`), true)
+await otvor('/faktury')
+t.over(
+  'súhrn faktúr: spolu, uhradené, čaká – v celých eurách, aj na počítači',
+  await js(`[...document.querySelectorAll('.suhrn-zoznamu.jeden-riadok > span')].map((s) => s.textContent.split(' ')[0] + (s.textContent.includes(',') ? ' s centami' : ''))`),
+  ['spolu', 'uhradené', 'čaká'],
+)
+await otvor('/upomienky')
+t.over('Upomienky nespomínajú nastavenie SMTP', await js(`document.querySelector('.obsah').textContent.includes('SMTP')`), false)
 
 t.sekcia('Otázky vo vlastnom okne')
 await otvor('/faktury/nova')
@@ -632,6 +707,8 @@ for (const [cesta, nazov] of OBRAZOVKY) {
     [m.stranaSaPosuva, m.pretekajuce, m.najmensie >= 12 ? true : `${m.najmensie} px (${m.najmensieKde})`, m.slabe],
     [false, [], true, []],
   )
+  t.over('nič nevylieza zo strany obrazovky (ani doľava)', m.vyliezajuce, [])
+  t.over('všetko, na čo sa ťuká, má aspoň 44 × 44 px', m.male, [])
 }
 
 t.sekcia('Ovládanie na telefóne')
@@ -725,6 +802,31 @@ t.over(
   true,
 )
 await zmeraj('Výdavky v telefóne – úprava z karty')
+// Súhrn faktúr sa zmestí do jedného riadku aj s päťcifernými sumami.
+const velka = (await api('POST', '/faktury', { company_id: firmy[0], polozky: [{ popis: 'Veľká zákazka', mnozstvo: 1, cena: 54321.45 }] })).d.id
+await otvor('/faktury')
+t.over(
+  'súhrn faktúr je v telefóne jeden riadok aj s päťcifernými sumami',
+  await js(`(() => { const s = document.querySelector('.suhrn-zoznamu.jeden-riadok'); const r = s.getBoundingClientRect(); return [r.height < 30, s.scrollWidth <= s.clientWidth + 1, [...s.querySelector('strong').textContent].filter((c) => c >= '0' && c <= '9').length >= 5] })()`),
+  [true, true, true],
+)
+await api('DELETE', `/faktury/${velka}`)
+for (const [cesta, nazov] of [['/objednavky', 'objednávky'], ['/zmluvy', 'zmluvy']]) {
+  await otvor(cesta)
+  t.over(
+    `${nazov}: Filter vedľa Hľadať, výbery schované, záznamy ako karty`,
+    await js(`[!!document.querySelector('.tlacidlo-filtra'), document.querySelectorAll('.filtre select').length, !document.querySelector('.obsah table')]`),
+    [true, 0, true],
+  )
+}
+// Turnus s vyplneným výkazom – na fotke z iPhonu tlačidlá pod výkazom vyliezali doľava.
+const dniVykazu = []
+for (let i = -40; i <= -20; i++) dniVykazu.push({ datum: posun(i), hodiny: 10, poznamka: '' })
+await api('PUT', `/turnusy/${turnus}/hodiny`, { dni: dniVykazu, sadzba: 21 })
+await otvor(`/turnusy/${turnus}`)
+const mVykaz = await js(MERANIE)
+t.over('turnus s vyplneným výkazom: nič nevylieza, všetko sa dá trafiť prstom', [mVykaz.vyliezajuce, mVykaz.male], [[], []])
+t.over('v hlavičke turnusu je Späť a ⋮ namiesto troch tlačidiel', await js(`[document.querySelectorAll('.hlavicka .akcie > a, .hlavicka .akcie > button').length, !!document.querySelector('.hlavicka .menu-akcii')]`), [1, true])
 await otvor('/turnusy')
 t.over(
   'turnusy v troch riadkoch, súhrn jedným riadkom, filtre schované',

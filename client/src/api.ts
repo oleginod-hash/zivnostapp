@@ -41,6 +41,8 @@ export type Nastavenia = {
   ico: string; dic: string; zapis: string; email: string; telefon: string
   iban: string; swift: string; banka: string
   cislo_vzor: string; splatnost_dni: number; poznamka_pati: string
+  /** Vlastný rad zálohových faktúr (napr. 30{RR}{NNNN}); prázdne = rovnaký ako faktúry. */
+  cislo_vzor_zaloha?: string
   /** 1 = predvolená splatnosť sa ráta v pracovných dňoch. */
   splatnost_pracovne: number
   /** 1 = pracuje na zákazkách v zahraničí – asistent s tým počíta. */
@@ -440,7 +442,14 @@ export function sledujSkryteSumy(f: () => void): () => void {
 
 export function skSuma(n: number): string {
   if (skryteSumy) return SKRYTA_SUMA
-  return new Intl.NumberFormat('sk-SK', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n ?? 0) + ' €'
+  // Nezalomiteľná medzera – „€" nikdy neostane samo na ďalšom riadku.
+  return new Intl.NumberFormat('sk-SK', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n ?? 0) + '\u00a0€'
+}
+
+/** Suma v celých eurách – do krátkych súhrnov, kde by centy len zaberali miesto. */
+export function skSumaCela(n: number): string {
+  if (skryteSumy) return SKRYTA_SUMA
+  return new Intl.NumberFormat('sk-SK', { maximumFractionDigits: 0 }).format(Math.round(n ?? 0)) + '\u00a0€'
 }
 
 export function skCislo(n: number): string {

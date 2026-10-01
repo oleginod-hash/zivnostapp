@@ -1,5 +1,19 @@
 import { db } from '../db.js'
 
+/** Vzor musí mať poradie ({NNN}) – inak by každá faktúra dostala to isté číslo. */
+export function vzorJePlatny(vzor: string): boolean {
+  return (vzor.match(/\{N+\}/g) ?? []).length === 1
+}
+
+/**
+ * Vzor čísla podľa typu dokladu: zálohová faktúra môže mať vlastný rad
+ * (Nastavenia → Faktúry), inak má rovnaký rad ako ostatné faktúry.
+ */
+export function vzorPreTyp(n: Record<string, any>, typ: string): string {
+  const zaloha = String(n.cislo_vzor_zaloha ?? '').trim()
+  return typ === 'zaloha' && zaloha ? zaloha : String(n.cislo_vzor)
+}
+
 /**
  * Vygeneruje ďalšie číslo faktúry podľa vzoru z nastavení.
  * Podporované značky: {RRRR} rok, {RR} rok dvojmiestne, {MM} mesiac, {NNN} poradie
