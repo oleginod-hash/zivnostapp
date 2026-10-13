@@ -19,6 +19,19 @@ type Konverzacia = { id: number; asistent: string; nazov: string; updated_at: st
 /** Obdobie vo Finančnom prehľade – bez účtovníckeho „kvartálu", od týždňa po celý rok. */
 type Obdobie = 'tyzden' | 'mesiac' | 'rok'
 
+/** Veľká suma s drobnejšími centami a menou („6 200" a menšie „,00 €") – text ostáva rovnaký. */
+function VelkaSuma({ n }: { n: number }) {
+  const text = skSuma(n)
+  const ciarka = text.lastIndexOf(',')
+  if (ciarka < 0) return <>{text}</>
+  return (
+    <>
+      {text.slice(0, ciarka)}
+      <span className="centy">{text.slice(ciarka)}</span>
+    </>
+  )
+}
+
 const iso = (d: Date) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 
@@ -397,7 +410,7 @@ export function Prehlad() {
                   <Ikona nazov="hore" velkost={14} hrubka={2.2} className="plus" />
                   Príjmy
                 </div>
-                <div className="kpi-hodnota">{skSuma(financie?.prijmy ?? 0)}</div>
+                <div className="kpi-hodnota"><VelkaSuma n={financie?.prijmy ?? 0} /></div>
                 <div className="kpi-meta">
                   {financie ? pocet(financie.pocet_faktur, ['uhradená faktúra', 'uhradené faktúry', 'uhradených faktúr']) : '—'}
                 </div>
@@ -407,7 +420,7 @@ export function Prehlad() {
                   <Ikona nazov="dole" velkost={14} hrubka={2.2} className="minus" />
                   Výdavky
                 </div>
-                <div className="kpi-hodnota">{skSuma(financie?.vydavky ?? 0)}</div>
+                <div className="kpi-hodnota"><VelkaSuma n={financie?.vydavky ?? 0} /></div>
                 <div className="kpi-meta">
                   {kategorie.length
                     ? kategorie
@@ -419,7 +432,7 @@ export function Prehlad() {
               </Link>
               <Link className="kpi-bunka" to="/financie">
                 <div className="kpi-popis">Zostatok</div>
-                <div className="kpi-hodnota">{skSuma(financie?.zisk ?? 0)}</div>
+                <div className="kpi-hodnota"><VelkaSuma n={financie?.zisk ?? 0} /></div>
                 <div
                   className="kpi-meta"
                   title={
@@ -443,7 +456,7 @@ export function Prehlad() {
               </Link>
               <Link className="kpi-bunka" to="/faktury?stav=nevyplatene">
                 <div className="kpi-popis">Čaká na zaplatenie</div>
-                <div className="kpi-hodnota">{skSuma(suhrn?.nezaplatene ?? 0)}</div>
+                <div className="kpi-hodnota"><VelkaSuma n={suhrn?.nezaplatene ?? 0} /></div>
                 <div className="kpi-meta">
                   {suhrn && suhrn.po_splatnosti > 0
                     ? `z toho po splatnosti ${skSuma(suhrn.po_splatnosti)}`
