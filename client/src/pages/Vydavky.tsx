@@ -72,7 +72,10 @@ export function Vydavky() {
   const [chyba, setChyba] = useState('')
   const [nahrava, setNahrava] = useState(false)
   const [cakajuceSubory, setCakajuceSubory] = useState<File[]>([])
-  const [f, setF] = useState({ od: '', do: '', kategoria: '', turnus: '', hladat: '' })
+  // Z detailu turnusu („Zobraziť všetky") prichádzame s ?turnus=… – zoznam sa rovno vyfiltruje.
+  const [f, setF] = useState(() => ({
+    od: '', do: '', kategoria: '', turnus: new URLSearchParams(window.location.search).get('turnus') ?? '', hladat: '',
+  }))
   const vstupSuborov = useRef<HTMLInputElement>(null)
   const vstupFotky = useRef<HTMLInputElement>(null)
   const vstupXml = useRef<HTMLInputElement>(null)

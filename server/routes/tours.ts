@@ -24,14 +24,16 @@ const STAV_SQL = `
  * Koľko z turnusu už bolo vyfakturované a koľko z toho je zaplatené.
  * Koncepty ešte nie sú vyfakturované a zálohová faktúra kryjúca starý dlh
  * je len jeho splátkou – jej suma je už v pôvodnej faktúre. Zaplatené sa
- * ráta z platieb (aj cez krycie zálohy), najviac do výšky faktúry.
+ * ráta z platieb (aj cez krycie zálohy), najviac do výšky faktúry. Výdavky sú to,
+ * čo sa na turnuse minulo – súkromné príjmy (druh 'prijem') sem nepatria.
  */
 const SUMY_SQL = `
   (SELECT COALESCE(SUM(i.suma), 0) FROM invoices i WHERE i.tour_id = t.id AND ${VYFAKTUROVANE_SQL}) AS vyfakturovane,
   (SELECT COALESCE(SUM(MIN(i.suma, ${UHRADENE_SQL})), 0) FROM invoices i
     WHERE i.tour_id = t.id AND ${VYFAKTUROVANE_SQL}) AS zaplatene,
   (SELECT COALESCE(SUM(o.suma), 0) FROM orders o WHERE o.tour_id = t.id AND o.stav <> 'zrusena') AS objednane,
-  (SELECT COUNT(*) FROM orders o WHERE o.tour_id = t.id) AS pocet_objednavok`
+  (SELECT COUNT(*) FROM orders o WHERE o.tour_id = t.id) AS pocet_objednavok,
+  (SELECT COALESCE(SUM(e.suma), 0) FROM expenses e WHERE e.tour_id = t.id AND e.druh = 'vydavok') AS vydavky`
 
 const POLIA = ['nazov', 'krajina', 'miesto', 'datum_od', 'datum_do', 'poznamka'] as const
 

@@ -351,6 +351,122 @@ export function Prehlad() {
     </div>
   )
 
+  const financnyPrehlad = (
+    <div className="panel tesny">
+      <div className="hlavicka-karty">
+        <h2 className="nadpis-karty">Finančný prehľad</h2>
+        <div className="segment" role="tablist">
+          {(
+            [
+              ['tyzden', 'Týždeň'],
+              ['mesiac', 'Mesiac'],
+              ['rok', 'Rok'],
+            ] as [Obdobie, string][]
+          ).map(([k, text]) => (
+            <button
+              key={k}
+              className={'plocha-44' + (obdobie === k ? ' aktivny' : '')}
+              aria-pressed={obdobie === k}
+              title={`Tento ${text.toLowerCase()}`}
+              onClick={() => setObdobie(k)}
+            >
+              {text}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="kpi">
+        <Link className="kpi-bunka" to="/financie">
+          <div className="kpi-popis">
+            <Ikona nazov="hore" velkost={14} hrubka={2.2} className="plus" />
+            Príjmy
+          </div>
+          <div className="kpi-hodnota"><VelkaSuma n={financie?.prijmy ?? 0} /></div>
+          <div className="kpi-meta">
+            {financie ? pocet(financie.pocet_faktur, ['uhradená faktúra', 'uhradené faktúry', 'uhradených faktúr']) : '—'}
+          </div>
+        </Link>
+        <Link className="kpi-bunka" to="/vydavky">
+          <div className="kpi-popis">
+            <Ikona nazov="dole" velkost={14} hrubka={2.2} className="minus" />
+            Výdavky
+          </div>
+          <div className="kpi-hodnota"><VelkaSuma n={financie?.vydavky ?? 0} /></div>
+          <div className="kpi-meta">
+            {kategorie.length
+              ? kategorie
+                  .slice(0, 2)
+                  .map((k) => `${k.kategoria.toLowerCase()} ${kratkaSuma(k.suma)}`)
+                  .join(' · ')
+              : 'zatiaľ žiadne'}
+          </div>
+        </Link>
+        <Link className="kpi-bunka" to="/financie">
+          <div className="kpi-popis">Zostatok</div>
+          <div className="kpi-hodnota"><VelkaSuma n={financie?.zisk ?? 0} /></div>
+          <div
+            className="kpi-meta"
+            title={
+              zmenaZisku !== null
+                ? `Porovnanie s obdobím 1. 1. – ${skDatum(iso(tenIstyDenMinulyRok(DNES)))}`
+                : undefined
+            }
+          >
+            {zmenaZisku !== null ? (
+              <>
+                <span className={zmenaZisku >= 0 ? 'plus' : 'minus'}>
+                  {zmenaZisku >= 0 ? '+' : '−'}
+                  {new Intl.NumberFormat('sk-SK', { maximumFractionDigits: 1 }).format(Math.abs(zmenaZisku))} %
+                </span>{' '}
+                oproti rovnakému obdobiu {ROK - 1}
+              </>
+            ) : (
+              'príjmy mínus výdavky'
+            )}
+          </div>
+        </Link>
+        <Link className="kpi-bunka" to="/faktury?stav=nevyplatene">
+          <div className="kpi-popis">Čaká na zaplatenie</div>
+          <div className="kpi-hodnota"><VelkaSuma n={suhrn?.nezaplatene ?? 0} /></div>
+          <div className="kpi-meta">
+            {suhrn && suhrn.po_splatnosti > 0
+              ? `z toho po splatnosti ${skSuma(suhrn.po_splatnosti)}`
+              : 'nič nie je po splatnosti'}
+          </div>
+          <div className="pruh" title="Podiel sumy po splatnosti">
+            <div className="pruh-vypln" style={{ width: podielPoSplatnosti + '%' }} />
+          </div>
+        </Link>
+      </div>
+
+      {graf}
+    </div>
+  )
+
+  const rychleAkcie = (
+    <div className="panel rychle-akcie">
+      <h2 className="nadpis-karty">Rýchle akcie</h2>
+      <div className="zoznam-akcii">
+        <Link className="akcia hlavna" to="/faktury/nova">
+          <Ikona nazov="plus" velkost={18} hrubka={2.2} />
+          Nová faktúra
+        </Link>
+        <Link className="akcia" to="/vydavky?novy=1">
+          <Ikona nazov="sken" velkost={18} />
+          <span>
+            Pridať výdavok
+            <small>aj s fotkou dokladu</small>
+          </span>
+        </Link>
+        <Link className="akcia" to="/turnusy/novy">
+          <Ikona nazov="hodiny" velkost={18} />
+          Nový turnus
+        </Link>
+      </div>
+    </div>
+  )
+
   return (
     <>
       <div className="hlavicka">
@@ -377,439 +493,342 @@ export function Prehlad() {
         </div>
       </div>
 
-      <div className="prehlad-mriezka">
-        {/* ── Ľavý stĺpec ─────────────────────────────────────── */}
-        <div className="prehlad-lavy">
-          <div className="panel tesny">
-            <div className="hlavicka-karty">
-              <h2 className="nadpis-karty">Finančný prehľad</h2>
-              <div className="segment" role="tablist">
-                {(
-                  [
-                    ['tyzden', 'Týždeň'],
-                    ['mesiac', 'Mesiac'],
-                    ['rok', 'Rok'],
-                  ] as [Obdobie, string][]
-                ).map(([k, text]) => (
-                  <button
-                    key={k}
-                    className={'plocha-44' + (obdobie === k ? ' aktivny' : '')}
-                    aria-pressed={obdobie === k}
-                    title={`Tento ${text.toLowerCase()}`}
-                    onClick={() => setObdobie(k)}
-                  >
-                    {text}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="kpi">
-              <Link className="kpi-bunka" to="/financie">
-                <div className="kpi-popis">
-                  <Ikona nazov="hore" velkost={14} hrubka={2.2} className="plus" />
-                  Príjmy
-                </div>
-                <div className="kpi-hodnota"><VelkaSuma n={financie?.prijmy ?? 0} /></div>
-                <div className="kpi-meta">
-                  {financie ? pocet(financie.pocet_faktur, ['uhradená faktúra', 'uhradené faktúry', 'uhradených faktúr']) : '—'}
-                </div>
-              </Link>
-              <Link className="kpi-bunka" to="/vydavky">
-                <div className="kpi-popis">
-                  <Ikona nazov="dole" velkost={14} hrubka={2.2} className="minus" />
-                  Výdavky
-                </div>
-                <div className="kpi-hodnota"><VelkaSuma n={financie?.vydavky ?? 0} /></div>
-                <div className="kpi-meta">
-                  {kategorie.length
-                    ? kategorie
-                        .slice(0, 2)
-                        .map((k) => `${k.kategoria.toLowerCase()} ${kratkaSuma(k.suma)}`)
-                        .join(' · ')
-                    : 'zatiaľ žiadne'}
-                </div>
-              </Link>
-              <Link className="kpi-bunka" to="/financie">
-                <div className="kpi-popis">Zostatok</div>
-                <div className="kpi-hodnota"><VelkaSuma n={financie?.zisk ?? 0} /></div>
-                <div
-                  className="kpi-meta"
-                  title={
-                    zmenaZisku !== null
-                      ? `Porovnanie s obdobím 1. 1. – ${skDatum(iso(tenIstyDenMinulyRok(DNES)))}`
-                      : undefined
-                  }
-                >
-                  {zmenaZisku !== null ? (
-                    <>
-                      <span className={zmenaZisku >= 0 ? 'plus' : 'minus'}>
-                        {zmenaZisku >= 0 ? '+' : '−'}
-                        {new Intl.NumberFormat('sk-SK', { maximumFractionDigits: 1 }).format(Math.abs(zmenaZisku))} %
-                      </span>{' '}
-                      oproti rovnakému obdobiu {ROK - 1}
-                    </>
-                  ) : (
-                    'príjmy mínus výdavky'
-                  )}
-                </div>
-              </Link>
-              <Link className="kpi-bunka" to="/faktury?stav=nevyplatene">
-                <div className="kpi-popis">Čaká na zaplatenie</div>
-                <div className="kpi-hodnota"><VelkaSuma n={suhrn?.nezaplatene ?? 0} /></div>
-                <div className="kpi-meta">
-                  {suhrn && suhrn.po_splatnosti > 0
-                    ? `z toho po splatnosti ${skSuma(suhrn.po_splatnosti)}`
-                    : 'nič nie je po splatnosti'}
-                </div>
-                <div className="pruh" title="Podiel sumy po splatnosti">
-                  <div className="pruh-vypln" style={{ width: podielPoSplatnosti + '%' }} />
-                </div>
-              </Link>
-            </div>
-
-            {graf}
-          </div>
-
-          <div className="panel tesny">
-            <div className="hlavicka-karty">
-              <h2 className="nadpis-karty">Posledné faktúry</h2>
-              <Link className="odkaz-karty" to="/faktury">
-                Zobraziť všetky →
-              </Link>
-            </div>
-            {posledne.length === 0 ? (
-              <div className="prazdne">
-                Zatiaľ žiadne faktúry. <Link to="/faktury/nova">Vystav prvú</Link>.
-              </div>
-            ) : male ? (
-              <div className="zoznam-zaznamov">
-                {posledne.map((f) => (
-                  <FakturaKarta key={f.id} fa={f} otvor={() => navigate('/faktury/' + f.id)} />
-                ))}
-              </div>
-            ) : (
-              <div className="tabulka-obal">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Číslo</th>
-                      <th>Odberateľ</th>
-                      <th>Splatnosť</th>
-                      <th className="cislo">Suma</th>
-                      <th>Stav</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {posledne.map((f) => {
-                      const otvorena = f.otvoreny_zostatok > 0.005 && f.stav !== 'koncept'
-                      const ciastocne = otvorena && f.uhradene_spolu > 0.005
-                      return (
-                        <tr key={f.id} style={{ cursor: 'pointer' }} onClick={() => navigate('/faktury/' + f.id)}>
-                          <td>
-                            <span className="cislo-faktury">{f.cislo}</span>
-                          </td>
-                          <td className="odberatel-bunka" title={f.firma_nazov || undefined}>
-                            {f.firma_nazov || <span className="tlmene">—</span>}
-                          </td>
-                          <td style={{ whiteSpace: 'nowrap' }}>
-                            {skDatum(f.datum_splat)}
-                            {otvorena && <Dni splatnost={f.datum_splat} />}
-                          </td>
-                          <td className="cislo">{skSuma(f.suma)}</td>
-                          <td>
-                            <StitokStavu stav={f.stav_zobraz} kratko />
-                            {f.typ === 'zaloha' ? (
-                              <span className="pod-stitkom">
-                                {f.kryje_cislo ? `splátka ${f.kryje_cislo}` : 'zálohová faktúra'}
-                              </span>
-                            ) : ciastocne ? (
-                              <span className="pod-stitkom">
-                                {skSuma(f.uhradene_spolu)} z {skSuma(f.suma)}
-                              </span>
-                            ) : null}
-                          </td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
+      {male ? (
+        // Telefón: len to, čo treba hneď – rýchle akcie navrchu a pod nimi finančný prehľad.
+        // Ostatné časti Prehľadu (faktúry, upozornenia, termíny…) sú na počítači.
+        <div className="prehlad-telefon">
+          {rychleAkcie}
+          {financnyPrehlad}
         </div>
+      ) : (
+        <>
+          <div className="prehlad-mriezka">
+            {/* ── Ľavý stĺpec ─────────────────────────────────────── */}
+            <div className="prehlad-lavy">
+              {financnyPrehlad}
 
-        {/* ── Pravý stĺpec ────────────────────────────────────── */}
-        <div className="prehlad-pravy">
-          <div className="panel rychle-akcie">
-            <h2 className="nadpis-karty">Rýchle akcie</h2>
-            <div className="zoznam-akcii">
-              <Link className="akcia hlavna" to="/faktury/nova">
-                <Ikona nazov="plus" velkost={18} hrubka={2.2} />
-                Nová faktúra
-              </Link>
-              <Link className="akcia" to="/vydavky?novy=1">
-                <Ikona nazov="sken" velkost={18} />
-                <span>
-                  Pridať výdavok
-                  <small>aj s fotkou dokladu</small>
-                </span>
-              </Link>
-              <Link className="akcia" to="/turnusy/novy">
-                <Ikona nazov="hodiny" velkost={18} />
-                Nový turnus
-              </Link>
-            </div>
-          </div>
-
-          <div className="panel tesny">
-            <div className="pozornost-hlavicka">
-              <h2 className="nadpis-karty">Vyžaduje pozornosť</h2>
-              <span className={'pocet-pill' + (pozornost.length === 0 ? ' v-poriadku' : '')}>
-                {pozornost.length === 0 ? 'OK' : kritickych || pozornost.length}
-              </span>
-            </div>
-            {pozornost.length === 0 ? (
-              <div className="pozornost-polozka">
-                <span className="pozornost-ikona" style={{ background: 'var(--posBg)', color: 'var(--pos)' }}>
-                  <Ikona nazov="zaplatena" velkost={15} hrubka={2.2} />
-                </span>
-                <div className="pozornost-telo">
-                  <div className="pozornost-titul">Všetko je v poriadku</div>
-                  <div className="pozornost-meta">Žiadna faktúra nie je po splatnosti a žiadna zmluva nekončí.</div>
+              <div className="panel tesny">
+                <div className="hlavicka-karty">
+                  <h2 className="nadpis-karty">Posledné faktúry</h2>
+                  <Link className="odkaz-karty" to="/faktury">
+                    Zobraziť všetky →
+                  </Link>
                 </div>
-              </div>
-            ) : (
-              pozornost.map((p) => (
-                <div key={p.kluc} className="pozornost-polozka">
-                  <span className={'pozornost-ikona ' + p.druh}>
-                    <Ikona nazov={p.ikona} velkost={15} hrubka={2} />
-                  </span>
-                  <div className="pozornost-telo">
-                    <div className="pozornost-titul">{p.titul}</div>
-                    <div className="pozornost-meta">{p.meta}</div>
-                    {p.cipy && <div className="cipy">{p.cipy}</div>}
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-
-          <NajblizsieTerminy />
-
-          <div className="panel turnus-karta">
-            {aktivny ? (
-              <>
-                <div className="turnus-karta-hlavicka">
-                  <h2 className="nadpis-karty">Aktívny turnus</h2>
-                  <span className="turnus-dni">
-                    {Math.min(denTurnusu, dlzkaTurnusu)} / {dlzkaTurnusu} dní
-                  </span>
-                </div>
-                <div className="pruh" style={{ height: 7 }}>
-                  <div
-                    className="pruh-vypln"
-                    style={{ width: Math.min(100, (denTurnusu / Math.max(1, dlzkaTurnusu)) * 100) + '%' }}
-                  />
-                </div>
-                <div className="turnus-miesto">
-                  <Link to={'/turnusy/' + aktivny.id}>{aktivny.nazov}</Link>
-                  {[aktivny.miesto, aktivny.krajina].filter(Boolean).length > 0 &&
-                    ` · ${[aktivny.miesto, aktivny.krajina].filter(Boolean).join(', ')}`}
-                </div>
-                <div className="turnus-metriky">
-                  <div>
-                    <div className="popis">Vyfakturované</div>
-                    <div className="hodnota">{kratkaSuma(aktivny.vyfakturovane)}</div>
-                  </div>
-                  <div>
-                    <div className="popis">Výdavky</div>
-                    <div className="hodnota">{kratkaSuma(sumaTurnusu)}</div>
-                  </div>
-                  <div>
-                    <div className="popis">Doklady</div>
-                    <div className="hodnota">{vydavkyTurnusu?.length ?? '—'}</div>
-                  </div>
-                </div>
-              </>
-            ) : najblizsi ? (
-              <>
-                <div className="turnus-karta-hlavicka">
-                  <h2 className="nadpis-karty">Najbližší turnus</h2>
-                  <span className="turnus-dni">
-                    {(() => {
-                      const o = dniDoSplatnosti(najblizsi.datum_od) ?? 0
-                      return o <= 0 ? 'začína dnes' : `o ${pocet(o, ['deň', 'dni', 'dní'])}`
-                    })()}
-                  </span>
-                </div>
-                <div className="turnus-miesto" style={{ marginTop: 0 }}>
-                  <Link to={'/turnusy/' + najblizsi.id}>{najblizsi.nazov}</Link>
-                  {' · '}
-                  {skDatum(najblizsi.datum_od)} – {skDatum(najblizsi.datum_do)}
-                </div>
-                <div className="turnus-metriky">
-                  <div>
-                    <div className="popis">Firma</div>
-                    <div className="hodnota" style={{ fontSize: 14 }}>{najblizsi.firma_nazov || '—'}</div>
-                  </div>
-                  <div>
-                    <div className="popis">Objednané</div>
-                    <div className="hodnota">{kratkaSuma(najblizsi.objednane)}</div>
-                  </div>
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="turnus-karta-hlavicka">
-                  <h2 className="nadpis-karty">Turnus</h2>
-                </div>
-                <div className="turnus-miesto" style={{ marginTop: 0 }}>
-                  Žiadny turnus neprebieha ani nie je naplánovaný. <Link to="/turnusy/novy">Založiť turnus</Link>
-                </div>
-              </>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* ── Ďalšie oblasti ────────────────────────────────────── */}
-      {/* Dva nezávislé stĺpce – kratšia dlaždica nenechá pod sebou dieru. */}
-      <div className="dva-stlpce dlazdice">
-        <div className="stlpec-dlazdic">
-          <Sekcia
-            nadpis="Posledné výdavky"
-            kam="/vydavky"
-            deti={
-              vydavky.length === 0 ? (
-                <div className="prazdne">Zatiaľ žiadne výdavky.</div>
-              ) : (
-                <table className="dlazdica-tabulka">
-                  <tbody>
-                    {vydavky.map((v) => (
-                      <tr key={v.id} style={{ cursor: 'pointer' }} onClick={() => navigate('/vydavky')}>
-                        <td className="tlmene dl-pod" style={{ width: 92 }}>{skDatum(v.datum)}</td>
-                        <td className="dl-hlavne">
-                          <strong>{v.popis}</strong>
-                          {v.kategoria && <div className="tlmene" style={{ fontSize: 13 }}>{v.kategoria}</div>}
-                        </td>
-                        <td className="cislo dl-pravo">
-                          {skSuma(v.suma)}
-                          {v.odpocitat === 0 && <div className="tlmene" style={{ fontSize: 13, fontWeight: 500 }}>neuznateľný</div>}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )
-            }
-          />
-          <Sekcia
-            nadpis="Turnusy"
-            kam="/turnusy"
-            deti={
-              turnusy.length === 0 ? (
-                <div className="prazdne">
-                  Zatiaľ žiadne turnusy. <Link to="/turnusy/novy">Založ prvý</Link>.
-                </div>
-              ) : (
-                <table className="dlazdica-tabulka">
-                  <tbody>
-                    {turnusy.slice(0, 5).map((t) => (
-                      <tr key={t.id} style={{ cursor: 'pointer' }} onClick={() => navigate('/turnusy/' + t.id)}>
-                        <td className="dl-hlavne">
-                          <strong>{t.nazov}</strong>
-                          <div className="tlmene" style={{ fontSize: 13 }}>
-                            {[t.miesto, t.krajina].filter(Boolean).join(', ') || t.firma_nazov || '—'}
-                          </div>
-                        </td>
-                        <td className="tlmene dl-pod" style={{ whiteSpace: 'nowrap' }}>
-                          {skDatum(t.datum_od)} – {skDatum(t.datum_do)}
-                        </td>
-                        <td className="dl-pravo">
-                          <span className={'stitok ' + STITOK_TURNUSU[t.stav]}>{NAZVY_STAVOV_TURNUSU[t.stav]}</span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )
-            }
-          />
-        </div>
-        <div className="stlpec-dlazdic">
-          <Sekcia
-            nadpis="Asistent"
-            kam="/asistent"
-            odkaz="Otvoriť asistenta"
-            deti={
-              <>
-                {konverzacie.length === 0 ? (
+                {posledne.length === 0 ? (
                   <div className="prazdne">
-                    Zatiaľ žiadna otázka. <Link to="/asistent">Napíš, čo potrebuješ</Link> – asistent môže zapísať
-                    výdavok z fotky dokladu, vystaviť faktúru aj odpovedať na otázky o daniach a zmluvách.
+                    Zatiaľ žiadne faktúry. <Link to="/faktury/nova">Vystav prvú</Link>.
+                  </div>
+                ) : male ? (
+                  <div className="zoznam-zaznamov">
+                    {posledne.map((f) => (
+                      <FakturaKarta key={f.id} fa={f} otvor={() => navigate('/faktury/' + f.id)} />
+                    ))}
                   </div>
                 ) : (
-                  <table className="dlazdica-tabulka">
-                    <tbody>
-                      {konverzacie.map((k) => (
-                        <tr key={k.id} style={{ cursor: 'pointer' }} onClick={() => navigate('/asistent')}>
-                          <td className="dl-hlavne">
-                            <strong>{k.nazov}</strong>
-                          </td>
-                          <td className="tlmene dl-pod" style={{ width: 100, whiteSpace: 'nowrap' }}>
-                            {pocet(k.pocet_sprav, ['správa', 'správy', 'správ'])}
-                          </td>
-                          <td className="tlmene dl-pravo" style={{ width: 90 }}>{skDatum(k.updated_at)}</td>
+                  <div className="tabulka-obal">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>Číslo</th>
+                          <th>Odberateľ</th>
+                          <th>Splatnosť</th>
+                          <th className="cislo">Suma</th>
+                          <th>Stav</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody>
+                        {posledne.map((f) => {
+                          const otvorena = f.otvoreny_zostatok > 0.005 && f.stav !== 'koncept'
+                          const ciastocne = otvorena && f.uhradene_spolu > 0.005
+                          return (
+                            <tr key={f.id} style={{ cursor: 'pointer' }} onClick={() => navigate('/faktury/' + f.id)}>
+                              <td>
+                                <span className="cislo-faktury">{f.cislo}</span>
+                              </td>
+                              <td className="odberatel-bunka" title={f.firma_nazov || undefined}>
+                                {f.firma_nazov || <span className="tlmene">—</span>}
+                              </td>
+                              <td style={{ whiteSpace: 'nowrap' }}>
+                                {skDatum(f.datum_splat)}
+                                {otvorena && <Dni splatnost={f.datum_splat} />}
+                              </td>
+                              <td className="cislo">{skSuma(f.suma)}</td>
+                              <td>
+                                <StitokStavu stav={f.stav_zobraz} kratko />
+                                {f.typ === 'zaloha' ? (
+                                  <span className="pod-stitkom">
+                                    {f.kryje_cislo ? `splátka ${f.kryje_cislo}` : 'zálohová faktúra'}
+                                  </span>
+                                ) : ciastocne ? (
+                                  <span className="pod-stitkom">
+                                    {skSuma(f.uhradene_spolu)} z {skSuma(f.suma)}
+                                  </span>
+                                ) : null}
+                              </td>
+                            </tr>
+                          )
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
                 )}
-                <div className="dlazdica-pata">
-                  <Link className="tlacidlo maly" to="/asistent">
-                    <Ikona nazov="pomocnik" velkost={14} /> Nová otázka
-                  </Link>
-                  <Link className="tlacidlo maly" to="/danovy-podklad">
-                    <Ikona nazov="podklad" velkost={14} /> Daňový podklad
-                  </Link>
+              </div>
+            </div>
+
+            {/* ── Pravý stĺpec ────────────────────────────────────── */}
+            <div className="prehlad-pravy">
+              {rychleAkcie}
+
+              <div className="panel tesny">
+                <div className="pozornost-hlavicka">
+                  <h2 className="nadpis-karty">Vyžaduje pozornosť</h2>
+                  <span className={'pocet-pill' + (pozornost.length === 0 ? ' v-poriadku' : '')}>
+                    {pozornost.length === 0 ? 'OK' : kritickych || pozornost.length}
+                  </span>
                 </div>
-              </>
-            }
-          />
-          <Sekcia
-            nadpis={`Výdavky podľa kategórií v roku ${ROK}`}
-            kam="/financie"
-            odkaz="Financie"
-            deti={
-              kategorieRok.length === 0 ? (
-                <div className="prazdne">Zatiaľ žiadne výdavky.</div>
-              ) : (
-                <table className="dlazdica-tabulka">
-                  <tbody>
-                    {kategorieRok.map((k) => (
-                      <tr key={k.kategoria}>
-                        <td className="dl-hlavne" style={{ width: 150 }}>{k.kategoria}</td>
-                        <td className="dl-cela">
-                          {/* Pruh je len orientačný – najväčšia kategória je plná šírka. */}
-                          <div className="pruh">
-                            <div
-                              className="pruh-vypln"
-                              style={{ width: (najvacsiaKategoria ? (k.suma / najvacsiaKategoria) * 100 : 0) + '%' }}
-                            />
-                          </div>
-                        </td>
-                        <td className="cislo dl-pravo" style={{ width: 110 }}>{skSuma(k.suma)}</td>
-                        <td className="cislo tlmene dl-skryt" style={{ width: 46, fontWeight: 500 }}>{k.pocet}×</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )
-            }
-          />
-        </div>
-      </div>
+                {pozornost.length === 0 ? (
+                  <div className="pozornost-polozka">
+                    <span className="pozornost-ikona" style={{ background: 'var(--posBg)', color: 'var(--pos)' }}>
+                      <Ikona nazov="zaplatena" velkost={15} hrubka={2.2} />
+                    </span>
+                    <div className="pozornost-telo">
+                      <div className="pozornost-titul">Všetko je v poriadku</div>
+                      <div className="pozornost-meta">Žiadna faktúra nie je po splatnosti a žiadna zmluva nekončí.</div>
+                    </div>
+                  </div>
+                ) : (
+                  pozornost.map((p) => (
+                    <div key={p.kluc} className="pozornost-polozka">
+                      <span className={'pozornost-ikona ' + p.druh}>
+                        <Ikona nazov={p.ikona} velkost={15} hrubka={2} />
+                      </span>
+                      <div className="pozornost-telo">
+                        <div className="pozornost-titul">{p.titul}</div>
+                        <div className="pozornost-meta">{p.meta}</div>
+                        {p.cipy && <div className="cipy">{p.cipy}</div>}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              <NajblizsieTerminy />
+
+              <div className="panel turnus-karta">
+                {aktivny ? (
+                  <>
+                    <div className="turnus-karta-hlavicka">
+                      <h2 className="nadpis-karty">Aktívny turnus</h2>
+                      <span className="turnus-dni">
+                        {Math.min(denTurnusu, dlzkaTurnusu)} / {dlzkaTurnusu} dní
+                      </span>
+                    </div>
+                    <div className="pruh" style={{ height: 7 }}>
+                      <div
+                        className="pruh-vypln"
+                        style={{ width: Math.min(100, (denTurnusu / Math.max(1, dlzkaTurnusu)) * 100) + '%' }}
+                      />
+                    </div>
+                    <div className="turnus-miesto">
+                      <Link to={'/turnusy/' + aktivny.id}>{aktivny.nazov}</Link>
+                      {[aktivny.miesto, aktivny.krajina].filter(Boolean).length > 0 &&
+                        ` · ${[aktivny.miesto, aktivny.krajina].filter(Boolean).join(', ')}`}
+                    </div>
+                    <div className="turnus-metriky">
+                      <div>
+                        <div className="popis">Vyfakturované</div>
+                        <div className="hodnota">{kratkaSuma(aktivny.vyfakturovane)}</div>
+                      </div>
+                      <div>
+                        <div className="popis">Výdavky</div>
+                        <div className="hodnota">{kratkaSuma(sumaTurnusu)}</div>
+                      </div>
+                      <div>
+                        <div className="popis">Doklady</div>
+                        <div className="hodnota">{vydavkyTurnusu?.length ?? '—'}</div>
+                      </div>
+                    </div>
+                  </>
+                ) : najblizsi ? (
+                  <>
+                    <div className="turnus-karta-hlavicka">
+                      <h2 className="nadpis-karty">Najbližší turnus</h2>
+                      <span className="turnus-dni">
+                        {(() => {
+                          const o = dniDoSplatnosti(najblizsi.datum_od) ?? 0
+                          return o <= 0 ? 'začína dnes' : `o ${pocet(o, ['deň', 'dni', 'dní'])}`
+                        })()}
+                      </span>
+                    </div>
+                    <div className="turnus-miesto" style={{ marginTop: 0 }}>
+                      <Link to={'/turnusy/' + najblizsi.id}>{najblizsi.nazov}</Link>
+                      {' · '}
+                      {skDatum(najblizsi.datum_od)} – {skDatum(najblizsi.datum_do)}
+                    </div>
+                    <div className="turnus-metriky">
+                      <div>
+                        <div className="popis">Firma</div>
+                        <div className="hodnota" style={{ fontSize: 14 }}>{najblizsi.firma_nazov || '—'}</div>
+                      </div>
+                      <div>
+                        <div className="popis">Objednané</div>
+                        <div className="hodnota">{kratkaSuma(najblizsi.objednane)}</div>
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="turnus-karta-hlavicka">
+                      <h2 className="nadpis-karty">Turnus</h2>
+                    </div>
+                    <div className="turnus-miesto" style={{ marginTop: 0 }}>
+                      Žiadny turnus neprebieha ani nie je naplánovaný. <Link to="/turnusy/novy">Založiť turnus</Link>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* ── Ďalšie oblasti ────────────────────────────────────── */}
+          {/* Dva nezávislé stĺpce – kratšia dlaždica nenechá pod sebou dieru. */}
+          <div className="dva-stlpce dlazdice">
+            <div className="stlpec-dlazdic">
+              <Sekcia
+                nadpis="Posledné výdavky"
+                kam="/vydavky"
+                deti={
+                  vydavky.length === 0 ? (
+                    <div className="prazdne">Zatiaľ žiadne výdavky.</div>
+                  ) : (
+                    <table className="dlazdica-tabulka">
+                      <tbody>
+                        {vydavky.map((v) => (
+                          <tr key={v.id} style={{ cursor: 'pointer' }} onClick={() => navigate('/vydavky')}>
+                            <td className="tlmene dl-pod" style={{ width: 92 }}>{skDatum(v.datum)}</td>
+                            <td className="dl-hlavne">
+                              <strong>{v.popis}</strong>
+                              {v.kategoria && <div className="tlmene" style={{ fontSize: 13 }}>{v.kategoria}</div>}
+                            </td>
+                            <td className="cislo dl-pravo">
+                              {skSuma(v.suma)}
+                              {v.odpocitat === 0 && <div className="tlmene" style={{ fontSize: 13, fontWeight: 500 }}>neuznateľný</div>}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )
+                }
+              />
+              <Sekcia
+                nadpis="Turnusy"
+                kam="/turnusy"
+                deti={
+                  turnusy.length === 0 ? (
+                    <div className="prazdne">
+                      Zatiaľ žiadne turnusy. <Link to="/turnusy/novy">Založ prvý</Link>.
+                    </div>
+                  ) : (
+                    <table className="dlazdica-tabulka">
+                      <tbody>
+                        {turnusy.slice(0, 5).map((t) => (
+                          <tr key={t.id} style={{ cursor: 'pointer' }} onClick={() => navigate('/turnusy/' + t.id)}>
+                            <td className="dl-hlavne">
+                              <strong>{t.nazov}</strong>
+                              <div className="tlmene" style={{ fontSize: 13 }}>
+                                {[t.miesto, t.krajina].filter(Boolean).join(', ') || t.firma_nazov || '—'}
+                              </div>
+                            </td>
+                            <td className="tlmene dl-pod" style={{ whiteSpace: 'nowrap' }}>
+                              {skDatum(t.datum_od)} – {skDatum(t.datum_do)}
+                            </td>
+                            <td className="dl-pravo">
+                              <span className={'stitok ' + STITOK_TURNUSU[t.stav]}>{NAZVY_STAVOV_TURNUSU[t.stav]}</span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )
+                }
+              />
+            </div>
+            <div className="stlpec-dlazdic">
+              <Sekcia
+                nadpis="Asistent"
+                kam="/asistent"
+                odkaz="Otvoriť asistenta"
+                deti={
+                  <>
+                    {konverzacie.length === 0 ? (
+                      <div className="prazdne">
+                        Zatiaľ žiadna otázka. <Link to="/asistent">Napíš, čo potrebuješ</Link> – asistent môže zapísať
+                        výdavok z fotky dokladu, vystaviť faktúru aj odpovedať na otázky o daniach a zmluvách.
+                      </div>
+                    ) : (
+                      <table className="dlazdica-tabulka">
+                        <tbody>
+                          {konverzacie.map((k) => (
+                            <tr key={k.id} style={{ cursor: 'pointer' }} onClick={() => navigate('/asistent')}>
+                              <td className="dl-hlavne">
+                                <strong>{k.nazov}</strong>
+                              </td>
+                              <td className="tlmene dl-pod" style={{ width: 100, whiteSpace: 'nowrap' }}>
+                                {pocet(k.pocet_sprav, ['správa', 'správy', 'správ'])}
+                              </td>
+                              <td className="tlmene dl-pravo" style={{ width: 90 }}>{skDatum(k.updated_at)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    )}
+                    <div className="dlazdica-pata">
+                      <Link className="tlacidlo maly" to="/asistent">
+                        <Ikona nazov="pomocnik" velkost={14} /> Nová otázka
+                      </Link>
+                      <Link className="tlacidlo maly" to="/danovy-podklad">
+                        <Ikona nazov="podklad" velkost={14} /> Daňový podklad
+                      </Link>
+                    </div>
+                  </>
+                }
+              />
+              <Sekcia
+                nadpis={`Výdavky podľa kategórií v roku ${ROK}`}
+                kam="/financie"
+                odkaz="Financie"
+                deti={
+                  kategorieRok.length === 0 ? (
+                    <div className="prazdne">Zatiaľ žiadne výdavky.</div>
+                  ) : (
+                    <table className="dlazdica-tabulka">
+                      <tbody>
+                        {kategorieRok.map((k) => (
+                          <tr key={k.kategoria}>
+                            <td className="dl-hlavne" style={{ width: 150 }}>{k.kategoria}</td>
+                            <td className="dl-cela">
+                              {/* Pruh je len orientačný – najväčšia kategória je plná šírka. */}
+                              <div className="pruh">
+                                <div
+                                  className="pruh-vypln"
+                                  style={{ width: (najvacsiaKategoria ? (k.suma / najvacsiaKategoria) * 100 : 0) + '%' }}
+                                />
+                              </div>
+                            </td>
+                            <td className="cislo dl-pravo" style={{ width: 110 }}>{skSuma(k.suma)}</td>
+                            <td className="cislo tlmene dl-skryt" style={{ width: 46, fontWeight: 500 }}>{k.pocet}×</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )
+                }
+              />
+            </div>
+          </div>
+        </>
+      )}
     </>
   )
 }

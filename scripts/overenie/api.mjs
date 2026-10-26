@@ -881,6 +881,20 @@ const turnusVKosi = (await api('GET', '/kos')).d.find((k) => k.tabulka === 'tour
 await api('POST', `/kos/${turnusVKosi.id}/obnovit`)
 t.over('turnus vrátený z koša má aj výkaz hodín', (await api('GET', `/turnusy/${tHodin}/hodiny`)).d.spolu_hodin, 60)
 
+// ── Výdavky turnusu ───────────────────────────────────────────
+// Rok 2019 – nič iné v testoch ho nepočíta, súčty za rok 2026 ostanú, ako boli.
+t.sekcia('Výdavky turnusu')
+const tVyd = (await api('POST', '/turnusy', { nazov: 'Turnus Graz', datum_od: '2019-03-04', datum_do: '2019-03-15' })).d.id
+await api('POST', '/vydavky', { datum: '2019-03-05', popis: 'Ubytovanie Graz', kategoria: 'Ubytovanie', suma: 300 })
+await api('POST', '/vydavky', { datum: '2019-03-06', popis: 'Nafta Graz', kategoria: 'Doprava', suma: 45.5, tour_id: tVyd })
+await api('POST', '/vydavky', { datum: '2019-03-07', popis: 'Vrátený preplatok', druh: 'prijem', suma: 80, tour_id: tVyd })
+await api('POST', '/vydavky', { datum: '2019-03-20', popis: 'Materiál po turnuse', kategoria: 'Materiál', suma: 10 })
+t.over(
+  'turnus spočíta, koľko sa na ňom minulo (aj výdavky priradené podľa dátumu, bez súkromných príjmov)',
+  [(await api('GET', `/turnusy/${tVyd}`)).d.vydavky, (await api('GET', '/turnusy')).d.find((x) => x.id === tVyd)?.vydavky],
+  [345.5, 345.5],
+)
+
 // ── Platiteľ DPH ──────────────────────────────────────────────
 t.sekcia('Platiteľ DPH')
 const staraFaktura = await faktura(f1)

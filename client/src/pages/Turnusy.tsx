@@ -206,6 +206,7 @@ export function Turnusy() {
                 dole={
                   <>
                     <span className={'stitok ' + STITOK_TURNUSU[t.stav]}>{NAZVY_STAVOV_TURNUSU[t.stav]}</span>
+                    {t.vydavky > 0 && <span>výdavky {skSuma(t.vydavky)}</span>}
                     {chyba > 0 && <span className="chyba-fakturacie">chýba {skSuma(chyba)}</span>}
                   </>
                 }
@@ -220,7 +221,7 @@ export function Turnusy() {
                 <th>Turnus</th>
                 <th>Firma</th>
                 <th>Obdobie</th>
-                <th className="cislo">Objednané</th>
+                <th className="cislo">Výdavky</th>
                 <th className="cislo">Vyfakturované</th>
                 <th>Stav</th>
                 <th style={{ width: 50 }}></th>
@@ -250,7 +251,7 @@ export function Turnusy() {
                       {dlzkaTurnusu(t.datum_od, t.datum_do)} dní
                     </div>
                   </td>
-                  <td className="cislo">{t.objednane ? skSuma(t.objednane) : <span className="tlmene">—</span>}</td>
+                  <td className="cislo">{t.vydavky ? skSuma(t.vydavky) : <span className="tlmene">—</span>}</td>
                   <td className="cislo">
                     {t.vyfakturovane ? skSuma(t.vyfakturovane) : <span className="tlmene">—</span>}
                     {t.objednane > 0 && t.vyfakturovane < t.objednane && (

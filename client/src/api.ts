@@ -235,6 +235,8 @@ export type Turnus = {
   zruseny: number; poznamka: string
   stav: StavTurnusu
   objednane: number; vyfakturovane: number; zaplatene: number; pocet_objednavok: number
+  /** Súčet výdavkov priradených k turnusu (bez súkromných príjmov). */
+  vydavky: number
   objednavky?: Objednavka[]
   faktury?: Pick<Faktura, 'id' | 'cislo' | 'typ' | 'datum_vystav' | 'datum_splat' | 'suma' | 'stav' | 'stav_zobraz'>[]
 }

@@ -520,6 +520,11 @@ await klik('.panel .riadok-akcii button', 0)
 // ── Výkaz hodín ───────────────────────────────────────────────
 t.sekcia('Výkaz hodín pri turnuse')
 await otvor(`/turnusy/${turnus}`)
+t.over(
+  'turnus ukazuje výdavky namiesto objednaného a pod súhrnom, na čo sa minulo',
+  await js(`[[...document.querySelectorAll('.karta .popis')].map((e) => e.textContent).filter((p) => ['Výdavky', 'Objednané'].includes(p)), [...document.querySelectorAll('.panel h2')].some((h) => h.textContent === 'Výdavky na turnuse'), document.querySelectorAll('.panel tbody td .farebny-cip').length]`),
+  [['Výdavky'], true, 2],
+)
 t.over('pri ukončenom turnuse bez hodín je výkaz zbalený', await js(`document.querySelector('details.vykaz-hodin')?.open`), false)
 await klik('details.vykaz-hodin > summary')
 await nastav('#sadzba-turnusu', '27.5')
@@ -843,9 +848,15 @@ t.over(
 )
 await otvor('/')
 t.over(
-  'dlaždice na Prehľade nič neorežú (stav turnusu, sumy)',
-  await js(`[...document.querySelectorAll('.dlazdica-tabulka td')].filter((td) => { const p = td.closest('.panel').getBoundingClientRect(); const r = td.getBoundingClientRect(); return r.width > 0 && r.right > p.right + 1 }).length`),
-  0,
+  'Prehľad na telefóne: navrchu rýchle akcie, pod nimi finančný prehľad a nič iné',
+  await js(`[...document.querySelectorAll('.prehlad-telefon > .panel h2')].map((h) => h.textContent).concat(document.querySelectorAll('.dlazdica').length)`),
+  ['Rýchle akcie', 'Finančný prehľad', 0],
+)
+await otvor('/asistent')
+t.over(
+  'Asistent na telefóne: konverzácie sú zbalené v jednom riadku',
+  await js(`(() => { const d = document.querySelector('details.ai-historia'); return [!!d, d?.open, d?.querySelector('summary').getBoundingClientRect().height >= 44] })()`),
+  [true, false, true],
 )
 // iPhone so zobrazenými lištami prehliadača má okno len asi 660 px na výšku.
 await cdp('Emulation.setDeviceMetricsOverride', { width: 390, height: 660, deviceScaleFactor: 1, mobile: true })

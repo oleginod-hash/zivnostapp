@@ -570,6 +570,8 @@ tbody tr { transition: background 0.15s; }
 tbody tr:hover { background: var(--hover); }
 .cislo { text-align: right; }
 th.cislo { text-align: right; }
+/* Riadok „Spolu" pod tabuľkou. */
+tfoot td { border-top: 1px solid var(--line); border-bottom: 0; }
 td.cislo { color: var(--ink); font-weight: 600; }
 
 .prazdne { padding: 38px 20px; text-align: center; color: var(--ink3); font-size: 14px; }
@@ -1276,6 +1278,26 @@ td.odberatel-bunka {
 .akcia.hlavna small { color: var(--naPrimar); opacity: 0.75; }
 .akcia.hlavna:hover { background: var(--primarHover); }
 
+/* Prehľad na telefóne: rýchle akcie navrchu ako tri dlaždice vedľa seba, pod nimi finančný prehľad
+   (ostatné časti Prehľadu sú len na počítači – Prehlad.tsx). */
+.prehlad-telefon { display: flex; flex-direction: column; gap: 14px; margin-bottom: 16px; }
+.prehlad-telefon > .panel { margin-bottom: 0; }
+.prehlad-telefon .rychle-akcie { padding: 14px 12px 12px; }
+.prehlad-telefon .rychle-akcie .nadpis-karty { margin: 0 4px 10px; }
+.prehlad-telefon .zoznam-akcii { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.prehlad-telefon .akcia {
+  flex-direction: column;
+  justify-content: center;
+  gap: 8px;
+  min-height: 96px;
+  padding: 12px 6px;
+  text-align: center;
+  font-size: 13px;
+  line-height: 1.25;
+  white-space: normal;
+}
+.prehlad-telefon .akcia small { display: none; }
+
 /* Vyžaduje pozornosť */
 .pozornost-hlavicka { display: flex; align-items: center; justify-content: space-between; padding: 15px 18px 12px; }
 .pozornost-hlavicka .nadpis-karty { margin: 0; }
@@ -1633,6 +1655,31 @@ td.odberatel-bunka {
 .ai-polozka:hover .zmazat,
 .ai-polozka.aktivna .zmazat,
 .ai-polozka .zmazat:focus-visible { opacity: 1; }
+
+/* Telefón: konverzácie v rozbaľovacom riadku nad rozhovorom (Asistent.tsx). */
+.ai-historia.skladacia { padding: 4px 8px; }
+.ai-stranka .ai-historia.skladacia { max-height: none; overflow: visible; }
+.ai-historia.skladacia > summary {
+  list-style: none;
+  cursor: pointer;
+  min-height: 44px;
+  padding: 0 8px;
+  gap: 8px;
+  justify-content: flex-start;
+}
+.ai-historia.skladacia > summary::-webkit-details-marker { display: none; }
+.ai-historia.skladacia > summary::after {
+  content: '';
+  margin-left: auto;
+  width: 8px;
+  height: 8px;
+  border-right: 2px solid var(--ink3);
+  border-bottom: 2px solid var(--ink3);
+  transform: rotate(45deg) translateY(-2px);
+  transition: transform 0.15s;
+}
+.ai-historia.skladacia[open] > summary::after { transform: rotate(-135deg) translateY(-2px); }
+.ai-historia-zoznam { max-height: 260px; overflow-y: auto; padding-bottom: 6px; }
 
 @media (max-width: 1100px) {
   .ai-rozlozenie { grid-template-columns: 1fr; }

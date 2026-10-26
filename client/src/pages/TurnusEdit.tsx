@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import {
-  api, dlzkaTurnusu, skDatum, skSuma, NAZVY_STAVOV_OBJEDNAVKY, STITOK_OBJEDNAVKY,
-  type Firma, type StravneTurnus, type Turnus,
+  api, dlzkaTurnusu, skDatum, skSuma, skSumaCela, NAZVY_STAVOV_OBJEDNAVKY, STITOK_OBJEDNAVKY,
+  type Firma, type StravneTurnus, type Turnus, type Vydavok,
 } from '../api'
 import { StitokStavu, StitokZalohy } from '../components/StitokStavu'
 import { useNeulozeneZmeny } from '../neulozene'
-import { Karticka } from '../components/Farby'
+import { FarebnyCip, Karticka, tonKategorie } from '../components/Farby'
 import { VykazHodin } from '../components/VykazHodin'
 import { FakturaVZozname } from '../components/FakturaKarta'
 import { MenuAkcii } from '../components/MenuAkcii'
@@ -36,6 +36,7 @@ export function TurnusEdit() {
   const [sprava, setSprava] = useState('')
   const [uklada, setUklada] = useState(false)
   const [stravne, setStravne] = useState<StravneTurnus | null>(null)
+  const [vydavky, setVydavky] = useState<Vydavok[] | null>(null)
   const [zapisujeStravne, setZapisujeStravne] = useState(false)
   const oznacUlozene = useNeulozeneZmeny(form, id ?? 'novy')
   const male = useMaleOkno()
@@ -81,6 +82,7 @@ export function TurnusEdit() {
         oznacUlozene(nacitany)
       })
       .catch((e) => setChyba(e.message))
+    api.get<Vydavok[]>(`/vydavky?turnus=${id}&druh=vydavok`).then(setVydavky).catch(() => {})
   }
 
   useEffect(() => {
@@ -94,6 +96,21 @@ export function TurnusEdit() {
   if (!form) return <div className="nacitava">Načítavam…</div>
 
   const uprav = (z: Partial<Formular>) => setForm({ ...form, ...z })
+
+  // Na čo sa na turnuse minulo – výdavky po kategóriách, od najväčšej sumy.
+  const podlaKategorie = Object.values(
+    (vydavky ?? []).reduce<Record<string, { kategoria: string; suma: number; pocet: number }>>((m, v) => {
+      const k = v.kategoria || 'Nezaradené'
+      m[k] ??= { kategoria: k, suma: 0, pocet: 0 }
+      m[k].suma += v.suma
+      m[k].pocet++
+      return m
+    }, {}),
+  ).sort((a, b) => b.suma - a.suma)
+  const naCo = podlaKategorie
+    .slice(0, 2)
+    .map((k) => `${k.kategoria.toLocaleLowerCase('sk')} ${skSumaCela(k.suma)}`)
+    .join(' · ')
 
   async function uloz() {
     setChyba('')
@@ -152,10 +169,61 @@ export function TurnusEdit() {
 
       {turnus && (
         <div className="karty kompaktne">
-          <Karticka ikona="objednavky" ton="akcent" popis="Objednané" hodnota={skSuma(turnus.objednane)} />
+          <Karticka ikona="vydavky" ton="akcent" popis="Výdavky" hodnota={skSuma(turnus.vydavky)} pod={naCo || undefined} />
           <Karticka ikona="faktury" ton="tyrkys" popis="Vyfakturované" hodnota={skSuma(turnus.vyfakturovane)} />
           <Karticka ikona="zaplatena" ton="pos" farebnaHodnota popis="Zaplatené" hodnota={skSuma(turnus.zaplatene)} />
           <Karticka ikona="kalendar" ton="neutral" popis="Dĺžka turnusu" hodnota={`${dlzkaTurnusu(turnus.datum_od, turnus.datum_do)} dní`} />
+        </div>
+      )}
+
+      {/* Na čo sa na turnuse minulo – hneď pod súhrnom, nie až pod dlhým výkazom hodín. */}
+      {!novyTurnus && turnus && (
+        <div className="panel tesny">
+          <div className="hlavicka-karty">
+            <h2 className="nadpis-karty">Výdavky na turnuse</h2>
+            <Link className="odkaz-karty" to={`/vydavky?turnus=${id}`}>
+              Zobraziť všetky →
+            </Link>
+          </div>
+          {!vydavky ? (
+            <div className="nacitava">Načítavam…</div>
+          ) : vydavky.length === 0 ? (
+            <div className="prazdne">
+              Na tento turnus zatiaľ nie je žiadny výdavok. Výdavky z dní turnusu sa k nemu priradia samy.
+            </div>
+          ) : (
+            <table>
+              <thead>
+                <tr>
+                  <th>Kategória</th>
+                  <th className="cislo">Počet</th>
+                  <th className="cislo">Suma</th>
+                </tr>
+              </thead>
+              <tbody>
+                {podlaKategorie.map((k) => (
+                  <tr key={k.kategoria}>
+                    <td>
+                      <FarebnyCip ton={tonKategorie(k.kategoria)}>{k.kategoria}</FarebnyCip>
+                    </td>
+                    <td className="cislo tlmene">{k.pocet}×</td>
+                    <td className="cislo">{skSuma(k.suma)}</td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr>
+                  <td>
+                    <strong>Spolu</strong>
+                  </td>
+                  <td className="cislo tlmene">{vydavky.length}×</td>
+                  <td className="cislo">
+                    <strong>{skSuma(turnus?.vydavky ?? 0)}</strong>
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
+          )}
         </div>
       )}
 

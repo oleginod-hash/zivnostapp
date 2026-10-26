@@ -4,6 +4,7 @@ import { Ikona, type KlucIkony } from '../components/Ikony'
 import type { Ton } from '../components/Farby'
 import { potvrd } from '../components/Oznamenia'
 import { zmensiFotku } from '../obrazky'
+import { useMaleOkno } from '../maleOkno'
 
 type Asistent = 'pomocnik' | 'uctovnik' | 'pravnik'
 
@@ -137,6 +138,9 @@ export function AsistentStranka() {
   const [stav, setStav] = useState<StavAi | null>(null)
   const [konverzacie, setKonverzacie] = useState<Konverzacia[]>([])
   const [aktivna, setAktivna] = useState<number | null>(null)
+  const male = useMaleOkno()
+  /** Na telefóne je zoznam konverzácií zbalený – rozhovor tak začína hneď pod hlavičkou. */
+  const [historiaOtvorena, setHistoriaOtvorena] = useState(false)
   const [spravy, setSpravy] = useState<Sprava[]>([])
   const [vstup, setVstup] = useState('')
   const [generuje, setGeneruje] = useState(false)
@@ -302,6 +306,32 @@ Prílohy: ${fotky.map((f) => f.nazov).join(', ')}` : ''
 
   const bezKluca = !stav?.dostupne
 
+  const zoznamKonverzacii =
+    konverzacie.length === 0 ? (
+      <p className="ai-historia-prazdne">Tu nájdeš svoje predchádzajúce otázky.</p>
+    ) : (
+      konverzacie.map((k) => (
+        <div key={k.id} className={'ai-polozka' + (aktivna === k.id ? ' aktivna' : '')}>
+          <button
+            className="ai-polozka-otvor"
+            onClick={() => {
+              setHistoriaOtvorena(false)
+              otvor(k.id)
+            }}
+            title={k.nazov}
+          >
+            <span className="ai-polozka-nazov">{k.nazov}</span>
+            <span className="ai-polozka-meta">
+              {skDatum(k.updated_at)} · {pocet(k.pocet_sprav, ['správa', 'správy', 'správ'])}
+            </span>
+          </button>
+          <button className="ikonove maly holy zmazat" title="Zmazať konverzáciu" onClick={() => zmazKonverzaciu(k)}>
+            <Ikona nazov="zmazat" velkost={14} />
+          </button>
+        </div>
+      ))
+    )
+
   return (
     <div className="ai-stranka">
       <div className="hlavicka">
@@ -460,30 +490,30 @@ Prílohy: ${fotky.map((f) => f.nazov).join(', ')}` : ''
           </div>
         </div>
 
-        <div className="ai-historia panel">
-          <div className="ai-historia-hlavicka">
-            <span>Konverzácie</span>
-            {konverzacie.length > 0 && <span className="pocet">{konverzacie.length}</span>}
+        {male ? (
+          // Telefón: konverzácie v rozbaľovacom riadku; po výbere konverzácie sa zbalí.
+          <details
+            className="ai-historia panel skladacia"
+            open={historiaOtvorena}
+            onToggle={(e) => setHistoriaOtvorena(e.currentTarget.open)}
+          >
+            <summary className="ai-historia-hlavicka">
+              <span>Konverzácie</span>
+              {konverzacie.length > 0 && <span className="pocet">{konverzacie.length}</span>}
+            </summary>
+            <div className="ai-historia-zoznam">{zoznamKonverzacii}</div>
+          </details>
+        ) : (
+          <div className="ai-historia panel">
+            <div className="ai-historia-hlavicka">
+              <span>Konverzácie</span>
+              {konverzacie.length > 0 && <span className="pocet">{konverzacie.length}</span>}
+            </div>
+            {zoznamKonverzacii}
           </div>
-          {konverzacie.length === 0 ? (
-            <p className="ai-historia-prazdne">Tu nájdeš svoje predchádzajúce otázky.</p>
-          ) : (
-            konverzacie.map((k) => (
-              <div key={k.id} className={'ai-polozka' + (aktivna === k.id ? ' aktivna' : '')}>
-                <button className="ai-polozka-otvor" onClick={() => otvor(k.id)} title={k.nazov}>
-                  <span className="ai-polozka-nazov">{k.nazov}</span>
-                  <span className="ai-polozka-meta">
-                    {skDatum(k.updated_at)} · {pocet(k.pocet_sprav, ['správa', 'správy', 'správ'])}
-                  </span>
-                </button>
-                <button className="ikonove maly holy zmazat" title="Zmazať konverzáciu" onClick={() => zmazKonverzaciu(k)}>
-                  <Ikona nazov="zmazat" velkost={14} />
-                </button>
-              </div>
-            ))
-          )}
-        </div>
+        )}
       </div>
     </div>
   )
 }
+
