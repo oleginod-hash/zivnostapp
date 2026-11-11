@@ -351,7 +351,7 @@ Prílohy: ${fotky.map((f) => f.nazov).join(', ')}` : ''
               pole.current?.focus()
             }}
           >
-            + Nová otázka
+            <span className="plus-znak">+</span> Nová otázka
           </button>
         </div>
       </div>

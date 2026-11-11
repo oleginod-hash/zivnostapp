@@ -67,7 +67,7 @@ export function Turnusy() {
         <h1>Turnusy</h1>
         <div className="akcie">
           <Link className="tlacidlo primar" to="/turnusy/novy">
-            + Nový turnus
+            <span className="plus-znak">+</span> Nový turnus
           </Link>
         </div>
       </div>

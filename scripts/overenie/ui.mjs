@@ -873,6 +873,19 @@ t.over(
   await js(`[...document.querySelectorAll('.prehlad-telefon > .panel h2')].map((h) => h.textContent).concat(document.querySelectorAll('.dlazdica').length)`),
   ['Rýchle akcie', 'Finančný prehľad', 0],
 )
+t.over(
+  'jediná limetková dlaždica Prehľadu je Zostatok',
+  await js(`[...document.querySelectorAll('.kpi-bunka.hlavna')].map((x) => x.querySelector('.kpi-popis')?.textContent.trim())`),
+  ['Zostatok'],
+)
+await zmeraj('Prehľad s limetkovou dlaždicou v telefóne')
+await otvor('/faktury')
+t.over(
+  'limetkové „+" nemení text hlavného tlačidla a počet pri vybranej záložke je čitateľný',
+  await js(`[document.querySelector('.hlavicka .primar')?.textContent.trim(), !!document.querySelector('.hlavicka .primar .plus-znak'), !!document.querySelector('.taby button.aktivny .pocet')]`),
+  ['+ Nová faktúra', true, true],
+)
+await zmeraj('Faktúry so záložkami v telefóne')
 await otvor('/asistent')
 t.over(
   'Asistent na telefóne: konverzácie sú zbalené v jednom riadku',

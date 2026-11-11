@@ -153,7 +153,7 @@ export function Faktury() {
         <div className="akcie">
           {!male && <button onClick={() => setSablonyOtvorene(true)}>Šablóny</button>}
           <Link className="tlacidlo primar" to="/faktury/nova">
-            + Nová faktúra
+            <span className="plus-znak">+</span> Nová faktúra
           </Link>
           {male && (
             <MenuAkcii

@@ -7,7 +7,7 @@
      Navrchu stránky jemný farebný opar – nič viac z prechodov.
    - Každá farba má jednu úlohu:
        čierna (v tmavej téme biela) pilulka = hlavná akcia,
-       limetková = kde práve si (menu, spodná lišta),
+       limetková = kde práve si (menu, spodná lišta) a pár drobných iskier (DESIGN.md),
        biela pilulka na sivej dráhe = vybraná možnosť (záložky, obdobie),
        zelená / červená / oranžová = zaplatené / dlh / blíži sa termín.
    - Tvary: karty 24 px (telefón 20 px), polia 14 px, tlačidlá a štítky
@@ -53,7 +53,14 @@
   --odkaz: #121214;
   --fokus: #121214;
   --fokusKruh: rgba(200, 242, 92, 0.65);
-  --kontrolka: #121214;
+  /* Zaškrtnuté políčko je limetkové s tmavou fajkou. */
+  --kontrolka: #c8f25c;
+  /* Ikona a znak „+" na čiernej pilulke – limetková iskra ako v logu. */
+  --naPrimarIkona: #c8f25c;
+  /* Texty na limetkovej ploche (hlavná dlaždica Prehľadu): drobný popis, nárast a pokles. */
+  --naAkcenteJemne: #3b4219;
+  --naAkcentePlus: #0f5a2e;
+  --naAkcenteMinus: #8f1d14;
   /* Čiara grafu a ukazovateľ priebehu – limetková by na bielej zanikla. */
   --graf: #121214;
   --grafPlocha: 0.7;
@@ -149,6 +156,11 @@
   --fokus: #c8f25c;
   --fokusKruh: rgba(200, 242, 92, 0.25);
   --kontrolka: #c8f25c;
+  /* Hlavné tlačidlo je v tmavej téme biele – limetková by sa na ňom nedala čítať. */
+  --naPrimarIkona: #121214;
+  --naAkcenteJemne: #3b4219;
+  --naAkcentePlus: #0f5a2e;
+  --naAkcenteMinus: #8f1d14;
   --graf: #c8f25c;
   --grafPlocha: 0.25;
   --grafDruhy: #6c6c75;
@@ -223,6 +235,8 @@ h1, h2, h3 { font-family: var(--font-nadpis); font-weight: 700; letter-spacing: 
 .cislo, .hodnota, .tabularne { font-variant-numeric: tabular-nums; white-space: nowrap; }
 
 :focus-visible { outline: 2px solid var(--fokus); outline-offset: 2px; }
+/* Označený text je limetkový – drobnosť, ktorá drží značkovú farbu aj tam, kde inak nie je. */
+::selection { background: var(--accent); color: var(--naAkcente); }
 
 .tlmene { color: var(--ink3); }
 
@@ -591,6 +605,8 @@ td.cislo { color: var(--ink); font-weight: 600; }
   color: var(--ton);
   margin-bottom: 14px;
 }
+/* Neutrálny prázdny stav (prvý krok v appke) má krúžok v značkovej farbe; zelený „všetko v poriadku" ostáva. */
+.prazdna-ikona.ton-akcent { background: var(--accent); color: var(--naAkcente); }
 .prazdny-nadpis { font-size: 16px; font-weight: 600; color: var(--ink); }
 .prazdny-text { max-width: 380px; margin: 6px auto 0; font-size: 13px; line-height: 1.55; color: var(--ink3); }
 .prazdna-akcia { margin-top: 16px; }
@@ -636,8 +652,14 @@ button.primar,
 .primar:hover,
 button.primar:hover,
 .tlacidlo.primar:hover { background: var(--primarHover); border-color: var(--primarHover); color: var(--naPrimar); }
+/* Stlačenie hlavného tlačidla blikne limetkovou – odozva, ktorú vidno aj na telefóne. */
 button.primar:active:not(:disabled),
-.tlacidlo.primar:active { background: var(--primarHover); }
+.tlacidlo.primar:active { background: var(--accent); border-color: var(--accent); color: var(--naAkcente); }
+/* Ikona a znak „+" na čiernej pilulke sú limetkové (v tmavej téme ostávajú tmavé na bielej). */
+.primar svg, .primar .plus-znak, .ai-odoslat:not(:disabled) svg { color: var(--naPrimarIkona); }
+.primar:active svg, .primar:active .plus-znak { color: var(--naAkcente); }
+button.primar:disabled svg { color: inherit; }
+.plus-znak { font-weight: 700; }
 /* Vypnuté hlavné tlačidlo je sivé – priesvitná žltozelená by v tmavej téme pôsobila ako špinavá olivová. */
 button.primar:disabled { background: var(--soft); border-color: var(--line); color: var(--ink3); opacity: 1; }
 
@@ -982,7 +1004,8 @@ tr.vybrany > td { background: var(--accentBg); }
   color: var(--ink2);
   font-variant-numeric: tabular-nums;
 }
-.taby button.aktivny .pocet { background: var(--soft); color: var(--ink2); }
+/* Počet pri vybranej záložke je limetkový – „kde práve si". */
+.taby button.aktivny .pocet { background: var(--accent); color: var(--naAkcente); }
 
 /* ── Ukazovatele ─────────────────────────────────────────────── */
 .pruh { height: 6px; background: var(--track); border-radius: 999px; overflow: hidden; }
@@ -1186,6 +1209,13 @@ a.kpi-bunka:hover { text-decoration: none; background: var(--soft2); }
 .kpi-meta { font-size: 12px; color: var(--ink3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* Centy a mena pri veľkej sume drobnejšie – celé eurá sú to, čo treba vidieť. */
 .kpi-hodnota .centy { font-size: 0.6em; letter-spacing: -0.01em; margin-left: 1px; }
+/* Hlavná dlaždica (Zostatok – to, čo z peňazí naozaj ostalo) je jediná limetková plocha Prehľadu. */
+.kpi-bunka.hlavna { background: var(--accent); }
+a.kpi-bunka.hlavna:hover { background: var(--accentHover); }
+.kpi-bunka.hlavna .kpi-hodnota { color: var(--naAkcente); }
+.kpi-bunka.hlavna .kpi-popis, .kpi-bunka.hlavna .kpi-meta { color: var(--naAkcenteJemne); }
+.kpi-bunka.hlavna .plus { color: var(--naAkcentePlus); }
+.kpi-bunka.hlavna .minus { color: var(--naAkcenteMinus); }
 .kpi-bunka .pruh { margin-top: 10px; }
 .plus { color: var(--pos); font-weight: 700; }
 .minus { color: var(--neg); font-weight: 700; }
@@ -1828,7 +1858,7 @@ button.volba.vybrana { border-color: var(--fokus); background: var(--accentBg); 
   color: var(--ink2);
   text-decoration: none;
 }
-.termin-polozka:hover { background: var(--hover); text-decoration: none; color: var(--ink2); }
+.termin-polozka:hover { background: var(--accentBg); text-decoration: none; color: var(--ink2); }
 .termin-datum {
   flex: 0 0 auto;
   width: 44px;
@@ -1988,7 +2018,7 @@ tr.tlmeny-riadok td, tr.tlmeny-riadok td strong { color: var(--ink3); }
 .zaznam:first-child { border-top-left-radius: var(--r-karta); border-top-right-radius: var(--r-karta); }
 .zaznam:last-child { border-bottom-left-radius: var(--r-karta); border-bottom-right-radius: var(--r-karta); }
 .zaznam.otvaraci { cursor: pointer; }
-.zaznam.otvaraci:hover { background: var(--hover); }
+.zaznam.otvaraci:hover { background: var(--accentBg); }
 /* Tlačidlo, ktoré je naoko menšie, no plocha na ťuknutie má 44 px (napr. prepínač obdobia). */
 .plocha-44 { position: relative; }
 .plocha-44::after { content: ''; position: absolute; left: 0; right: 0; top: 50%; height: 44px; transform: translateY(-50%); }

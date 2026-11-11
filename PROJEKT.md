@@ -131,6 +131,28 @@ technické – nevracať sa k nim. Pravidlá farieb a tvarov sú v DESIGN.md a n
 5. Balík pre účtovníčku (ZIP s dokladmi) – *zatiaľ nie*.
 6. Šifrovaná záloha mimo počítača – *zatiaľ nie*.
 
+Návrhy z 11. 11. 2026 – ohodnotené 1 – 5 z pohľadu živnostníka na turnuse (T), toho, kto rieši
+papiere (P), účtovníčky (Ú) a nového zákazníka (N); ešte neprebrané s používateľom:
+
+7. Pás „po splatnosti" na Prehľade v telefóne – po zjednodušení Prehľadu tam dlžníkov nevidno
+   (T5 P5 Ú1 N4, práca malá, riziko nízke).
+8. Poslať faktúru cez zdieľanie v telefóne (WhatsApp, e-mail…) – PDF cez systémové „Zdieľať"
+   (T5 P4 Ú1 N5, práca malá, riziko nízke).
+9. Stráženie obratu pre registráciu DPH – upozornenie, keď sa príjmy blížia k hranici
+   (T4 P5 Ú4 N5, práca malá, riziko stredné – hranicu a spôsob počítania overiť s účtovníčkou).
+10. Číslo faktúry priamo navrchu formulára, nie pod „Viac údajov" (T4 P4 Ú2 N3, práca malá, riziko nízke).
+11. Opakované výdavky (odvody, telefón, poistenie) – appka ich každý mesiac navrhne
+    (T4 P5 Ú3 N4, práca stredná, riziko nízke).
+12. QR kód so zostatkom pri čiastočne uhradenej faktúre a „Ukázať QR na displeji"
+    (T3 P3 Ú1 N4, práca malá, riziko nízke). Dnes je v QR vždy celá suma faktúry.
+13. Podpis výkazu hodín prstom na displeji (T5 P2 Ú1 N4, práca stredná, riziko nízke).
+14. Faktúra v nemčine alebo angličtine pre zahraničného odberateľa
+    (T4 P3 Ú2 N5, práca stredná, riziko stredné – preklady a náležitosti).
+15. Ukážkový režim s vymyslenými údajmi – na predvedenie appky ďalším ľuďom
+    (T2 P1 Ú1 N5, práca stredná, riziko nízke).
+16. Orientačný odhad dane a odvodov (T5 P5 Ú2 N5, práca veľká, riziko vysoké – pravidlá sa menia
+    každý rok a appka dnes daň zámerne nepočíta; len po dohode s používateľom a účtovníčkou).
+
 ### Známe nedostatky na opravu
 
 1. Platiteľ DPH: zálohová faktúra nie je daňový doklad – daňový doklad k prijatej platbe

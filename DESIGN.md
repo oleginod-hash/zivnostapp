@@ -104,8 +104,14 @@ Sumy vždy `tabular-nums`, zarovnané vpravo, jednotka „€" za číslom.
 Každá farba má jednu úlohu – farba vždy niečo znamená, nie je ozdoba:
 
 - **Čierna pilulka** (v tmavom režime biela, `--primar`) = hlavná akcia obrazovky. Jedna na obrazovku.
-- **Limetková** (`--accent`) = „kde práve si": aktívna položka v menu a v spodnej lište, zvýraznený
-  výsledok hľadania, otvorená konverzácia. Nie tlačidlá, nie pozadie informácií.
+- **Limetková** (`--accent`) = „kde práve si": aktívna položka v menu a v spodnej lište, počet pri
+  vybranej záložke, zvýraznený výsledok hľadania, otvorená konverzácia, riadok pod kurzorom.
+  K tomu pár drobných iskier, aby značkovú farbu bolo vidno na každej obrazovke (želanie používateľa,
+  november 2026): znak „+" a ikona na čiernej pilulke (`.plus-znak`, len svetlý režim – na bielej
+  pilulke tmavého režimu by sa nedala čítať), krátke bliknutie pri stlačení hlavného tlačidla,
+  zaškrtnuté políčko, označený text, krúžok pri prázdnom zozname. Jediná **limetková plocha** je
+  dlaždica **Zostatok** na Prehľade (`.kpi-bunka.hlavna`) – text na nej je tmavý (`--naAkcente`,
+  `--naAkcenteJemne`). Nie ďalšie plochy, nie tlačidlá, nie text na svetlom podklade.
 - **Biela pilulka na sivej dráhe** (`--vyber` na `--track`) = vybraná možnosť: záložky, prepínač
   obdobia, prepínač režimu.
 - **Zelená** = prišli peniaze, uhradené. **Červená** = dlh po splatnosti, mazanie.

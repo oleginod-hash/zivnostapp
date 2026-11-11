@@ -416,7 +416,7 @@ export function Vydavky() {
             </button>
           )}
           <button className="primar" onClick={() => otvorNovy()}>
-            {prijem ? '+ Nový súkromný príjem' : '+ Nový výdavok'}
+            <span className="plus-znak">+</span> {prijem ? 'Nový súkromný príjem' : 'Nový výdavok'}
           </button>
           {male && (
             <MenuAkcii
@@ -904,7 +904,7 @@ export function Vydavky() {
             }
             akcia={
               <button className="primar" onClick={() => otvorNovy()}>
-                {prijem ? '+ Nový súkromný príjem' : '+ Nový výdavok'}
+                <span className="plus-znak">+</span> {prijem ? 'Nový súkromný príjem' : 'Nový výdavok'}
               </button>
             }
           />

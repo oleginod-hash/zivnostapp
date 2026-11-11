@@ -402,7 +402,7 @@ export function Prehlad() {
               : 'zatiaľ žiadne'}
           </div>
         </Link>
-        <Link className="kpi-bunka" to="/financie">
+        <Link className="kpi-bunka hlavna" to="/financie">
           <div className="kpi-popis">Zostatok</div>
           <div className="kpi-hodnota"><VelkaSuma n={financie?.zisk ?? 0} /></div>
           <div

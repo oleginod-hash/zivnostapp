@@ -99,7 +99,7 @@ export function Zmluvy() {
         <h1>Zmluvy</h1>
         <div className="akcie">
           <Link className="tlacidlo primar" to="/zmluvy/nova">
-            + Nová zmluva
+            <span className="plus-znak">+</span> Nová zmluva
           </Link>
         </div>
       </div>

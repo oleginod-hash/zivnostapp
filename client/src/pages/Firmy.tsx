@@ -128,7 +128,7 @@ export function Firmy() {
             </button>
           )}
           <button className="primar" onClick={() => otvor({ ...PRAZDNA })}>
-            + Nová firma
+            <span className="plus-znak">+</span> Nová firma
           </button>
           {male && (
             <MenuAkcii

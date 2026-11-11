@@ -63,7 +63,7 @@ export function Objednavky() {
         <h1>Objednávky</h1>
         <div className="akcie">
           <Link className="tlacidlo primar" to="/objednavky/nova">
-            + Nová objednávka
+            <span className="plus-znak">+</span> Nová objednávka
           </Link>
         </div>
       </div>
