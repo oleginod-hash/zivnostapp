@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api, skDatum, skSuma } from '../api'
 import { mozemOdist } from '../neulozene'
+import { Ikona, type KlucIkony } from './Ikony'
 
 type Typ = 'faktura' | 'zmluva' | 'firma' | 'turnus' | 'objednavka' | 'vydavok'
 
@@ -15,13 +16,14 @@ type Vysledok = {
   suma: number | null
 }
 
-const IKONY: Record<Typ, string> = {
-  faktura: '🧾',
-  zmluva: '📁',
-  firma: '🏢',
-  turnus: '✈️',
-  objednavka: '📋',
-  vydavok: '🧮',
+// Rovnaké ikony ako v menu – výsledok hľadania tak na prvý pohľad povie, kam patrí.
+const IKONY: Record<Typ, KlucIkony> = {
+  faktura: 'faktury',
+  zmluva: 'zmluvy',
+  firma: 'firmy',
+  turnus: 'turnusy',
+  objednavka: 'objednavky',
+  vydavok: 'vydavky',
 }
 
 const NAZVY: Record<Typ, string> = {
@@ -130,7 +132,9 @@ export function Hladanie() {
                 onMouseEnter={() => setZvyraznene(i)}
                 onClick={() => otvor(v)}
               >
-                <span className="hladanie-ikona">{IKONY[v.typ]}</span>
+                <span className="hladanie-ikona">
+                  <Ikona nazov={IKONY[v.typ]} velkost={15} />
+                </span>
                 <span className="hladanie-text">
                   <span className="hladanie-nadpis">{v.nadpis}</span>
                   <span className="hladanie-popis">

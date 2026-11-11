@@ -653,6 +653,17 @@ t.over(
 await otvor('/upomienky')
 t.over('Upomienky nespomínajú nastavenie SMTP', await js(`document.querySelector('.obsah').textContent.includes('SMTP')`), false)
 
+t.sekcia('Hľadanie')
+await otvor('/')
+await nastav('.hladanie-pole', 'Nov')
+await pockaj(() => js(`!!document.querySelector('.hladanie-polozka')`), 5000)
+t.over(
+  'výsledky hľadania majú ikony appky ako v menu, nie obrázkové znaky',
+  await js(`(() => { const v = [...document.querySelectorAll('.hladanie-ikona')]; return [v.length > 0, v.every((x) => !!x.querySelector('svg') && x.textContent.trim() === '')] })()`),
+  [true, true],
+)
+await nastav('.hladanie-pole', '')
+
 t.sekcia('Otázky vo vlastnom okne')
 await otvor('/faktury/nova')
 await js(`(() => { const e = document.querySelector('.obsah input:not([type=date])'); e.focus(); e.select?.(); return true })()`)
@@ -772,6 +783,16 @@ t.over(
   'súčty vo Financiách sú v telefóne jeden zoznam pod sebou',
   await js(`(() => { const k = [...document.querySelectorAll('.karty.kompaktne > .karticka')].map((x) => x.getBoundingClientRect()); return k.length > 2 && k.every((x) => Math.round(x.left) === Math.round(k[0].left)) })()`),
   true,
+)
+t.over(
+  'výdavky podľa kategórií sú pruhy od najväčšej (tá má plný pruh), bez koláčového grafu',
+  await js(`(() => { const p = [...document.querySelectorAll('.kategorie-vydavkov .pruh-vypln')].map((x) => parseFloat(x.style.width)); return [p.length > 0, p[0] === 100, p.every((x, i) => i === 0 || x <= p[i - 1]), !document.querySelector('.recharts-pie')] })()`),
+  [true, true, true, true],
+)
+t.over(
+  'graf po mesiacoch má príjmy a výdavky vo farbách vzhľadu, nie v cudzích',
+  await js(`[...document.querySelectorAll('.recharts-bar-rectangle path')].map((x) => x.getAttribute('fill')).filter((f, i, v) => v.indexOf(f) === i).sort()`),
+  ['var(--graf)', 'var(--grafDruhy)'],
 )
 await otvor('/faktury')
 await klik('.spodne-menu button')

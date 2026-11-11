@@ -273,8 +273,9 @@ zaplatenie", ani v príjmoch, ani v upomienkach.
 
 ### Vzhľad
 
-Farby, písmo a rozloženie vychádzajú z návrhu *Živnosťapp Dashboard* z Claude Design. Písma
-(Manrope a Barlow Condensed) aj ikony (Lucide) sú pribalené priamo v appke, takže všetko funguje
+Moderný vzhľad podľa bankových a platobných appiek – biele zaoblené karty, tlačidlá ako pilulky,
+veľké čísla a plávajúca spodná lišta na telefóne (pravidlá sú v [DESIGN.md](DESIGN.md)). Písmo
+(Instrument Sans) aj ikony (Lucide) sú pribalené priamo v appke, takže všetko funguje
 aj bez internetu. Všetky farby sú na jednom mieste na začiatku `client/src/styles.css` – tmavý
 režim je len iná sada tých istých premenných.
 

@@ -63,7 +63,8 @@ client/src/
 
 - **Faktúry:** zálohové aj bežné, čiastočné platby, krytie starého dlhu zálohou, PDF s QR kódom,
   odoslanie mailom, šablóny, splatnosť v kalendárnych alebo pracovných dňoch.
-- **Turnusy:** obdobie práce u firmy, naviazané objednávky, faktúry a výdavky, stravné, dni v krajine.
+- **Turnusy:** obdobie práce u firmy, naviazané objednávky, faktúry a výdavky, stravné, dni v krajine;
+  pri turnuse aj v zozname vidno, koľko sa na ňom minulo a na čo (výdavky podľa kategórií).
 - **Výdavky:** kategórie, daňová uznateľnosť, doklady (fotky/PDF), súkromné príjmy oddelene.
 - **Financie a daňový podklad:** príjmy podľa platieb, výdavky, zisk, Excel a CSV pre účtovníčku.
 - **Výpis z banky:** CSV z internet bankingu, platby sa párujú k faktúram podľa VS a sumy,
@@ -82,7 +83,8 @@ client/src/
   odvody a zmluvy. Mazať nevie; všetko, čo zapíše, sa dá vrátiť.
 - **Prvé spustenie:** sprievodca s piatimi otázkami (údaje z registra podľa IČO), Nastavenia
   rozdelené na údaje na faktúru a zloženú časť pre účtovníčku.
-- **Telefón:** pod 820 px spodná lišta, vysúvacie menu a tabuľky ako karty; prístup cez
+- **Telefón:** pod 820 px plávajúca spodná lišta, vysúvacie menu a tabuľky ako karty; Prehľad len
+  s rýchlymi akciami a finančným prehľadom, konverzácie asistenta v rozbaľovacej časti; prístup cez
   Tailscale s QR kódom, „Pridať na plochu" (manifest a ikony), odfotenie dokladu cez QR.
 - **Drobnosti:** globálne hľadanie bez diakritiky, skrytie súm, denná záloha, kôš,
   „Vrátiť späť" po ručných akciách, tmavý režim.
@@ -100,11 +102,16 @@ prípadné s.r.o. sa líšia len voľbami v Nastaveniach), logo, vzhľady PDF a 
 
 ### Rozrobené
 
-- **Dizajn** – rozloženie podľa DESIGN.md je hotové na všetkých obrazovkách (karty v troch riadkoch,
-  Filter, lepkavé Uložiť, dotykové plochy 44 px – kontroluje `npm run overenie`). Ďalší krok je nový
-  **vzhľad** (menej „AI" – vzor Ramp: papierový podklad, bez tieňov, jeden výrazný akcent); zvažuje sa
-  skúška v samostatnej vetve, aby pôvodná appka ostala, ako je.
-- **Prehľad** – väčšie preusporiadanie až podľa testu s ľuďmi.
+- **Prehľad** – väčšie preusporiadanie na počítači až podľa testu s ľuďmi.
+
+### Dizajn (hotové, november 2026)
+
+Rozloženie podľa DESIGN.md je na všetkých obrazovkách (záznamy v troch riadkoch, Filter, lepkavé
+Uložiť, dotykové plochy 44 px – kontroluje `npm run overenie`). Nový **vzhľad** vznikol na skúšku
+vo vetve `dizajn-ramp` a po schválení používateľom prešiel do `main`: moderný štýl podľa bankových
+a platobných appiek (pilulky, veľké čísla, plávajúca spodná lišta, limetkový akcent, písmo
+Instrument Sans). Dva skoršie pokusy (vzor Ramp, „účtovná kniha") používateľ odmietol ako príliš
+technické – nevracať sa k nim. Pravidlá farieb a tvarov sú v DESIGN.md a na začiatku `styles.css`.
 
 ### Budúce kroky (ešte prebrať s používateľom)
 

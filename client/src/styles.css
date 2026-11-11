@@ -57,6 +57,8 @@
   /* Čiara grafu a ukazovateľ priebehu – limetková by na bielej zanikla. */
   --graf: #121214;
   --grafPlocha: 0.7;
+  /* Druhý rad v grafe (výdavky) – sivý, no stále aspoň 3 : 1 voči karte. */
+  --grafDruhy: #8e8e98;
 
   /* Stavy – zelená prišli peniaze, červená dlh a mazanie, oranžová blíži sa termín. */
   --pos: #1d7443;
@@ -149,6 +151,7 @@
   --kontrolka: #c8f25c;
   --graf: #c8f25c;
   --grafPlocha: 0.25;
+  --grafDruhy: #6c6c75;
 
   --pos: #6fd39a;
   --posBg: #15301f;
@@ -716,6 +719,8 @@ input[type='date'], input[type='time'], input[type='month'] {
 input::-webkit-date-and-time-value { text-align: left; margin: 0; }
 input[type='color'] { padding: 3px; cursor: pointer; }
 textarea { resize: vertical; min-height: 62px; line-height: 1.5; }
+/* Pole v bunke tabuľky (položky faktúry) je úzke – menší okraj, aby sa krátky text („hod") neorezal. */
+td > input:not([type='checkbox']):not([type='radio']), td > select { padding-left: 9px; padding-right: 9px; }
 
 .mriezka { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); }
 .mriezka.dva { grid-template-columns: 1fr 1fr; }
@@ -1464,8 +1469,8 @@ td.odberatel-bunka {
   transition: border-color 0.15s, background 0.15s, transform 0.15s;
 }
 .ai-priklad:hover:not(:disabled) {
-  border-color: var(--accentLine);
-  background: var(--accentBg);
+  border-color: var(--lineStrong);
+  background: var(--hover);
   color: var(--ink);
   transform: translateY(-1px);
 }
@@ -1495,8 +1500,7 @@ td.odberatel-bunka {
 .ai-sprava { display: flex; gap: 11px; margin-bottom: 18px; font-size: 14px; line-height: 1.65; color: var(--ink); }
 .ai-sprava.user { justify-content: flex-end; }
 .ai-bublina {
-  background: var(--accentBg);
-  border: 1px solid var(--accentLine);
+  background: var(--soft);
   color: var(--ink);
   padding: 10px 14px;
   border-radius: 20px 20px 6px 20px;
@@ -1597,9 +1601,9 @@ td.odberatel-bunka {
   align-items: center;
   gap: 5px;
   padding: 2px 4px 2px 10px;
-  background: var(--accentBg);
-  border: 1px solid var(--accentLine);
-  color: var(--accentInk);
+  background: var(--soft);
+  border: 1px solid var(--line);
+  color: var(--ink2);
   border-radius: 999px;
   font-size: 12px;
   font-weight: 600;
@@ -2312,7 +2316,9 @@ details.skladaci > summary:focus-visible { outline: 2px solid var(--fokus); outl
   /* Prepínače obdobia (Prehľad, Termíny): naoko menšie, no prst trafí plochu 44 px. */
   .segment button { position: relative; min-height: 34px; min-width: 0; padding: 0 12px; font-size: 13px; }
   .segment button::after { content: ''; position: absolute; left: 0; right: 0; top: 50%; height: 44px; transform: translateY(-50%); }
-  .mini-prepinac { min-height: 44px; }
+  /* Prepínač pri popise poľa ostáva malý (inak by prekryl popis), prst trafí plochu 44 px okolo. */
+  .mini-prepinac { position: relative; min-height: 0; padding: 3px 9px 3px 5px; }
+  .mini-prepinac::after { content: ''; position: absolute; left: -6px; right: -6px; top: 50%; height: 44px; transform: translateY(-62%); }
   .cip { min-height: 44px; }
   details.skladaci > summary { min-height: 44px; }
   .viac-udajov > summary { min-height: 44px; padding-top: 10px; padding-bottom: 10px; }
@@ -2545,10 +2551,13 @@ details.skladaci > summary:focus-visible { outline: 2px solid var(--fokus); outl
     margin: 16px -14px 0;
     padding: 10px 14px;
     background: var(--bg);
-    border-top: 1px solid var(--line);
   }
+  /* Nad lištou sa obsah stráca do podkladu, pod ňou (za plávajúcim menu) nič neprebleskuje. */
+  .lepkave-akcie::before { content: ''; position: absolute; left: 0; right: 0; bottom: 100%; height: 18px; background: linear-gradient(to top, var(--bg), transparent); pointer-events: none; }
+  .lepkave-akcie::after { content: ''; position: absolute; left: 0; right: 0; top: 100%; height: calc(84px + env(safe-area-inset-bottom)); background: var(--bg); pointer-events: none; }
+  .panel .lepkave-akcie::before, .panel .lepkave-akcie::after { display: none; }
   /* Formulár v paneli (výdavok, firma, turnus): lišta sa lepí na spodok, kým je panel na obrazovke. */
-  .panel .lepkave-akcie { margin: 16px -14px -16px; padding: 10px 14px; background: var(--panel); border-radius: 0 0 var(--r-karta) var(--r-karta); }
+  .panel .lepkave-akcie { margin: 16px -14px -16px; padding: 10px 14px; background: var(--panel); border-top: 1px solid var(--line); border-radius: 0 0 var(--r-karta) var(--r-karta); }
   .lepkave-akcie .primar { flex: 1 1 auto; justify-content: center; min-height: 48px; font-size: 15px; }
   .lepkave-akcie .tlacidlo { min-height: 48px; }
 

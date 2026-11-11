@@ -1,19 +1,13 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useSkryteSumy } from '../components/SkryteSumy'
-import { Karticka } from '../components/Farby'
+import { FarebnyCip, Karticka, tonKategorie } from '../components/Farby'
 import { RezervaNaDane } from '../components/Rezerva'
-import {
-  Bar, BarChart, CartesianGrid, Cell, Legend, Pie, PieChart,
-  ResponsiveContainer, Tooltip, XAxis, YAxis,
-} from 'recharts'
+import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import {
   api, pocet, skDatum, skSuma, suSumySkryte, SKRYTA_SUMA,
   type DniVKrajine, type KategoriaVydavkov, type MesacneFinancie, type PrehladFinancii, type ZiskTurnusu,
 } from '../api'
-
-/** Farby kategórií – od akcentu appky cez tlmené odtiene, čitateľné v oboch témach. */
-const FARBY = ['#3a60dd', '#2f9e8f', '#8b6fd6', '#d08a3e', '#4ea56f', '#d0605a', '#5b8fd9', '#8a94a6', '#c26aa0', '#6aa84f']
 
 const eur = (n: unknown) => skSuma(Number(n) || 0)
 const kratkeEur = (n: number) =>
@@ -43,6 +37,7 @@ export function Financie() {
     api.get<DniVKrajine>('/stravne/dni?rok=' + rok).then(setDni).catch(() => {})
   }, [rok])
 
+  const najvacsiaKategoria = Math.max(0, ...kategorie.map((k) => k.suma))
   const maDataMesacne = mesacne.some((m) => m.prijmy > 0 || m.vydavky > 0)
 
   return (
@@ -161,7 +156,7 @@ export function Financie() {
           <div className="prazdne">Za rok {rok} zatiaľ nie sú žiadne dáta.</div>
         ) : (
           <ResponsiveContainer key={skryte ? "skryte" : "viditelne"} width="100%" height={300}>
-            <BarChart data={mesacne} margin={{ top: 8, right: 8, left: 8, bottom: 0 }}>
+            <BarChart data={mesacne} margin={{ top: 8, right: 8, left: 8, bottom: 0 }} barGap={2}>
               <CartesianGrid vertical={false} />
               <XAxis dataKey="mesiac" tick={{ fontSize: 13 }} axisLine={false} tickLine={false} tickMargin={8} />
               <YAxis tickFormatter={kratkeEur} tick={{ fontSize: 13 }} axisLine={false} tickLine={false} width={70} />
@@ -171,69 +166,50 @@ export function Financie() {
                 contentStyle={{ fontSize: 13 }}
               />
               <Legend formatter={(v) => (v === 'prijmy' ? 'Príjmy' : 'Výdavky')} />
-              <Bar dataKey="prijmy" fill="#3a60dd" radius={[5, 5, 0, 0]} />
-              <Bar dataKey="vydavky" fill="#4ea56f" radius={[5, 5, 0, 0]} />
+              {/* Príjmy vo farbe grafov appky, výdavky sivé – zelená v appke znamená „prišli peniaze". */}
+              <Bar dataKey="prijmy" fill="var(--graf)" radius={[4, 4, 0, 0]} maxBarSize={30} />
+              <Bar dataKey="vydavky" fill="var(--grafDruhy)" radius={[4, 4, 0, 0]} maxBarSize={30} />
             </BarChart>
           </ResponsiveContainer>
         )}
       </div>
 
-      <div className="panel">
-        <h2>Výdavky podľa kategórií</h2>
+      {/* Kategórie zoradené od najväčšej – pruh ukazuje pomer k najväčšej, rovnako ako na Prehľade.
+          (Koláčový graf pri viacerých podobných kategóriách zle ukazoval rozdiely a potreboval desať farieb.) */}
+      <div className="panel tesny">
+        <div className="hlavicka-karty">
+          <h2 className="nadpis-karty">Výdavky podľa kategórií</h2>
+        </div>
         {kategorie.length === 0 ? (
           <div className="prazdne">
             Za rok {rok} nemáš zapísané žiadne výdavky. <Link to="/vydavky">Pridaj prvý</Link>.
           </div>
         ) : (
-          <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap', alignItems: 'center' }}>
-            <div style={{ flex: '1 1 300px', minWidth: 260 }}>
-              <ResponsiveContainer key={skryte ? "skryte" : "viditelne"} width="100%" height={260}>
-                <PieChart>
-                  <Pie
-                    data={kategorie}
-                    dataKey="suma"
-                    nameKey="kategoria"
-                    innerRadius={55}
-                    outerRadius={100}
-                    paddingAngle={2}
-                  >
-                    {kategorie.map((_, i) => (
-                      <Cell key={i} fill={FARBY[i % FARBY.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip
-                    formatter={((v: unknown) => eur(v)) as never}
-                    contentStyle={{ fontSize: 13 }}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-            <div style={{ flex: '1 1 320px' }}>
-              <table>
-                <tbody>
-                  {kategorie.map((k, i) => (
-                    <tr key={k.kategoria}>
-                      <td style={{ width: 20 }}>
-                        <span
-                          style={{
-                            display: 'inline-block', width: 11, height: 11, borderRadius: 3,
-                            background: FARBY[i % FARBY.length],
-                          }}
-                        />
-                      </td>
-                      <td>{k.kategoria}</td>
-                      <td className="tlmene" style={{ width: 70 }}>
-                        {k.pocet}×
-                      </td>
-                      <td className="cislo">
-                        <strong>{skSuma(k.suma)}</strong>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
+          <table className="dlazdica-tabulka kategorie-vydavkov">
+            <tbody>
+              {kategorie.map((k) => (
+                <tr key={k.kategoria}>
+                  <td className="dl-hlavne" style={{ width: 230 }}>
+                    <FarebnyCip ton={tonKategorie(k.kategoria)}>{k.kategoria}</FarebnyCip>
+                  </td>
+                  <td className="dl-cela">
+                    <div className="pruh">
+                      <div
+                        className="pruh-vypln"
+                        style={{ width: (najvacsiaKategoria ? (k.suma / najvacsiaKategoria) * 100 : 0) + '%' }}
+                      />
+                    </div>
+                  </td>
+                  <td className="cislo dl-pravo" style={{ width: 130 }}>
+                    <strong>{skSuma(k.suma)}</strong>
+                  </td>
+                  <td className="cislo tlmene dl-skryt" style={{ width: 60, fontWeight: 500 }}>
+                    {k.pocet}×
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         )}
       </div>
 
