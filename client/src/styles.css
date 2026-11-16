@@ -182,7 +182,7 @@
 
   --oparA: rgba(200, 242, 92, 0.1);
   --oparB: rgba(120, 140, 255, 0.12);
-  --skloHlavicka: rgba(14, 14, 16, 0.78);
+  --skloHlavicka: rgba(11, 12, 10, 0.16);
   --skloLista: rgba(30, 30, 34, 0.86);
 
   --shadow-vyber: 0 1px 3px rgba(0, 0, 0, 0.5);
@@ -197,6 +197,31 @@
   --oznamText: #f4f4f6;
 
   color-scheme: dark;
+}
+
+/* Tmavý režim: za kartami je jemne matný prechod limetková → čierna. Drží sa obrazovky (neposúva sa
+   so stránkou), karty na ňom ostávajú plné, aby sa text čítal. Zrno robí z prechodu „matný" povrch. */
+:root[data-tema='tmavy'] body { background: #0b0c0a; }
+:root[data-tema='tmavy'] body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(95% 42% at 18% 30%, rgba(200, 242, 92, 0.5), transparent 68%),
+    radial-gradient(80% 40% at 105% 62%, rgba(200, 242, 92, 0.34), transparent 68%),
+    radial-gradient(110% 42% at 0% 102%, rgba(200, 242, 92, 0.46), transparent 66%),
+    radial-gradient(120% 30% at 60% -8%, rgba(200, 242, 92, 0.2), transparent 70%);
+}
+:root[data-tema='tmavy'] body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  opacity: 0.1;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='z'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.6 0'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23z)'/%3E%3C/svg%3E");
 }
 
 /* ── 2. Základ a písmo ────────────────────────────────────────── */
@@ -257,8 +282,8 @@ h1, h2, h3 { font-family: var(--font-nadpis); font-weight: 700; letter-spacing: 
   margin: 0 -28px 22px;
   padding: 20px 28px 14px;
   background: var(--skloHlavicka);
-  -webkit-backdrop-filter: blur(18px) saturate(1.4);
-  backdrop-filter: blur(18px) saturate(1.4);
+  -webkit-backdrop-filter: blur(18px);
+  backdrop-filter: blur(18px);
   position: sticky;
   top: 0;
   z-index: 5;
@@ -2496,7 +2521,9 @@ details.skladaci > summary:focus-visible { outline: 2px solid var(--fokus); outl
 
   /* Záložky v rovnakej mriežke (po dve v riadku) – posúvaním do strany by sa posledná ľahko
      prehliadla a pri voľnom zalamovaní boli rozhádzané. */
-  .taby { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); width: 100%; overflow: visible; border-radius: 999px; }
+  /* Záložky v dvoch riadkoch: dráha má zaoblenie o svoj okraj (4 px) väčšie než pilulka v nej – inak rohy nesedia. */
+  .taby { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); width: 100%; overflow: visible; border-radius: 26px; }
+  .taby button { border-radius: 22px; }
   .taby button { display: flex; align-items: center; justify-content: space-between; min-height: 44px; padding: 6px 12px; text-align: left; }
 
   /* Vysúvacie menu: celá výška obrazovky a zoznam stránok bez vlastného posúvania – na nízkom
