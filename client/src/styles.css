@@ -182,8 +182,11 @@
 
   --oparA: rgba(200, 242, 92, 0.1);
   --oparB: rgba(120, 140, 255, 0.12);
-  --skloHlavicka: rgba(11, 12, 10, 0.04);
-  --skloLista: rgba(30, 30, 34, 0.86);
+  --skloHlavicka: rgba(11, 12, 10, 0.62);
+  /* Tmavý podklad pod text, ktorý by inak sedel priamo na farebnom prechode pozadia. */
+  --podkladTextu: rgba(11, 12, 10, 0.86);
+  /* Takmer plná – lišta leží nad najsvetlejším (limetkovým) rohom pozadia. */
+  --skloLista: rgba(26, 26, 29, 0.94);
 
   --shadow-vyber: 0 1px 3px rgba(0, 0, 0, 0.5);
   --shadow-lista: 0 12px 32px rgba(0, 0, 0, 0.55);
@@ -220,6 +223,63 @@
   pointer-events: none;
   opacity: 0.1;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='z'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.6 0'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23z)'/%3E%3C/svg%3E");
+}
+
+/* Text nesmie sedieť priamo na prechode – v jeho limetkovej časti by sa nedal čítať a stránka sa
+   posúva, takže by tam skôr či neskôr prišiel. Voľné riadky (súhrn nad zoznamom, poznámka pod
+   tabuľkou, filtre, hlavička sprievodcu) preto dostanú tmavý podklad. Stráži to `npm run overenie`. */
+:root[data-tema='tmavy'] .suhrn-zoznamu,
+:root[data-tema='tmavy'] .obsah > .tlmene,
+:root[data-tema='tmavy'] .obsah > .napoveda,
+:root[data-tema='tmavy'] .obsah > .nacitava,
+:root[data-tema='tmavy'] .obsah > .prazdne,
+:root[data-tema='tmavy'] .filtre,
+:root[data-tema='tmavy'] .sprievodca-hlava {
+  background: var(--podkladTextu);
+  border-radius: 18px;
+  padding: 10px 14px;
+}
+:root[data-tema='tmavy'] .suhrn-zoznamu,
+:root[data-tema='tmavy'] .obsah > .tlmene,
+:root[data-tema='tmavy'] .obsah > .napoveda { width: fit-content; max-width: 100%; margin-top: 0; }
+:root[data-tema='tmavy'] .obsah > .nacitava,
+:root[data-tema='tmavy'] .obsah > .prazdne { width: fit-content; margin: 40px auto; padding: 12px 18px; }
+:root[data-tema='tmavy'] .filtre { padding: 12px 14px 14px; }
+/* Súhrn faktúr v jednom riadku je nízka pilulka – ostáva jedným riadkom aj s päťcifernými sumami. */
+:root[data-tema='tmavy'] .suhrn-zoznamu.jeden-riadok { padding: 4px 12px; border-radius: 999px; }
+/* Lepkavá hlavička: tmavé sklo, ktoré sa dole stráca – bez ostrej hrany cez prechod. Sklo je na
+   vlastnej vrstve, aby maska neorezala ponuku ⋮, ktorá z hlavičky vyčnieva. */
+:root[data-tema='tmavy'] .hlavicka { background: none; -webkit-backdrop-filter: none; backdrop-filter: none; }
+:root[data-tema='tmavy'] .hlavicka::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: var(--skloHlavicka);
+  -webkit-backdrop-filter: blur(18px);
+  backdrop-filter: blur(18px);
+  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 14px), transparent);
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 14px), transparent);
+}
+:root[data-tema='tmavy'] .ai-stranka .hlavicka::before { display: none; }
+@media (min-width: 821px) {
+  /* Bočné menu na počítači siaha až dole, kde je prechod svetlejší – jemný tmavý podklad drží kontrast. */
+  :root[data-tema='tmavy'] .sidebar { background: rgba(11, 12, 10, 0.5); }
+}
+@media (max-width: 820px) {
+  /* Na telefóne majú zoznamy nadpis mimo karty – v tmavom režime ho aj s kartami drží tmavá „tácka". */
+  :root[data-tema='tmavy'] .panel.tesny:has(> .zoznam-zaznamov),
+  :root[data-tema='tmavy'] .panel.tesny:has(table[data-karty]) {
+    background: var(--podkladTextu);
+    padding: 10px 8px 8px;
+    border-radius: calc(var(--r-karta) + 8px);
+  }
+  :root[data-tema='tmavy'] .panel.tesny:has(> .zoznam-zaznamov) > .hlavicka-karty { padding: 4px 8px 12px; }
+  :root[data-tema='tmavy'] .ai-stranka .ai-chat { background: var(--panel); border-radius: var(--r-karta); }
+}
+@media print {
+  :root[data-tema='tmavy'] body::before, :root[data-tema='tmavy'] body::after { display: none; }
 }
 
 /* ── 2. Základ a písmo ────────────────────────────────────────── */
@@ -433,7 +493,8 @@ h1, h2, h3 { font-family: var(--font-nadpis); font-weight: 700; letter-spacing: 
   gap: 5px;
   border: none;
   background: none;
-  color: var(--ink3);
+  /* Na sivej dráhe by svetlejšia sivá nemala dosť kontrastu. */
+  color: var(--ink2);
   padding: 6px 4px;
   font-size: 13px;
   font-weight: 600;
@@ -2203,7 +2264,7 @@ details.skladaci > summary:focus-visible { outline: 2px solid var(--fokus); outl
 @media (max-height: 820px) {
   .sidebar { padding: 10px 10px 8px; }
   .sidebar .logo { padding: 0 10px 8px; font-size: 16px; }
-  .sidebar .skupina-menu { padding: 7px 11px 2px; font-size: 10.5px; }
+  .sidebar .skupina-menu { padding: 6px 11px 2px; }
   .sidebar a, .sidebar .odhlasit { padding: 4px 11px; font-size: 14px; line-height: 1.35; }
   .sidebar-menu { gap: 0; }
   .sidebar-spodok { padding-top: 6px; }

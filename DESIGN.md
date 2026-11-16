@@ -121,7 +121,14 @@ Každá farba má jednu úlohu – farba vždy niečo znamená, nie je ozdoba:
 - **Grafy:** hlavný rad vo farbe `--graf` (tmavá vo svetlom režime, limetková v tmavom), druhý rad
   sivý `--grafDruhy`. Porovnanie kategórií je zoradený zoznam s pruhom, nie koláčový graf –
   kategórie tak nepotrebujú desať rôznych farieb.
-- Kontrast aspoň AA v svetlom aj tmavom režime (kontroluje `npm run overenie`).
+- **Pozadie v tmavom režime** je jemne matný prechod po uhlopriečke: čierna vľavo hore → limetková
+  vpravo dole (želanie používateľa, november 2026; `body::before` v `styles.css`). Karty na ňom
+  ostávajú plné. **Text nikdy nesedí priamo na prechode** – v limetkovej časti by sa nedal čítať.
+  Voľné riadky (súhrn nad zoznamom, poznámka pod tabuľkou, filtre) majú tmavý podklad
+  `--podkladTextu`, zoznam s nadpisom mimo karty má na telefóne tmavú „tácku". Výnimkou je lepkavá
+  hlavička, ktorá sa drží hore v tmavej časti. Svetlý režim má len jemný opar navrchu.
+- Kontrast aspoň AA v svetlom aj tmavom režime (kontroluje `npm run overenie` – v tmavom režime
+  meria text aj voči farbe prechodu pod ním a hlási text, ktorý ostal „priamo na prechode").
 
 ## Ovládanie
 

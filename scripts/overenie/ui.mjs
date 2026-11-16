@@ -170,16 +170,39 @@ await js(`localStorage.setItem('zivnostapp-tema', '${TEMA}'); true`)
 const MERANIE = `(() => {
   const rgba = (s) => { const c = (s.match(/[\\d.]+/g) || []).map(Number); return [c[0] ?? 0, c[1] ?? 0, c[2] ?? 0, c[3] ?? 1] }
   const zloz = (hore, dole) => [0, 1, 2].map((i) => hore[i] * hore[3] + dole[i] * (1 - hore[3]))
-  const pozadie = (el) => {
+  // Tmavý režim má za kartami farebný prechod (styles.css: body::before). Z backgroundColor ho nevidno,
+  // preto sa jeho farba pod daným bodom obrazovky dopočíta zo zápisu prechodu.
+  const prechod = (() => {
+    const obr = getComputedStyle(document.body, '::before').backgroundImage || ''
+    const uhol = obr.match(/linear-gradient\\(([\\d.]+)deg/)
+    const zast = [...obr.matchAll(/rgba?\\(([^)]+)\\)\\s+([\\d.]+)%/g)].map((m) => ({ c: m[1].split(',').map(Number).slice(0, 3), t: Number(m[2]) / 100 }))
+    if (!uhol || zast.length < 2) return null
+    const a = Number(uhol[1]) * Math.PI / 180
+    const W = innerWidth, H = innerHeight
+    const dlzka = Math.abs(W * Math.sin(a)) + Math.abs(H * Math.cos(a))
+    return (x, y) => {
+      x = Math.min(W, Math.max(0, x)); y = Math.min(H, Math.max(0, y))
+      const t = Math.min(1, Math.max(0, ((x - W / 2) * Math.sin(a) - (y - H / 2) * Math.cos(a)) / dlzka + 0.5))
+      const i = zast.findIndex((z) => z.t >= t)
+      if (i <= 0) return zast[i === 0 ? 0 : zast.length - 1].c
+      const p = zast[i - 1], q = zast[i], f = (t - p.t) / (q.t - p.t)
+      return [0, 1, 2].map((k) => p.c[k] + (q.c[k] - p.c[k]) * f)
+    }
+  })()
+  // Podklady, na ktorých text leží: bez prechodu jeden, s prechodom farba pod každým rohom textu.
+  // „krytie" hovorí, nakoľko je text od prechodu oddelený kartou alebo tmavým podkladom.
+  const pozadia = (el, r) => {
     const vrstvy = []
-    for (let e = el; e; e = e.parentElement) vrstvy.push(rgba(getComputedStyle(e).backgroundColor))
-    return vrstvy.reverse().reduce((spodok, v) => zloz(v, spodok), [255, 255, 255])
+    for (let e = el; e && !(prechod && e === document.body); e = e.parentElement) vrstvy.push(rgba(getComputedStyle(e).backgroundColor))
+    vrstvy.reverse()
+    const spodky = prechod ? [[r.left, r.top], [r.right, r.top], [r.left, r.bottom], [r.right, r.bottom]].map(([x, y]) => prechod(x, y)) : [[255, 255, 255]]
+    return { pody: spodky.map((s) => vrstvy.reduce((spodok, v) => zloz(v, spodok), s)), krytie: 1 - vrstvy.reduce((p, v) => p * (1 - v[3]), 1) }
   }
   const jas = (c) => { const [r, g, b] = c.map((v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4) }); return 0.2126 * r + 0.7152 * g + 0.0722 * b }
   const slabe = []
   let najmensie = 99
   let najmensieKde = ''
-  for (const el of document.querySelectorAll('.obsah *, .spodne-menu *')) {
+  for (const el of document.querySelectorAll('.obsah *, .spodne-menu *, .sidebar *')) {
     const text = [...el.childNodes].filter((n) => n.nodeType === 3).map((n) => n.textContent.trim()).join('')
     if (text.length < 2) continue
     const r = el.getBoundingClientRect()
@@ -189,12 +212,16 @@ const MERANIE = `(() => {
     if (cs.visibility === 'hidden') continue
     const px = parseFloat(cs.fontSize)
     if (px < najmensie) { najmensie = px; najmensieKde = el.className || el.tagName }
-    const pod = pozadie(el)
-    const farba = zloz(rgba(cs.color), pod)
-    const [a, b] = [jas(farba), jas(pod)].sort((x, y) => y - x)
-    const pomer = (a + 0.05) / (b + 0.05)
+    const { pody, krytie } = pozadia(el, r)
+    const pomer = Math.min(...pody.map((pod) => {
+      const [a, b] = [jas(zloz(rgba(cs.color), pod)), jas(pod)].sort((x, y) => y - x)
+      return (a + 0.05) / (b + 0.05)
+    }))
     const velky = px >= 24 || (px >= 18.66 && Number(cs.fontWeight) >= 700)
     if (pomer < (velky ? 3 : 4.5)) slabe.push(text.slice(0, 30) + ' (' + pomer.toFixed(2) + ')')
+    // Obsah stránky sa posúva – text bez podkladu by skôr či neskôr prešiel svetlou časťou prechodu.
+    // Hlavička sa drží hore v tmavej časti, tú stačí zmerať tam, kde je.
+    else if (prechod && krytie < 0.8 && el.closest('.obsah') && !el.closest('.hlavicka')) slabe.push(text.slice(0, 30) + ' (priamo na prechode)')
   }
   const pretekajuce = [...document.querySelectorAll('.obsah *')]
     .filter((e) => ['auto', 'scroll'].includes(getComputedStyle(e).overflowX) && e.scrollWidth > e.clientWidth + 1)
