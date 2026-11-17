@@ -691,6 +691,16 @@ t.over(
 )
 await nastav('.hladanie-pole', '')
 
+t.sekcia('Uloženie faktúry')
+await otvor(`/faktury/${idFaktur[0]}`)
+await klik('.lepkave-akcie .primar')
+await pockaj(() => js(`location.pathname === '/faktury'`), 8000)
+t.over(
+  'po uložení appka povie druh dokladu a jeho číslo',
+  await js(`[...document.querySelectorAll('.oznamy .oznam')].map((o) => o.textContent.trim()).find((x) => x.includes('je uložená')) ?? null`),
+  `Faktúra ${(await api('GET', `/faktury/${idFaktur[0]}`)).d.cislo} je uložená.`,
+)
+
 t.sekcia('Otázky vo vlastnom okne')
 await otvor('/faktury/nova')
 await js(`(() => { const e = document.querySelector('.obsah input:not([type=date])'); e.focus(); e.select?.(); return true })()`)

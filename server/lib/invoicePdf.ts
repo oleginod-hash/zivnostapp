@@ -597,6 +597,7 @@ export async function fakturaPdfPodlaId(id: number | string): Promise<{ pdf: Buf
   const nastavenia = db.prepare('SELECT * FROM settings WHERE id = 1').get() as Record<string, any>
 
   const pdf = await vytvorFakturuPdf(f, polozky, firma, nastavenia)
-  const predpona = f.typ === 'zaloha' ? 'Zalohova-faktura' : 'Faktura'
-  return { pdf, nazov: `${predpona}-${String(f.cislo).replace(/[^\w.-]/g, '_')}.pdf` }
+  // Názov súboru povie, čo to je: „Faktúra 2026005.pdf" / „Zálohová faktúra 3026001.pdf".
+  const druh = f.typ === 'zaloha' ? 'Zálohová faktúra' : 'Faktúra'
+  return { pdf, nazov: `${druh} ${String(f.cislo).replace(/[\\/:*?"<>|]/g, '_')}.pdf` }
 }

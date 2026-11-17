@@ -380,7 +380,7 @@ invoicesRouter.post('/', (req, res) => {
 
   try {
     const id = vloz()
-    res.json({ id: Number(id) })
+    res.json({ id: Number(id), cislo })
   } catch (e: any) {
     res.status(400).json({ chyba: e.message })
   }
@@ -570,7 +570,8 @@ invoicesRouter.get('/:id/pdf', async (req, res) => {
     res.setHeader('Content-Type', 'application/pdf')
     res.setHeader(
       'Content-Disposition',
-      `${req.query.stiahnut === '1' ? 'attachment' : 'inline'}; filename="${v.nazov}"`,
+      // Hlavička smie niesť len ASCII – názov s diakritikou ide cez filename*, starým programom stačí bez nej.
+      `${req.query.stiahnut === '1' ? 'attachment' : 'inline'}; filename="${v.nazov.normalize('NFD').replace(/[^\x20-\x7e]/g, '')}"; filename*=UTF-8''${encodeURIComponent(v.nazov)}`,
     )
     res.send(v.pdf)
   } catch (e: any) {

@@ -437,8 +437,15 @@ export function FakturaEdit() {
         tour_id: form!.tour_id || null,
         order_id: form!.order_id || null,
       }
-      if (novaFaktura) await api.post<{ id: number }>('/faktury', telo)
-      else await api.put('/faktury/' + id, telo)
+      // Po uložení appka povie, čo presne sa uložilo – druh dokladu a jeho číslo.
+      const druh = form!.typ === 'zaloha' ? 'Zálohová faktúra' : 'Faktúra'
+      if (novaFaktura) {
+        const nova = await api.post<{ id: number; cislo: string }>('/faktury', telo)
+        oznam(`${druh} ${nova.cislo} je vytvorená.`)
+      } else {
+        await api.put('/faktury/' + id, telo)
+        oznam(`${druh} ${form!.cislo} je uložená.`)
+      }
       oznacUlozene()
       navigate('/faktury')
     } catch (e: any) {

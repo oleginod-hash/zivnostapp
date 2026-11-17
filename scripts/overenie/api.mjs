@@ -490,6 +490,18 @@ const naUpomienku = (await api('GET', '/mail/po-splatnosti')).d
 t.over('na upomienku je len skutočný dlh (bez zálohovej)', naUpomienku.map((x) => [x.id, x.otvoreny_zostatok]), [[f2, 500]])
 const pdf = await api('GET', `/faktury/${f1}/pdf`)
 t.over('PDF faktúry sa vytvorí', [pdf.stav, pdf.typ.startsWith('application/pdf'), pdf.d.subarray(0, 5).toString()], [200, true, '%PDF-'])
+{
+  const cisloF1 = (await api('GET', `/faktury/${f1}`)).d.cislo
+  const hlavicka = (await fetch(`http://localhost:${PORT}/api/faktury/${f1}/pdf?stiahnut=1`)).headers.get('content-disposition')
+  t.over(
+    'stiahnuté PDF sa volá podľa druhu a čísla („Faktúra 2026…pdf"), aj bez diakritiky pre staré programy',
+    [hlavicka.includes(`filename*=UTF-8''${encodeURIComponent(`Faktúra ${cisloF1}.pdf`)}`), hlavicka.includes(`filename="Faktura ${cisloF1}.pdf"`)],
+    [true, true],
+  )
+  const nova = (await api('POST', '/faktury', { typ: 'zaloha', polozky: [{ popis: 'Skúška čísla', mnozstvo: 1, cena: 10 }] })).d
+  t.over('nová faktúra vráti aj svoje číslo (appka ho ukáže po uložení)', [typeof nova.cislo, nova.cislo === (await api('GET', `/faktury/${nova.id}`)).d.cislo], ['string', true])
+  await api('DELETE', `/faktury/${nova.id}`)
+}
 
 // ── Výpis z banky ─────────────────────────────────────────────
 // Vymyslený výpis tak, ako ho exportujú slovenské banky: windows-1250,
